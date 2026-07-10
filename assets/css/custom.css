@@ -1,0 +1,65 @@
+#section-resume-biography-3 .avatar-wrapper {
+  width: min(240px, 70vw) !important;
+  height: auto !important;
+  aspect-ratio: 5 / 7;
+}
+
+#section-resume-biography-3 .avatar {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  background: #fff;
+}
+
+#section-resume-biography-3 a[href*="xiaohongshu.com"] {
+  color: #ff2442;
+}
+
+#section-resume-biography-3 a[href="#wechat-copy"] {
+  color: #07c160;
+}
+
+#section-resume-biography-3 a[href*="xiaohongshu.com"] svg,
+#section-resume-biography-3 a[href="#wechat-copy"] svg {
+  fill: currentColor;
+}
+
+.pub-list-item.view-citation {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr);
+  gap: 0.4rem;
+}
+
+.publication-number {
+  font-weight: 700;
+  text-align: right;
+}
+
+a[href="https://hugoblox.com"][target="_blank"] {
+  display: none !important;
+}
+
+.wechat-copy-toast {
+  position: fixed;
+  z-index: 100;
+  left: 50%;
+  bottom: 1.5rem;
+  max-width: calc(100vw - 2rem);
+  transform: translate(-50%, 1rem);
+  padding: 0.7rem 1rem;
+  border: 1px solid color-mix(in srgb, #07c160 35%, transparent);
+  border-radius: 6px;
+  background: #101814;
+  color: #fff;
+  font: 600 0.875rem/1.3 ui-sans-serif, sans-serif;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 20%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.wechat-copy-toast.is-visible {
+  transform: translate(-50%, 0);
+  opacity: 1;
+}

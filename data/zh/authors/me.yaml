@@ -1,0 +1,99 @@
+schema: hugoblox/author/v1
+slug: me
+is_owner: true
+name:
+  display: 楼锦程
+  given: 锦程
+  family: 楼
+  alternate: Jincheng Lou
+  pronunciation: ''
+  pronouns: ''
+postnominals: []
+role: ChipBagel 创始人兼 CEO
+bio: |
+  **楼锦程，ChipBagel 创始人兼 CEO。** 北京大学 / Agent 领域连续创业者 /
+  EDA & 芯片经验。北京大学集成电路学院博士生、硕士，师从林亦波教授；
+  现任学院双创委员、团委副书记（学生最高职位），同时担任东北大学校友导师，
+  曾任北京大学创新学社副会长。
+
+  已发表或在投领域顶级会议论文 10 篇，获 ICCAD 与 ISEDA 最佳论文提名奖。
+  曾在独角兽 AI 芯片公司负责 NPU 算法设计与优化，多次参与 22 nm 至 28 nm
+  工艺流片。曾获“复微杯”全国第二名、EDA 精英挑战赛企业特别奖/全国二等奖、
+  全国大学生智能汽车竞赛全国一等奖、北京大学挑战杯一等奖等三十余项国家、
+  省、市级奖项。
+
+  曾创办天使轮 Agent 硬件公司 Takway.AI，并在 CES 获多国头部媒体报道；
+  是千星开源项目 AutoResearch 的 contributor。此前参与研发的机器人已落地
+  上海交通大学闵行校区图书馆主馆。
+
+affiliations:
+  - name: 博士生 · 北京大学集成电路学院
+    url: https://ic.pku.edu.cn/
+
+links:
+  - icon: at-symbol
+    url: mailto:jinchenglou@stu.pku.edu.cn
+    label: 邮箱
+  - icon: brands/github
+    url: https://github.com/loujc
+    label: GitHub
+  - icon: custom/xiaohongshu
+    url: https://www.xiaohongshu.com/user/profile/5d0633be00000000120358b6
+    label: 小红书
+  - icon: custom/wechat
+    url: '#wechat-copy'
+    label: 微信
+
+interests:
+  - Agentic EDA
+  - 芯片设计大模型
+  - 多模态电路理解
+  - AI 芯片与软硬件协同
+
+education: []
+
+experience:
+  - role: 创始人兼 CEO
+    org: ChipBagel
+    start: 2026-01-01
+    summary: |
+      聚焦 AI Agent、EDA 与芯片设计的交叉方向。
+    icon: hero/briefcase
+  - role: 博士研究生
+    org: 北京大学 · 集成电路科学与工程
+    start: 2024-09-01
+    summary: |
+      师从林亦波副教授，研究方向为 Agentic EDA。
+    icon: hero/academic-cap
+  - role: 联合创始人兼 CEO
+    org: Takway.AI
+    start: 2023-12-01
+    end: 2024-07-31
+    summary: |
+      创办面向 AI 硬件产品的 LLM+硬件公司，负责硬件、产品、融资与团队招募，获得天使轮投资与孵化支持。
+    icon: hero/briefcase
+  - role: 集成电路工程硕士
+    org: 北京大学
+    start: 2021-09-01
+    end: 2024-06-30
+    summary: |
+      导师为马宇飞研究员、叶乐，研究方向为 AI 算法硬件友好化与软硬件协同设计。
+    icon: hero/academic-cap
+  - role: 机器人实习生
+    org: 上海飒智智能科技有限公司
+    start: 2020-12-01
+    end: 2021-02-28
+    summary: |
+      开发 Gazebo 仿真环境和 ROS 1 接口，并独立设计核心板与继电器模块；相关机器人落地上海交通大学闵行校区图书馆主馆。
+    icon: hero/briefcase
+  - role: 自动化（A+）学士
+    org: 东北大学
+    start: 2017-09-01
+    end: 2021-06-30
+    summary: |
+      GPA 3.685/5.0，专业排名 1/131，获得推免资格（前 5%）。
+    icon: hero/academic-cap
+
+skills: []
+languages: []
+awards: []

@@ -1,12 +1,12 @@
 {
-  "name": "hugo-blox-academic-cv-starter",
+  "name": "loujc-academic-homepage",
   "version": "1.0.0",
   "private": true,
   "packageManager": "pnpm@10.14.0",
-  "description": "Academic CV starter template for Hugo Blox with Tailwind CSS v4",
+  "description": "Jincheng Lou's academic homepage built with HugoBlox",
   "scripts": {
     "dev": "hugo server --disableFastRender",
-    "build": "hugo --minify && pnpm run pagefind",
+    "build": "hugo --cleanDestinationDir --minify && pnpm run pagefind",
     "pagefind": "pagefind --site public"
   },
   "dependencies": {

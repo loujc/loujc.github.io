@@ -2,115 +2,108 @@ schema: hugoblox/author/v1
 slug: me
 is_owner: true
 name:
-  display: Dr. Alex Johnson
-  given: Alex
-  family: Johnson
-  alternate: ''  # Example: 王伟
-  pronunciation: ''  # Example: Wáng Wěi
-  pronouns: he/him
-postnominals:
-  - PhD
-  - MIEEE
-status:
-  icon: "☕️"
-role: Senior AI Research Scientist
+  display: Jincheng Lou
+  given: Jincheng
+  family: Lou
+  alternate: '楼锦程'
+  pronunciation: ''
+  pronouns: ''
+postnominals: []
+role: ChipBagel Founder & CEO
 bio: |
-  Alex Johnson is a Senior AI Research Scientist at Meta AI. His research
-  has been published in top conferences like NeurIPS and ICML, with over
-  10,000 citations. Alex is passionate about pushing the boundaries of AI
-  while ensuring ethical development.
+  **Jincheng Lou is the Founder & CEO of ChipBagel**, a serial entrepreneur in
+  AI agents with experience spanning EDA and chip design. He is a Ph.D.
+  candidate at Peking University's School of Integrated Circuits, advised by
+  Prof. Yibo Lin. He serves on the School's Innovation and Entrepreneurship
+  Committee and as Deputy Secretary of its Youth League Committee, the highest
+  student leadership position. He is also a Northeastern University alumni
+  mentor and previously served as Vice President of the Peking University
+  Innovation Society.
+
+  He has authored or co-authored 10 papers published or under review at leading
+  conferences in the field, including Best Paper Nominations at ICCAD and
+  ISEDA. He previously worked on NPU algorithm design and optimization at a
+  unicorn AI-chip company and participated in multiple 22 nm to 28 nm tapeouts.
+  His honors include the national runner-up award in the Fuwei Cup, the
+  Enterprise Special Award and National Second Prize in the EDA Elite
+  Challenge, a National First Prize in the National College Intelligent Car
+  Competition, and a First Prize in the Peking University Challenge Cup, among
+  more than 30 national, provincial, and municipal awards.
+
+  Before ChipBagel, he founded the angel-funded agent-hardware company
+  Takway.AI, which received coverage from leading international media at CES.
+  He is a contributor to the thousand-star AutoResearch repository. His earlier
+  robotics work was deployed in the main library at Shanghai Jiao Tong
+  University's Minhang campus.
 
 affiliations:
-  - name: Meta AI
-    url: https://ai.meta.com/
+  - name: Ph.D. Candidate · School of Integrated Circuits, Peking University
+    url: https://ic.pku.edu.cn/
 
 links:
   - icon: at-symbol
-    url: mailto:alex.johnson@example.com
-    label: E-mail Me
-  - icon: brands/x
-    url: https://x.com/example
+    url: mailto:jinchenglou@stu.pku.edu.cn
+    label: Email
   - icon: brands/github
-    url: https://github.com/example
-  - icon: brands/linkedin
-    url: https://www.linkedin.com/in/example/
-  - icon: academicons/google-scholar
-    url: https://scholar.google.com/citations?user=example
-  - icon: academicons/orcid
-    url: https://orcid.org/0000-0002-1825-0097
+    url: https://github.com/loujc
+    label: GitHub
+  - icon: custom/xiaohongshu
+    url: https://www.xiaohongshu.com/user/profile/5d0633be00000000120358b6
+    label: Xiaohongshu
+  - icon: custom/wechat
+    url: '#wechat-copy'
+    label: WeChat
 
 interests:
-  - Large Language Models
-  - Computer Vision
-  - Reinforcement Learning
-  - AI Ethics
+  - Agentic EDA
+  - LLMs for Chip Design
+  - Multimodal Circuit Intelligence
+  - Hardware-Efficient AI
 
-education:
-  - degree: PhD Computer Science
-    institution: Stanford University
-    start: 2015-09-01
-    end: 2019-06-30
-    summary: |
-      Thesis on scaling laws for neural language models. Published 5 papers in NeurIPS and ICML.
-    button:
-      text: Download dissertation
-      url: /resume.pdf
-      icon: hero/arrow-down-tray
-  - degree: MS Computer Science
-    institution: Carnegie Mellon University
-    start: 2013-09-01
-    end: 2015-05-31
-  - degree: BS Computer Science
-    institution: MIT
-    start: 2009-09-01
-    end: 2013-05-31
+education: []
 
 experience:
-  - role: Senior AI Research Scientist
-    org: Meta AI
-    start: 2020-01-01
+  - role: Founder & CEO
+    org: ChipBagel
+    start: 2026-01-01
     summary: |
-      Leading research on multimodal AI systems. Contributed to Llama 2 and other open-source models.
-    button:
-      text: View portfolio
-      url: /
-      icon: hero/arrow-down-tray
-  - role: AI Research Intern
-    org: OpenAI
-    start: 2019-06-01
-    end: 2019-12-31
+      Building at the intersection of AI agents, EDA, and chip design.
+    icon: hero/briefcase
+  - role: Ph.D. Candidate
+    org: Integrated Circuit Science and Engineering, Peking University
+    start: 2024-09-01
     summary: |
-      Worked on GPT-3 scaling. Co-authored paper on prompt engineering.
+      Advised by Prof. Yibo Lin. Research focus: Agentic EDA.
+    icon: hero/academic-cap
+  - role: Co-founder & CEO
+    org: Takway.AI
+    start: 2023-12-01
+    end: 2024-07-31
+    summary: |
+      Co-founded an LLM-plus-hardware startup for interactive AI products. Led hardware, product, fundraising, and recruiting; secured angel investment and incubation support.
+    icon: hero/briefcase
+  - role: M.Eng. in Integrated Circuit Engineering
+    org: Peking University
+    start: 2021-09-01
+    end: 2024-06-30
+    summary: |
+      Advised by Prof. Yufei Ma and Prof. Le Ye. Researched hardware-friendly AI algorithms and hardware/software co-design.
+    icon: hero/academic-cap
+  - role: Robotics Intern
+    org: Shanghai Sazhi Intelligent Technology
+    start: 2020-12-01
+    end: 2021-02-28
+    summary: |
+      Built a Gazebo simulation environment and ROS 1 interfaces for deployed service robots. Independently designed a controller board and relay module.
+    icon: hero/briefcase
+  - role: B.Eng. in Automation (A+)
+    org: Northeastern University
+    start: 2017-09-01
+    end: 2021-06-30
+    summary: |
+      GPA: 3.685/5.0, ranked 1/131; recommended for postgraduate admission (top 5%).
+    icon: hero/academic-cap
 
-skills:
-  - name: Technical Skills
-    items:
-      - label: Python
-        level: 5
-      - label: Machine Learning
-        level: 5
-      - label: Cloud Computing
-        level: 4
-  - name: Research & Communication
-    items:
-      - label: Academic Writing
-        level: 5
-      - label: Conference Presentations
-        level: 4
-      - label: Grant Proposals
-        level: 4
-
-languages:
-  - name: English
-    level: 5
-    label: Native
-  - name: Spanish
-    level: 4
-    label: Fluent
-
-awards:
-  - title: Best Paper Award
-    awarder: NeurIPS
-    date: "2022-12-01"
-    summary: Awarded for groundbreaking work on efficient training of large models.
-    icon: hero/trophy
+skills: []
+languages: []
+awards: []

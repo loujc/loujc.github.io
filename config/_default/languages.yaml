@@ -1,22 +1,52 @@
-# Languages
-#   Create a section for each of your site's languages.
-#   Documentation: https://docs.hugoblox.com/reference/language/
-
-# Default language
+# English is served at the root; Simplified Chinese is served under /zh/.
 en:
+  label: English
   locale: en-us
-  # Uncomment for multi-lingual sites, and move English content into `en` sub-folder.
-  #contentDir: content/en
+  contentDir: content/en
+  weight: 1
+  menu:
+    main:
+      - name: About
+        url: /
+        weight: 10
+      - name: Experience
+        url: /#experience
+        weight: 20
+      - name: Publications
+        url: /#publications
+        weight: 30
+      - name: Projects
+        url: /#projects
+        weight: 40
+      - name: CV
+        url: /uploads/cv.pdf
+        weight: 50
 
-# Uncomment the lines below to configure your website in a second language.
-#zh:
-#  locale: zh-Hans
-#  contentDir: content/zh
-#  title: Chinese website title...
-#  params:
-#    description: Site description in Chinese...
-#  menu:
-#    main:
-#      - name: 传
-#        url: '#about'
-#        weight: 1
+zh:
+  label: 中文
+  locale: zh-Hans
+  contentDir: content/zh
+  title: 楼锦程
+  weight: 2
+  params:
+    hugoblox:
+      identity:
+        name: 楼锦程
+        description: 楼锦程，ChipBagel 创始人兼 CEO，北京大学集成电路学院博士生，研究方向为 Agentic EDA 与 AI 芯片设计。
+  menu:
+    main:
+      - name: 关于
+        url: /
+        weight: 10
+      - name: 经历
+        url: /#experience
+        weight: 20
+      - name: 论文
+        url: /#publications
+        weight: 30
+      - name: 项目
+        url: /#projects
+        weight: 40
+      - name: 简历
+        url: /uploads/cv.pdf
+        weight: 50

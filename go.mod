@@ -1,4 +1,4 @@
-module github.com/HugoBlox/kit/templates/academic-cv
+module github.com/loujc/loujc.github.io
 
 go 1.19
 
