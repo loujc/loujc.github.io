@@ -1,6 +1,6 @@
 ---
 title: Publications
-summary: Published, accepted, and under-review papers in EDA and AI hardware.
+summary: Published and accepted papers in EDA and AI hardware.
 cms_exclude: true
 
 # View.
