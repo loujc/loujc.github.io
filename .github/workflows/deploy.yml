@@ -4,6 +4,9 @@ on:
   # Trigger the workflow every time you push to the `main` branch
   push:
     branches: ['main']
+  # Pull secret calendar feeds and refresh anonymous occupied intervals hourly.
+  schedule:
+    - cron: '17 * * * *'
   # Allows you to run this workflow manually from the Actions tab on GitHub
   workflow_dispatch:
 
@@ -20,7 +23,7 @@ concurrency:
 jobs:
   # Check deployment configuration
   config:
-    if: github.repository_owner != 'HugoBlox'
+    if: github.repository_owner != 'HugoBlox' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
       deploy-host: ${{ steps.check.outputs.host }}
@@ -62,7 +65,13 @@ jobs:
     needs: config
     if: github.repository_owner != 'HugoBlox'
     uses: ./.github/workflows/build.yml
-    secrets: inherit
+    secrets:
+      CALENDAR_ICS_URL_1: ${{ secrets.CALENDAR_ICS_URL_1 }}
+      CALENDAR_ICS_URL_2: ${{ secrets.CALENDAR_ICS_URL_2 }}
+      CALENDAR_ICS_URL_3: ${{ secrets.CALENDAR_ICS_URL_3 }}
+      CALENDAR_ICS_URL_4: ${{ secrets.CALENDAR_ICS_URL_4 }}
+      CALENDAR_ICS_URL_5: ${{ secrets.CALENDAR_ICS_URL_5 }}
+      CALENDAR_ICS_URL_6: ${{ secrets.CALENDAR_ICS_URL_6 }}
 
   # Deploy website to GitHub Pages hosting (only if configured)
   deploy:

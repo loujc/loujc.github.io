@@ -19,6 +19,19 @@ Build the production site with:
 pnpm build
 ```
 
+## Privacy-preserving availability
+
+The public availability calendar is refreshed by GitHub Actions directly from
+six secret iCalendar feed URLs. The Mac does not need to be awake or online.
+Feeds are fetched into memory, reduced to rounded and merged occupied
+`start`/`end` intervals, and discarded before the public site artifact is
+created. Titles, locations, notes, attendees, organizers, event identifiers,
+and subscription URLs are never written to the site.
+
+See [`docs/calendar-server-sync.md`](docs/calendar-server-sync.md) for the
+server-side sync model, secret feed setup, failure behavior, and privacy
+boundary.
+
 ## Content
 
 - English content: `content/en/`

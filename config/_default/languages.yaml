@@ -12,6 +12,9 @@ en:
       - name: Experience
         url: /#experience
         weight: 20
+      - name: Availability
+        url: /#availability
+        weight: 25
       - name: Publications
         url: /#publications
         weight: 30
@@ -41,6 +44,9 @@ zh:
       - name: 经历
         url: /#experience
         weight: 20
+      - name: 空闲时间
+        url: /#availability
+        weight: 25
       - name: 论文
         url: /#publications
         weight: 30

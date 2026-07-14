@@ -1,0 +1,25 @@
+{
+  "timezone": "Asia/Shanghai",
+  "horizon_days": 56,
+  "slot_minutes": 30,
+  "stale_after_hours": 3,
+  "expected_remote_source_count": 6,
+  "required_remote_source_hosts": [
+    "*.icloud.com",
+    "*.icloud.com",
+    "*.icloud.com",
+    "*.icloud.com",
+    "calendar.google.com",
+    "event.pku-idea.com"
+  ],
+  "allowed_source_hosts": [
+    "*.icloud.com",
+    "calendar.google.com",
+    "calendar.googleusercontent.com",
+    "event.pku-idea.com"
+  ],
+  "display_hours": {
+    "start": "08:00",
+    "end": "22:00"
+  }
+}

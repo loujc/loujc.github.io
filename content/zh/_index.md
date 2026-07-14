@@ -27,6 +27,24 @@ sections:
       username: me
     design:
       date_format: '2006 年 1 月'
+  - block: availability-calendar
+    id: availability
+    content:
+      title: 空闲时间
+      text: 公开可约时间，统一按中国标准时间显示。
+      privacy_note: 仅公开已占用时段，行程标题、地点、备注和参与者始终保密。
+      disclaimer: 空白时段仅供参考，预约前请与我确认。
+      loading: 正在加载匿名化日程…
+      unavailable: 空闲时间暂时无法获取，请直接联系我确认。
+      stale: 日程最近未能及时刷新，请直接联系我确认。
+      busy_label: 已占用
+      no_busy: 暂无公开的占用时段
+      outside_window: 未公开
+      previous_week: 上一周
+      next_week: 下一周
+      today: 本周
+      updated: '最近匿名更新时间：{time}'
+      week_of: '{date}所在周'
   - block: collection
     id: publications
     content:

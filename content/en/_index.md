@@ -33,6 +33,24 @@ sections:
       username: me
     design:
       date_format: 'January 2006'
+  - block: availability-calendar
+    id: availability
+    content:
+      title: Availability
+      text: Public busy times for scheduling, shown in China Standard Time.
+      privacy_note: Only occupied periods are published. Titles, locations, notes, and participants remain private.
+      disclaimer: Blank space is indicative only; please contact me to confirm before scheduling.
+      loading: Loading anonymized availability…
+      unavailable: Availability is temporarily unavailable. Please contact me to confirm a time.
+      stale: Availability has not refreshed recently. Please contact me to confirm a time.
+      busy_label: Occupied
+      no_busy: No occupied periods shown
+      outside_window: Not published
+      previous_week: Previous week
+      next_week: Next week
+      today: Today
+      updated: 'Last anonymized update: {time}'
+      week_of: 'Week of {date}'
   - block: collection
     id: publications
     content:
