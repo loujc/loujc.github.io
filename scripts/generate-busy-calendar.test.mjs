@@ -6,12 +6,8 @@ import {DateTime} from 'luxon';
 import {
   assertPublicPayload,
   buildPublicPayload,
-  calendarTextsToIntervals,
-  calendarSourceUrlsFromEnvironment,
-  fetchCalendarSource,
-  fetchCalendarSources,
-  normalizeCalendarSourceUrl,
   sanitizeCalendarText,
+  selectAvailabilitySourceMode,
   unconfiguredPayload,
 } from './generate-busy-calendar.mjs';
 
@@ -20,17 +16,8 @@ const config = {
   horizon_days: 10,
   slot_minutes: 30,
   stale_after_hours: 3,
-  expected_remote_source_count: 3,
-  required_remote_source_hosts: [
-    '*.icloud.com',
-    'calendar.google.com',
-    'calendar.google.com',
-  ],
-  allowed_source_hosts: [
-    '*.icloud.com',
-    'calendar.google.com',
-    'calendar.googleusercontent.com',
-  ],
+  idea_snapshot_coverage_days: 400,
+  idea_snapshot_max_age_days: 90,
   display_hours: {start: '08:00', end: '22:00'},
   display_hours_parts: {
     start: {hour: 8, minute: 0},
@@ -116,19 +103,69 @@ test('sanitizer publishes only rounded and merged busy intervals', () => {
   ]);
 });
 
-test('iCalendar and CalDAV intervals share one final anonymization boundary', () => {
+test('iCloud and IDEA snapshot intervals share one final anonymization boundary', () => {
   const now = DateTime.fromISO('2026-07-14T00:00:00+08:00');
-  const calendarIntervals = calendarTextsToIntervals([calendar], config, now);
-  const caldavIntervals = [{
-    start: DateTime.fromISO('2026-07-15T02:25:00Z'),
-    end: DateTime.fromISO('2026-07-15T03:00:00Z'),
+  const iCloudIntervals = [{
+    start: DateTime.fromISO('2026-07-15T01:11:00Z'),
+    end: DateTime.fromISO('2026-07-15T02:00:00Z'),
   }];
-  const payload = buildPublicPayload([...calendarIntervals, ...caldavIntervals], config, now);
+  const ideaSnapshotIntervals = [{
+    start: DateTime.fromISO('2026-07-15T02:00:00Z'),
+    end: DateTime.fromISO('2026-07-15T02:25:00Z'),
+  }];
+  const payload = buildPublicPayload(
+    [...iCloudIntervals, ...ideaSnapshotIntervals],
+    config,
+    now,
+  );
   assert.deepEqual(payload.busy[0], {
     start: '2026-07-15T01:00:00Z',
-    end: '2026-07-15T03:00:00Z',
+    end: '2026-07-15T02:30:00Z',
   });
   assert.doesNotThrow(() => assertPublicPayload(payload));
+});
+
+test('production mode requires iCloud and IDEA snapshot source groups together', () => {
+  const complete = {
+    iCloudConfig: {configured: true},
+    ideaSnapshot: '{"configured":true}',
+    localInputCount: 0,
+  };
+  assert.equal(selectAvailabilitySourceMode(complete), 'production');
+  assert.equal(selectAvailabilitySourceMode({
+    iCloudConfig: null,
+    ideaSnapshot: null,
+    localInputCount: 0,
+  }), 'unconfigured');
+  assert.equal(selectAvailabilitySourceMode({
+    iCloudConfig: null,
+    ideaSnapshot: null,
+    localInputCount: 1,
+  }), 'local');
+  assert.throws(
+    () => selectAvailabilitySourceMode({
+      iCloudConfig: null,
+      ideaSnapshot: null,
+      localInputCount: 0,
+      requireRemoteSources: true,
+    }),
+    /required in production/,
+  );
+
+  for (const missingGroup of ['icloud', 'idea']) {
+    const partial = structuredClone(complete);
+    if (missingGroup === 'icloud') partial.iCloudConfig = null;
+    if (missingGroup === 'idea') partial.ideaSnapshot = null;
+    assert.throws(
+      () => selectAvailabilitySourceMode(partial),
+      /not fully configured/,
+      `missing ${missingGroup} must fail closed`,
+    );
+  }
+  assert.throws(
+    () => selectAvailabilitySourceMode({...complete, localInputCount: 1}),
+    /exactly one availability source mode/,
+  );
 });
 
 test('payload cannot contain any event metadata or source data', () => {
@@ -225,219 +262,6 @@ END:VCALENDAR\r
     console.warn = originalWarn;
   }
   assert.deepEqual(warnings, []);
-});
-
-test('calendar source secrets must exactly fill the expected contiguous slots', () => {
-  assert.deepEqual(
-    calendarSourceUrlsFromEnvironment({
-      CALENDAR_ICS_URL_3: '  webcal://calendar.google.com/third.ics  ',
-      CALENDAR_ICS_URL_1: 'https://p01-caldav.icloud.com/published/2/first',
-      CALENDAR_ICS_URL_2: 'https://calendar.google.com/second.ics',
-      UNRELATED_SECRET: 'do-not-read',
-    }, 3),
-    [
-      'https://p01-caldav.icloud.com/published/2/first',
-      'https://calendar.google.com/second.ics',
-      'webcal://calendar.google.com/third.ics',
-    ],
-  );
-  assert.deepEqual(calendarSourceUrlsFromEnvironment({}, 3), []);
-  assert.throws(
-    () => calendarSourceUrlsFromEnvironment({
-      CALENDAR_ICS_URL_1: 'https://calendar.google.com/first.ics',
-      CALENDAR_ICS_URL_3: 'https://calendar.google.com/third.ics',
-    }, 3),
-    /not fully configured/,
-  );
-  assert.throws(
-    () => calendarSourceUrlsFromEnvironment({
-      CALENDAR_ICS_URL_1: 'https://calendar.google.com/first.ics',
-      CALENDAR_ICS_URL_2: 'https://calendar.google.com/second.ics',
-      CALENDAR_ICS_URL_3: 'https://calendar.google.com/third.ics',
-      CALENDAR_ICS_URL_4: 'https://calendar.google.com/unexpected.ics',
-    }, 3),
-    /not fully configured/,
-  );
-});
-
-test('calendar source URLs accept only approved HTTPS hosts', () => {
-  assert.equal(
-    normalizeCalendarSourceUrl(
-      'webcal://p42-caldav.icloud.com/published/2/private-token',
-      config.allowed_source_hosts,
-    ).href,
-    'https://p42-caldav.icloud.com/published/2/private-token',
-  );
-  for (const source of [
-    'http://calendar.google.com/private-token/basic.ics',
-    'https://calendar.google.com:444/private-token/basic.ics',
-    'https://user:password@calendar.google.com/private-token/basic.ics',
-    'https://calendar.google.com/private-token/basic.ics#secret',
-    'https://calendar.google.com.evil.example/private-token/basic.ics',
-    'https://icloud.com.evil.example/private-token/basic.ics',
-  ]) {
-    assert.throws(
-      () => normalizeCalendarSourceUrl(source, config.allowed_source_hosts),
-      (error) => error.message === 'Calendar source URL could not be validated safely'
-        && !error.message.includes('private-token'),
-    );
-  }
-});
-
-test('remote calendar fetch validates every redirect and keeps ICS only in memory', async () => {
-  const requests = [];
-  const fetchImpl = async (url, options) => {
-    requests.push({url: url.href, options});
-    if (requests.length === 1) {
-      return new Response(null, {
-        status: 302,
-        headers: {location: 'https://calendar.googleusercontent.com/private-token/basic.ics'},
-      });
-    }
-    return new Response(calendar, {
-      status: 200,
-      headers: {'content-type': 'text/calendar; charset=utf-8'},
-    });
-  };
-
-  const fetched = await fetchCalendarSource(
-    'https://calendar.google.com/calendar/ical/private-token/basic.ics',
-    config.allowed_source_hosts,
-    {fetchImpl},
-  );
-  assert.equal(fetched, calendar);
-  assert.deepEqual(requests.map(({url}) => new URL(url).hostname), [
-    'calendar.google.com',
-    'calendar.googleusercontent.com',
-  ]);
-  assert.equal(requests[0].options.redirect, 'manual');
-  const payload = sanitizeCalendarText([fetched], config, DateTime.fromISO('2026-07-14T00:00:00+08:00'));
-  assert.doesNotThrow(() => assertPublicPayload(payload));
-});
-
-test('remote calendar errors never echo source URLs, redirects, or response bodies', async () => {
-  const secret = 'never-echo-this-feed-token';
-  const unsafeRedirect = async () => new Response(null, {
-    status: 302,
-    headers: {location: `https://attacker.example/${secret}`},
-  });
-  await assert.rejects(
-    fetchCalendarSource(
-      `https://calendar.google.com/calendar/ical/${secret}/basic.ics`,
-      config.allowed_source_hosts,
-      {fetchImpl: unsafeRedirect},
-    ),
-    (error) => error.message === 'Calendar source could not be fetched safely'
-      && !error.message.includes(secret)
-      && !error.message.includes('attacker.example'),
-  );
-
-  const privateBody = async () => new Response(`private response body ${secret}`, {status: 200});
-  await assert.rejects(
-    fetchCalendarSource(
-      `https://calendar.google.com/calendar/ical/${secret}/basic.ics`,
-      config.allowed_source_hosts,
-      {fetchImpl: privateBody},
-    ),
-    (error) => error.message === 'Calendar source could not be fetched safely'
-      && !error.message.includes(secret),
-  );
-});
-
-test('remote calendar fetch enforces per-source and aggregate size limits', async () => {
-  const oversized = async () => new Response(`BEGIN:VCALENDAR\r\n${'X'.repeat(64)}`, {status: 200});
-  await assert.rejects(
-    fetchCalendarSource(
-      'https://calendar.google.com/calendar/ical/private/basic.ics',
-      config.allowed_source_hosts,
-      {fetchImpl: oversized, maxBytes: 32},
-    ),
-    /Calendar source could not be fetched safely/,
-  );
-
-  const valid = async () => new Response(calendar, {status: 200});
-  const calendars = await fetchCalendarSources(
-    [
-      'https://calendar.google.com/calendar/ical/one/basic.ics',
-      'https://calendar.google.com/calendar/ical/two/basic.ics',
-    ],
-    config.allowed_source_hosts,
-    {fetchImpl: valid},
-  );
-  assert.deepEqual(calendars, [calendar, calendar]);
-});
-
-test('equivalent duplicate source URLs are rejected before any network request', async () => {
-  let requestCount = 0;
-  const fetchImpl = async () => {
-    requestCount += 1;
-    return new Response(calendar, {status: 200});
-  };
-  await assert.rejects(
-    fetchCalendarSources(
-      [
-        'webcal://calendar.google.com/calendar/ical/private/basic.ics',
-        'https://calendar.google.com/calendar/ical/private/basic.ics',
-      ],
-      config.allowed_source_hosts,
-      {fetchImpl},
-    ),
-    /Calendar sources could not be validated safely/,
-  );
-  assert.equal(requestCount, 0);
-});
-
-test('calendar source slots enforce their expected provider before network access', async () => {
-  let requestCount = 0;
-  const fetchImpl = async () => {
-    requestCount += 1;
-    return new Response(calendar, {status: 200});
-  };
-  await assert.rejects(
-    fetchCalendarSources(
-      [
-        'https://calendar.google.com/calendar/ical/wrong-first-slot/basic.ics',
-        'https://calendar.google.com/calendar/ical/second/basic.ics',
-        'https://calendar.google.com/calendar/ical/third/basic.ics',
-      ],
-      config.allowed_source_hosts,
-      {fetchImpl, requiredSourceHosts: config.required_remote_source_hosts},
-    ),
-    /Calendar sources could not be validated safely/,
-  );
-  assert.equal(requestCount, 0);
-});
-
-test('remote calendar rejects truncated feeds and any failed source rejects the whole set', async () => {
-  const truncated = async () => new Response('BEGIN:VCALENDAR\r\nVERSION:2.0\r\n', {status: 200});
-  await assert.rejects(
-    fetchCalendarSource(
-      'https://calendar.google.com/calendar/ical/truncated/basic.ics',
-      config.allowed_source_hosts,
-      {fetchImpl: truncated},
-    ),
-    /Calendar source could not be fetched safely/,
-  );
-
-  let requestCount = 0;
-  const oneFails = async () => {
-    requestCount += 1;
-    return requestCount === 1
-      ? new Response(calendar, {status: 200})
-      : new Response('private upstream error', {status: 503});
-  };
-  await assert.rejects(
-    fetchCalendarSources(
-      [
-        'https://calendar.google.com/calendar/ical/one/basic.ics',
-        'https://calendar.google.com/calendar/ical/two/basic.ics',
-      ],
-      config.allowed_source_hosts,
-      {fetchImpl: oneFails},
-    ),
-    /Calendar source could not be fetched safely/,
-  );
-  assert.equal(requestCount, 2);
 });
 
 test('multiple RDATE properties, comma lists, and PERIOD durations all occupy time', () => {

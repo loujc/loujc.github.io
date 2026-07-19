@@ -1,52 +1,55 @@
-# Server-side availability calendar
+# Privacy-preserving availability calendar
 
-The production calendar does not read Calendar.app or depend on a Mac. GitHub
-Actions is scheduled at minute 17 of every hour and talks directly to the
-calendar providers. It publishes only anonymous occupied intervals.
+GitHub Actions is scheduled at minute 17 of every hour. It reads iCloud directly
+from its server and combines it with a pre-anonymized IDEA snapshot created
+locally with EventKit. The Mac is needed only to refresh that infrequently
+changing snapshot, not to build or serve the website.
 
 The data path is:
 
-1. Apple Calendar writes an edit to its provider (iCloud, Google, or IDEA
-   Events) using that account's normal synchronization.
-2. The isolated availability job signs in to iCloud CalDAV, dynamically finds
-   the four selected calendar collections, and asks each collection for a
-   bounded, server-expanded projection containing only event time, status, and
-   transparency fields.
-3. The same job downloads the private Google and IDEA Events iCalendar feeds
-   into memory and reduces their events to time intervals.
-4. All intervals are rounded outward to 30-minute boundaries, clipped to
+1. Apple Calendar continues to synchronize edits normally with each provider.
+2. When the IDEA calendar changes, a local EventKit helper queries its expanded
+   occurrences, ignores cancelled or explicitly free events, and immediately
+   converts the result to a fixed-length occupied/free bitmap. It never reads
+   event titles, notes, locations, attendees, organizers, or identifiers.
+3. The anonymous bitmap is streamed directly into a repository Actions Secret;
+   no raw calendar export or IDEA account credential is uploaded.
+4. The isolated availability job connects to the four selected iCloud CalDAV
+   collections and decodes the IDEA bitmap in memory.
+5. Both sources are rounded to 30-minute boundaries, clipped to
    08:00-22:00 in `Asia/Shanghai`, merged, and written to
    `public/availability/busy.json`.
-5. Only that allowlisted JSON file moves to the separate Hugo build job. The
-   CalDAV credential, discovery XML, opaque collection/resource URLs, iCloud
-   time-only response bodies, and Google/IDEA calendar bodies are discarded
-   with the isolated runner.
+6. Only that allowlisted JSON file moves to the separate Hugo build job. The
+   iCloud credential, discovery XML, opaque collection/resource URLs,
+   time-only CalDAV response bodies, and IDEA source bitmap are discarded with
+   the isolated runner.
 
-The Mac may be asleep or offline after the provider has received an edit.
-Refresh latency is provider propagation time plus up to approximately one hour
-before the next scheduled build.
+The Mac may be asleep or offline between IDEA snapshot refreshes. iCloud refresh
+latency is provider propagation time plus up to approximately one hour. IDEA
+changes appear after the local refresh command and the next successful
+scheduled build.
 
 ## Required GitHub Secrets
 
-All six repository secrets must be configured:
+All five repository secrets must be configured:
 
 ```text
 ICLOUD_CALDAV_USERNAME
 ICLOUD_CALDAV_APP_PASSWORD
 ICLOUD_CALDAV_BASE_URL
 ICLOUD_CALDAV_CALENDAR_NAMES_JSON
-CALENDAR_ICS_URL_1
-CALENDAR_ICS_URL_2
+IDEA_BUSY_SNAPSHOT
 ```
 
-The two iCalendar slots are ordered: slot 1 is Google and slot 2 is IDEA
-Events. `ICLOUD_CALDAV_CALENDAR_NAMES_JSON` is a JSON array containing exactly
-four selected iCloud display names. Names, usernames, endpoints, passwords,
-collection URLs, and feed URLs are private operational data and do not belong
-in the repository, issues, commit messages, or Actions logs.
+`ICLOUD_CALDAV_CALENDAR_NAMES_JSON` is a JSON array containing exactly four
+selected iCloud display names. `IDEA_BUSY_SNAPSHOT` is a compact bitmap produced
+locally and contains no event metadata or account credential. Calendar names,
+usernames, endpoints, passwords, collection URLs, and source bitmaps are private
+operational data and do not belong in the repository, issues, commit messages,
+or Actions logs.
 
 Add each value under GitHub repository **Settings → Secrets and variables →
-Actions → New repository secret**. Never paste credentials or feed URLs into
+Actions → New repository secret**. Never paste credentials into
 chat or a shell command line. With the GitHub CLI on macOS, copy one value and
 stream it from the clipboard so it does not enter shell history:
 
@@ -123,26 +126,59 @@ Protocol references:
 - Current-user-principal discovery: <https://www.rfc-editor.org/rfc/rfc5397.html>
 - Apple app-specific passwords: <https://support.apple.com/zh-cn/102654>
 
-## Google and IDEA Events feeds
+## IDEA anonymous snapshot
 
-For Google Calendar, open **Settings → Settings for my calendars → Integrate
-calendar** and copy **Secret address in iCal format**. Google says this address
-should not be shared; reset it immediately if it is exposed.
+The IDEA source is taken from the already synchronized Apple Calendar account,
+but Calendar.app itself is not queried by GitHub Actions. A small local EventKit
+helper selects exactly one configured CalDAV calendar and asks EventKit for
+expanded occurrences, including recurring instances and detached exceptions.
+The implementation accesses only start/end boundaries, cancellation status,
+and free/busy availability. It contains no event save, update, or delete path.
 
-Google documentation: <https://support.google.com/calendar/answer/37648>
+macOS grants EventKit calendar reading through the system's full-calendar-access
+permission; it does not offer a separate read-only authorization level. The
+helper is therefore intentionally narrow and auditable even though the system
+permission dialog is broader than the fields it uses.
 
-For IDEA Events, use Calendar.app's subscription information to copy the
-existing subscription URL, or obtain a fresh URL from the IDEA Events
-provider. Only an HTTPS or `webcal://` URL hosted by `event.pku-idea.com` is
-accepted.
+Before leaving the Mac, every occurrence is filtered, rounded outward, clipped
+to the public 08:00-22:00 display window, and encoded as a fixed 30-minute-slot
+bitmap. The bitmap covers 400 days, is capped at 8 KiB, and contains no calendar
+name, event count, identifier, title, or raw event timestamp. It is streamed
+directly to `IDEA_BUSY_SNAPSHOT` and never committed.
 
-Apple subscription documentation: <https://support.apple.com/zh-cn/guide/calendar/icl1022/mac>
+Refresh the snapshot whenever the IDEA calendar changes and at least once every
+90 days. The refresh helper prints only a fixed success or failure message; it
+does not print the bitmap or occupied times:
+
+```sh
+./scripts/install-idea-snapshot-helper.sh
+./scripts/refresh-idea-snapshot.sh
+```
+
+The selected calendar name is stored only in a mode-`0600` file under the
+user's local Application Support directory. It is not accepted as a command-line
+argument and is never added to the repository.
+
+Apple references:
+
+- EventKit event-store access: <https://developer.apple.com/documentation/eventkit/accessing-the-event-store>
+- Date-range event retrieval: <https://developer.apple.com/documentation/eventkit/retrieving-events-and-reminders>
 
 ## Fail-closed behavior
 
-The build publishes a ready calendar only when the complete iCloud CalDAV
-configuration and both ordered iCalendar sources are present. It fails if any
-source, discovery step, selected collection, or time-only calendar query fails.
+The build publishes a ready calendar only when both source groups are complete:
+four iCloud CalDAV secrets and one IDEA bitmap secret. If one group is absent or
+partial, the production run fails instead of treating that source as free. The
+production workflow also fails when all five secrets are absent; only
+pull-request previews may emit the explicit unconfigured state. It also fails
+if any source, discovery step, selected collection, parser, or time-only
+calendar query fails.
+
+The IDEA snapshot is accepted only when its JSON keys, encoding identifier,
+timezone, slot size, display hours, coverage dates, canonical Base64, decoded
+length, and zero padding bits exactly match repository policy. It must be no
+more than 90 days old and fully cover the current 56-day public window. Any
+failure stops deployment instead of interpreting missing bits as free time.
 
 Every network request:
 
@@ -150,14 +186,15 @@ Every network request:
 - remains on an allowlisted provider host;
 - has strict timeout, redirect, per-response-size, and bounded request-count
   limits;
-- keeps bearer URLs, credentials, response bodies, and parser diagnostics out
-  of errors and Actions logs.
+- keeps account endpoints, credentials, response bodies, and parser diagnostics
+  out of errors and Actions logs.
 
-CalDAV authentication starts only after an allowlisted iCloud host issues a
-Basic challenge. Redirects restart without an Authorization header, preventing
-credentials from being forwarded to a different origin before it is checked.
+CalDAV authentication starts without an Authorization header and retries only
+after the validated iCloud endpoint explicitly offers a Basic challenge.
+Redirects are manual and restart without credentials; every new endpoint must
+issue its own challenge. iCloud remains inside its configured host allowlist.
 Discovery XML rejects DTDs and entities and is parsed with namespace-aware,
-bounded logic.
+bounded logic. IDEA requires no provider endpoint or credential in Actions.
 
 With no production sources (for example, a pull request), the page emits an
 explicit unconfigured state. A partial configuration is an error rather than a

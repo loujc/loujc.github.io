@@ -21,18 +21,17 @@ pnpm build
 
 ## Privacy-preserving availability
 
-The public availability calendar is refreshed by GitHub Actions directly from
-iCloud CalDAV plus private Google and IDEA Events feeds. The Mac does not need
-to be awake or online. iCloud is queried with a privacy-minimal projection of
-expanded time, status, and transparency fields; the other feeds are reduced in
-memory to rounded and merged occupied `start`/`end` intervals. Provider
-responses are discarded before the public site artifact is created. Titles,
-locations, notes, attendees, organizers, event identifiers, credentials, and
-subscription URLs are never written to the site.
+The public availability calendar is refreshed by GitHub Actions from iCloud
+CalDAV and an anonymous IDEA calendar snapshot created locally with EventKit.
+The Mac is needed only when that infrequently changing snapshot is refreshed;
+it does not need to be online for website builds. iCloud is queried with a
+privacy-minimal projection, while the IDEA snapshot is a fixed-length
+occupied/free bitmap. Both sources meet at one final anonymization boundary.
+Titles, locations, notes, attendees, organizers, event identifiers,
+credentials, and calendar names are never written to the site or repository.
 
 See [`docs/calendar-server-sync.md`](docs/calendar-server-sync.md) for the
-server-side sync model, secret feed setup, failure behavior, and privacy
-boundary.
+server-side sync model, secret setup, failure behavior, and privacy boundary.
 
 ## Content
 

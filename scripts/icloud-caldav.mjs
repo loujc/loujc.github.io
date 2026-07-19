@@ -146,7 +146,10 @@ export function normalizeICloudCalDavUrl(value, allowedHosts) {
   }
 }
 
-function validateCredentialPart(value, {allowColon = true, maxLength = 512} = {}) {
+function validateCredentialPart(
+  value,
+  {allowColon = true, maxLength = 512, configurationError = genericConfigurationError} = {},
+) {
   const normalized = String(value ?? '').trim();
   if (
     !normalized
@@ -154,12 +157,16 @@ function validateCredentialPart(value, {allowColon = true, maxLength = 512} = {}
     || /[\u0000-\u001f\u007f]/.test(normalized)
     || (!allowColon && normalized.includes(':'))
   ) {
-    throw genericConfigurationError();
+    throw configurationError();
   }
   return normalized;
 }
 
-export function parseICloudCalendarNames(value, expectedCount = EXPECTED_CALENDAR_COUNT) {
+function parseCalendarNames(
+  value,
+  expectedCount,
+  configurationError = genericConfigurationError,
+) {
   try {
     if (!Number.isInteger(expectedCount) || expectedCount < 1 || expectedCount > 10) {
       throw new Error('invalid count');
@@ -176,30 +183,57 @@ export function parseICloudCalendarNames(value, expectedCount = EXPECTED_CALENDA
     if (new Set(normalized).size !== normalized.length) throw new Error('duplicate names');
     return normalized;
   } catch {
-    throw genericConfigurationError();
+    throw configurationError();
   }
+}
+
+export function parseICloudCalendarNames(value, expectedCount = EXPECTED_CALENDAR_COUNT) {
+  return parseCalendarNames(value, expectedCount, genericConfigurationError);
+}
+
+function calDavConfigFromEnvironment(
+  environment,
+  expectedCount,
+  {keys, passwordField, configurationError},
+) {
+  const values = Object.fromEntries(
+    Object.entries(keys).map(([name, key]) => [name, environment[key]]),
+  );
+  const configured = Object.values(values).filter(
+    (value) => typeof value === 'string' && value.trim() !== '',
+  ).length;
+  if (configured === 0) return null;
+  if (configured !== Object.keys(keys).length) throw configurationError();
+
+  return {
+    baseUrl: String(values.baseUrl).trim(),
+    username: validateCredentialPart(values.username, {
+      allowColon: false,
+      maxLength: 320,
+      configurationError,
+    }),
+    [passwordField]: validateCredentialPart(values[passwordField], {
+      maxLength: 256,
+      configurationError,
+    }),
+    calendarNames: parseCalendarNames(
+      values.calendarNamesJson,
+      expectedCount,
+      configurationError,
+    ),
+    expectedCalendarCount: expectedCount,
+  };
 }
 
 export function iCloudCalDavConfigFromEnvironment(
   environment = process.env,
   expectedCount = EXPECTED_CALENDAR_COUNT,
 ) {
-  const values = Object.fromEntries(
-    Object.entries(ENVIRONMENT_KEYS).map(([name, key]) => [name, environment[key]]),
-  );
-  const configured = Object.values(values).filter(
-    (value) => typeof value === 'string' && value.trim() !== '',
-  ).length;
-  if (configured === 0) return null;
-  if (configured !== Object.keys(ENVIRONMENT_KEYS).length) throw genericConfigurationError();
-
-  return {
-    baseUrl: String(values.baseUrl).trim(),
-    username: validateCredentialPart(values.username, {allowColon: false, maxLength: 320}),
-    appPassword: validateCredentialPart(values.appPassword, {maxLength: 256}),
-    calendarNames: parseICloudCalendarNames(values.calendarNamesJson, expectedCount),
-    expectedCalendarCount: expectedCount,
-  };
+  return calDavConfigFromEnvironment(environment, expectedCount, {
+    keys: ENVIRONMENT_KEYS,
+    passwordField: 'appPassword',
+    configurationError: genericConfigurationError,
+  });
 }
 
 async function cancelResponseBody(response) {
@@ -294,13 +328,23 @@ async function requestOnce(fetchImpl, url, method, body, depth, signal, authoriz
 
 async function readOnlyCalDavRequest(
   target,
-  {method, body, depth, expectedStatus, credential, allowedHosts, fetchImpl, maxBytes},
+  {
+    method,
+    body,
+    depth,
+    expectedStatus,
+    credential,
+    normalizeUrl,
+    requestError,
+    fetchImpl,
+    maxBytes,
+  },
 ) {
   try {
     if (!READ_ONLY_METHODS.has(method) || typeof fetchImpl !== 'function') throw new Error('unsafe request');
-    let url = normalizeICloudCalDavUrl(target, allowedHosts);
+    let url = normalizeUrl(target);
     const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
-    const authorization = `Basic ${Buffer.from(`${credential.username}:${credential.appPassword}`, 'utf8').toString('base64')}`;
+    const authorization = `Basic ${Buffer.from(`${credential.username}:${credential.password}`, 'utf8').toString('base64')}`;
 
     for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
       let response = await requestOnce(fetchImpl, url, method, body, depth, signal);
@@ -320,7 +364,7 @@ async function readOnlyCalDavRequest(
         const location = response.headers?.get?.('location');
         await cancelResponseBody(response);
         if (!location) throw new Error('redirect missing location');
-        url = normalizeICloudCalDavUrl(new URL(location, url).href, allowedHosts);
+        url = normalizeUrl(new URL(location, url).href);
         // Authentication is deliberately not forwarded. The new endpoint must
         // issue its own Basic challenge before it can receive the credential.
         continue;
@@ -336,7 +380,7 @@ async function readOnlyCalDavRequest(
     }
     throw new Error('too many redirects');
   } catch {
-    throw genericRequestError();
+    throw requestError();
   }
 }
 
@@ -411,7 +455,7 @@ function parseMultiStatus(xml) {
   return childElements(root, DAV_NAMESPACE, 'response');
 }
 
-function propertyHrefs(responses, propertyUri, propertyLocal, responseBaseUrl, allowedHosts) {
+function propertyHrefs(responses, propertyUri, propertyLocal, responseBaseUrl, normalizeUrl) {
   const hrefs = [];
   for (const response of responses) {
     for (const property of successfulProperties(response)) {
@@ -421,7 +465,7 @@ function propertyHrefs(responses, propertyUri, propertyLocal, responseBaseUrl, a
       for (const hrefNode of propertyHrefNodes) {
         const href = hrefNode.text.trim();
         if (!href) throw genericRequestError();
-        hrefs.push(normalizeICloudCalDavUrl(new URL(href, responseBaseUrl).href, allowedHosts));
+        hrefs.push(normalizeUrl(new URL(href, responseBaseUrl).href));
       }
     }
   }
@@ -430,13 +474,13 @@ function propertyHrefs(responses, propertyUri, propertyLocal, responseBaseUrl, a
   return unique;
 }
 
-function uniquePropertyHref(responses, propertyUri, propertyLocal, responseBaseUrl, allowedHosts) {
+function uniquePropertyHref(responses, propertyUri, propertyLocal, responseBaseUrl, normalizeUrl) {
   const unique = propertyHrefs(
     responses,
     propertyUri,
     propertyLocal,
     responseBaseUrl,
-    allowedHosts,
+    normalizeUrl,
   );
   if (unique.length !== 1) throw genericRequestError();
   return unique[0];
@@ -446,7 +490,7 @@ function attributeValue(node, local) {
   return node.attributes.find((attribute) => attribute.local === local)?.value ?? null;
 }
 
-function discoverCalendarCollections(xml, responseBaseUrl, allowedHosts) {
+function discoverCalendarCollections(xml, responseBaseUrl, normalizeUrl) {
   const responses = parseMultiStatus(xml);
   const collections = [];
   for (const response of responses) {
@@ -478,7 +522,7 @@ function discoverCalendarCollections(xml, responseBaseUrl, allowedHosts) {
     }
     collections.push({
       name: displayName.normalize('NFC'),
-      url: normalizeICloudCalDavUrl(new URL(href, responseBaseUrl).href, allowedHosts),
+      url: normalizeUrl(new URL(href, responseBaseUrl).href),
     });
   }
   return collections;
@@ -1111,21 +1155,30 @@ export function parseCalendarQueryMultiStatus(xml, windowStart, windowEnd) {
   }
 }
 
-export async function fetchICloudBusyIntervals(
+async function fetchCalDavBusyIntervals(
   caldavConfig,
-  {windowStart, windowEnd, allowedHosts, fetchImpl = globalThis.fetch} = {},
+  {windowStart, windowEnd, fetchImpl = globalThis.fetch},
+  {normalizeUrl, passwordField, configurationError, requestError},
 ) {
   try {
-    if (!caldavConfig || typeof caldavConfig !== 'object') throw genericConfigurationError();
-    const calendarNames = parseICloudCalendarNames(
+    if (!caldavConfig || typeof caldavConfig !== 'object') throw configurationError();
+    const calendarNames = parseCalendarNames(
       JSON.stringify(caldavConfig.calendarNames),
       caldavConfig.expectedCalendarCount,
+      configurationError,
     );
     const credential = {
-      username: validateCredentialPart(caldavConfig.username, {allowColon: false, maxLength: 320}),
-      appPassword: validateCredentialPart(caldavConfig.appPassword, {maxLength: 256}),
+      username: validateCredentialPart(caldavConfig.username, {
+        allowColon: false,
+        maxLength: 320,
+        configurationError,
+      }),
+      password: validateCredentialPart(caldavConfig[passwordField], {
+        maxLength: 256,
+        configurationError,
+      }),
     };
-    const baseUrl = normalizeICloudCalDavUrl(caldavConfig.baseUrl, allowedHosts);
+    const baseUrl = normalizeUrl(caldavConfig.baseUrl);
     const {queryStart, queryEnd} = roundedQueryWindow(windowStart, windowEnd);
 
     const principalResponse = await readOnlyCalDavRequest(baseUrl, {
@@ -1134,7 +1187,8 @@ export async function fetchICloudBusyIntervals(
       depth: 0,
       expectedStatus: 207,
       credential,
-      allowedHosts,
+      normalizeUrl,
+      requestError,
       fetchImpl,
       maxBytes: MAX_DISCOVERY_BYTES,
     });
@@ -1143,7 +1197,7 @@ export async function fetchICloudBusyIntervals(
       DAV_NAMESPACE,
       'current-user-principal',
       principalResponse.url,
-      allowedHosts,
+      normalizeUrl,
     );
 
     const homeResponse = await readOnlyCalDavRequest(principalUrl, {
@@ -1152,7 +1206,8 @@ export async function fetchICloudBusyIntervals(
       depth: 0,
       expectedStatus: 207,
       credential,
-      allowedHosts,
+      normalizeUrl,
+      requestError,
       fetchImpl,
       maxBytes: MAX_DISCOVERY_BYTES,
     });
@@ -1161,7 +1216,7 @@ export async function fetchICloudBusyIntervals(
       CALDAV_NAMESPACE,
       'calendar-home-set',
       homeResponse.url,
-      allowedHosts,
+      normalizeUrl,
     );
 
     const collections = [];
@@ -1172,14 +1227,15 @@ export async function fetchICloudBusyIntervals(
         depth: 1,
         expectedStatus: 207,
         credential,
-        allowedHosts,
+        normalizeUrl,
+        requestError,
         fetchImpl,
         maxBytes: MAX_DISCOVERY_BYTES,
       });
       collections.push(...discoverCalendarCollections(
         collectionsResponse.text,
         collectionsResponse.url,
-        allowedHosts,
+        normalizeUrl,
       ));
     }
     const calendarUrls = selectNamedCalendarUrls(collections, calendarNames);
@@ -1195,7 +1251,8 @@ export async function fetchICloudBusyIntervals(
         depth: 1,
         expectedStatus: 207,
         credential,
-        allowedHosts,
+        normalizeUrl,
+        requestError,
         fetchImpl,
         maxBytes: MAX_CALENDAR_QUERY_BYTES,
       });
@@ -1208,6 +1265,23 @@ export async function fetchICloudBusyIntervals(
     }
     return intervals.sort((left, right) => left.start.toMillis() - right.start.toMillis());
   } catch {
-    throw genericRequestError();
+    throw requestError();
   }
+}
+
+export async function fetchICloudBusyIntervals(
+  caldavConfig,
+  {windowStart, windowEnd, allowedHosts, fetchImpl = globalThis.fetch} = {},
+) {
+  const normalizeUrl = (value) => normalizeICloudCalDavUrl(value, allowedHosts);
+  return fetchCalDavBusyIntervals(
+    caldavConfig,
+    {windowStart, windowEnd, fetchImpl},
+    {
+      normalizeUrl,
+      passwordField: 'appPassword',
+      configurationError: genericConfigurationError,
+      requestError: genericRequestError,
+    },
+  );
 }

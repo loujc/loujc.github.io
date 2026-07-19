@@ -66,12 +66,11 @@ jobs:
     if: github.repository_owner != 'HugoBlox'
     uses: ./.github/workflows/build.yml
     secrets:
-      CALENDAR_ICS_URL_1: ${{ secrets.CALENDAR_ICS_URL_1 }}
-      CALENDAR_ICS_URL_2: ${{ secrets.CALENDAR_ICS_URL_2 }}
       ICLOUD_CALDAV_USERNAME: ${{ secrets.ICLOUD_CALDAV_USERNAME }}
       ICLOUD_CALDAV_APP_PASSWORD: ${{ secrets.ICLOUD_CALDAV_APP_PASSWORD }}
       ICLOUD_CALDAV_BASE_URL: ${{ secrets.ICLOUD_CALDAV_BASE_URL }}
       ICLOUD_CALDAV_CALENDAR_NAMES_JSON: ${{ secrets.ICLOUD_CALDAV_CALENDAR_NAMES_JSON }}
+      IDEA_BUSY_SNAPSHOT: ${{ secrets.IDEA_BUSY_SNAPSHOT }}
 
   # Deploy website to GitHub Pages hosting (only if configured)
   deploy:

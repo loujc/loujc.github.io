@@ -9,18 +9,18 @@ import {
   fetchICloudBusyIntervals,
   iCloudCalDavConfigFromEnvironment,
 } from './icloud-caldav.mjs';
+import {
+  IDEA_SNAPSHOT_COVERAGE_DAYS,
+  IDEA_SNAPSHOT_MAX_AGE_DAYS,
+  ideaSnapshotFromEnvironment,
+  parseIdeaBusySnapshot,
+} from './idea-snapshot.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(SCRIPT_DIR, '..');
 const DEFAULT_CONFIG_PATH = path.join(PROJECT_ROOT, 'data', 'availability.json');
 const DEFAULT_OUTPUT_PATH = path.join(PROJECT_ROOT, 'public', 'availability', 'busy.json');
-const CALENDAR_SOURCE_ENV_PREFIX = 'CALENDAR_ICS_URL_';
-const MAX_CALENDAR_SOURCES = 10;
-const MAX_CALENDAR_SOURCE_BYTES = 10 * 1024 * 1024;
-const MAX_CALENDAR_TOTAL_BYTES = 25 * 1024 * 1024;
-const MAX_CALENDAR_REDIRECTS = 5;
-const CALENDAR_FETCH_TIMEOUT_MS = 20_000;
-const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const MAX_CALDAV_CALENDARS = 10;
 
 const PUBLIC_ROOT_KEYS = [
   'busy',
@@ -61,9 +61,9 @@ function parseClock(value, name) {
   return {hour, minute};
 }
 
-function normalizeAllowedSourceHosts(value) {
+function normalizeAllowedCaldavHosts(value) {
   if (!Array.isArray(value) || value.length === 0) {
-    throw new Error('allowed_source_hosts must contain at least one hostname');
+    throw new Error('allowed_caldav_hosts must contain at least one hostname');
   }
   const hosts = value.map((entry) => String(entry).trim().toLowerCase());
   for (const host of hosts) {
@@ -73,7 +73,7 @@ function normalizeAllowedSourceHosts(value) {
       || !/^[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?$/.test(candidate)
       || candidate.includes('..')
     ) {
-      throw new Error('allowed_source_hosts contains an invalid hostname');
+      throw new Error('allowed_caldav_hosts contains an invalid hostname');
     }
   }
   return [...new Set(hosts)];
@@ -88,199 +88,64 @@ export async function readAvailabilityConfig(configPath = DEFAULT_CONFIG_PATH) {
   if (!Number.isInteger(config.slot_minutes) || config.slot_minutes < 5 || 60 % config.slot_minutes !== 0) {
     throw new Error('slot_minutes must evenly divide one hour');
   }
-  if (
-    !Number.isInteger(config.expected_remote_source_count)
-    || config.expected_remote_source_count < 1
-    || config.expected_remote_source_count > MAX_CALENDAR_SOURCES
-  ) {
-    throw new Error(`expected_remote_source_count must be an integer from 1 to ${MAX_CALENDAR_SOURCES}`);
-  }
   const start = parseClock(config.display_hours?.start, 'display_hours.start');
   const end = parseClock(config.display_hours?.end, 'display_hours.end');
   if (end.hour * 60 + end.minute <= start.hour * 60 + start.minute) {
     throw new Error('display_hours.end must be later than display_hours.start');
   }
-  const allowedSourceHosts = normalizeAllowedSourceHosts(config.allowed_source_hosts);
   if (
     !Number.isInteger(config.expected_caldav_calendar_count)
     || config.expected_caldav_calendar_count < 1
-    || config.expected_caldav_calendar_count > MAX_CALENDAR_SOURCES
+    || config.expected_caldav_calendar_count > MAX_CALDAV_CALENDARS
   ) {
-    throw new Error(`expected_caldav_calendar_count must be an integer from 1 to ${MAX_CALENDAR_SOURCES}`);
+    throw new Error(`expected_caldav_calendar_count must be an integer from 1 to ${MAX_CALDAV_CALENDARS}`);
   }
-  const allowedCaldavHosts = normalizeAllowedSourceHosts(config.allowed_caldav_hosts);
+  const allowedCaldavHosts = normalizeAllowedCaldavHosts(config.allowed_caldav_hosts);
   if (
-    !Array.isArray(config.required_remote_source_hosts)
-    || config.required_remote_source_hosts.length !== config.expected_remote_source_count
+    config.idea_snapshot_coverage_days !== IDEA_SNAPSHOT_COVERAGE_DAYS
   ) {
-    throw new Error('required_remote_source_hosts must match expected_remote_source_count');
+    throw new Error(`idea_snapshot_coverage_days must be ${IDEA_SNAPSHOT_COVERAGE_DAYS}`);
   }
-  const requiredRemoteSourceHosts = config.required_remote_source_hosts.map(
-    (host) => normalizeAllowedSourceHosts([host])[0],
-  );
+  if (
+    !Number.isInteger(config.idea_snapshot_max_age_days)
+    || config.idea_snapshot_max_age_days < 1
+    || config.idea_snapshot_max_age_days > IDEA_SNAPSHOT_MAX_AGE_DAYS
+  ) {
+    throw new Error(`idea_snapshot_max_age_days must be an integer from 1 to ${IDEA_SNAPSHOT_MAX_AGE_DAYS}`);
+  }
   return {
     ...config,
-    allowed_source_hosts: allowedSourceHosts,
     allowed_caldav_hosts: allowedCaldavHosts,
-    required_remote_source_hosts: requiredRemoteSourceHosts,
     display_hours_parts: {start, end},
   };
 }
 
-function hostnameMatches(hostname, pattern) {
-  if (pattern.startsWith('*.')) {
-    const suffix = pattern.slice(1);
-    return hostname.endsWith(suffix) && hostname.length > suffix.length;
-  }
-  return hostname === pattern;
-}
-
-export function normalizeCalendarSourceUrl(value, allowedSourceHosts) {
-  try {
-    const raw = String(value).trim();
-    if (!raw || raw.length > 8192) throw new Error('invalid URL');
-    const webUrl = /^webcal:\/\//i.test(raw) ? `https://${raw.slice(raw.indexOf('://') + 3)}` : raw;
-    const url = new URL(webUrl);
-    if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash) {
-      throw new Error('unsafe URL');
-    }
-    const hostname = url.hostname.toLowerCase();
-    if (!allowedSourceHosts.some((pattern) => hostnameMatches(hostname, pattern))) {
-      throw new Error('unapproved host');
-    }
-    return url;
-  } catch {
-    // Subscription URLs are bearer secrets. Never include one in an exception.
-    throw new Error('Calendar source URL could not be validated safely');
-  }
-}
-
-export function calendarSourceUrlsFromEnvironment(
-  environment = process.env,
-  expectedCount = MAX_CALENDAR_SOURCES,
-) {
-  const slots = [];
-  for (let index = 1; index <= MAX_CALENDAR_SOURCES; index += 1) {
-    const value = environment[`${CALENDAR_SOURCE_ENV_PREFIX}${index}`];
-    slots.push(typeof value === 'string' ? value.trim() : '');
-  }
-  const configuredCount = slots.filter(Boolean).length;
-  if (configuredCount === 0) return [];
-  const expectedSlots = slots.slice(0, expectedCount);
+export function selectAvailabilitySourceMode({
+  iCloudConfig,
+  ideaSnapshot,
+  localInputCount,
+  requireRemoteSources = false,
+}) {
   if (
-    configuredCount !== expectedCount
-    || expectedSlots.some((value) => !value)
-    || slots.slice(expectedCount).some(Boolean)
+    !Number.isInteger(localInputCount)
+    || localInputCount < 0
+    || typeof requireRemoteSources !== 'boolean'
   ) {
-    throw new Error('Calendar sources are not fully configured');
+    throw new Error('Availability source state could not be validated safely');
   }
-  return expectedSlots;
-}
+  const remoteGroups = [Boolean(iCloudConfig), Boolean(ideaSnapshot)];
+  const hasAnyRemoteGroup = remoteGroups.some(Boolean);
 
-async function readCalendarResponse(response, maxBytes) {
-  const length = Number(response.headers?.get?.('content-length'));
-  if (Number.isFinite(length) && length > maxBytes) throw new Error('source too large');
-
-  if (!response.body?.getReader) {
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length > maxBytes) throw new Error('source too large');
-    return buffer;
+  if (hasAnyRemoteGroup && localInputCount > 0) {
+    throw new Error('Choose exactly one availability source mode');
   }
-
-  const reader = response.body.getReader();
-  const chunks = [];
-  let bytesRead = 0;
-  try {
-    while (true) {
-      const {done, value} = await reader.read();
-      if (done) break;
-      bytesRead += value.byteLength;
-      if (bytesRead > maxBytes) throw new Error('source too large');
-      chunks.push(Buffer.from(value));
-    }
-  } catch (error) {
-    await reader.cancel().catch(() => {});
-    throw error;
+  if (hasAnyRemoteGroup && !remoteGroups.every(Boolean)) {
+    throw new Error('Availability sources are not fully configured');
   }
-  return Buffer.concat(chunks, bytesRead);
-}
-
-export async function fetchCalendarSource(
-  source,
-  allowedSourceHosts,
-  {fetchImpl = globalThis.fetch, maxBytes = MAX_CALENDAR_SOURCE_BYTES} = {},
-) {
-  try {
-    if (typeof fetchImpl !== 'function') throw new Error('fetch unavailable');
-    let url = normalizeCalendarSourceUrl(source, allowedSourceHosts);
-    const signal = AbortSignal.timeout(CALENDAR_FETCH_TIMEOUT_MS);
-
-    for (let redirects = 0; redirects <= MAX_CALENDAR_REDIRECTS; redirects += 1) {
-      const response = await fetchImpl(url, {
-        redirect: 'manual',
-        signal,
-        headers: {
-          Accept: 'text/calendar, text/plain;q=0.9, */*;q=0.1',
-          'User-Agent': 'loujc-availability-calendar/1.0',
-        },
-      });
-
-      if (REDIRECT_STATUSES.has(response.status)) {
-        if (redirects === MAX_CALENDAR_REDIRECTS) throw new Error('too many redirects');
-        const location = response.headers?.get?.('location');
-        if (!location) throw new Error('redirect missing location');
-        await response.body?.cancel?.().catch(() => {});
-        url = normalizeCalendarSourceUrl(new URL(location, url).href, allowedSourceHosts);
-        continue;
-      }
-      if (!response.ok) throw new Error('calendar request failed');
-
-      const body = await readCalendarResponse(response, maxBytes);
-      const text = new TextDecoder('utf-8', {fatal: true}).decode(body);
-      if (
-        !/^\uFEFF?\s*BEGIN:VCALENDAR(?:\r?\n|$)/i.test(text)
-        || !/(?:^|\r?\n)END:VCALENDAR\s*$/i.test(text)
-      ) {
-        throw new Error('not an iCalendar feed');
-      }
-      return text;
-    }
-    throw new Error('too many redirects');
-  } catch {
-    // Do not reveal URLs, hosts, tokens, response bodies, or parser diagnostics in Actions logs.
-    throw new Error('Calendar source could not be fetched safely');
-  }
-}
-
-export async function fetchCalendarSources(sources, allowedSourceHosts, options = {}) {
-  const normalizedSources = sources.map((source) => normalizeCalendarSourceUrl(source, allowedSourceHosts));
-  if (
-    options.requiredSourceHosts
-    && (
-      options.requiredSourceHosts.length !== normalizedSources.length
-      || normalizedSources.some(
-        (source, index) => !hostnameMatches(source.hostname, options.requiredSourceHosts[index]),
-      )
-    )
-  ) {
-    throw new Error('Calendar sources could not be validated safely');
-  }
-  if (new Set(normalizedSources.map((source) => source.href)).size !== normalizedSources.length) {
-    throw new Error('Calendar sources could not be validated safely');
-  }
-  const calendars = [];
-  let totalBytes = 0;
-  for (const source of normalizedSources) {
-    const remaining = MAX_CALENDAR_TOTAL_BYTES - totalBytes;
-    if (remaining <= 0) throw new Error('Calendar sources could not be fetched safely');
-    const calendar = await fetchCalendarSource(source, allowedSourceHosts, {
-      ...options,
-      maxBytes: Math.min(options.maxBytes ?? MAX_CALENDAR_SOURCE_BYTES, remaining),
-    });
-    totalBytes += Buffer.byteLength(calendar);
-    calendars.push(calendar);
-  }
-  return calendars;
+  if (hasAnyRemoteGroup) return 'production';
+  if (localInputCount > 0) return 'local';
+  if (requireRemoteSources) throw new Error('Availability sources are required in production');
+  return 'unconfigured';
 }
 
 function fullDayInterval(instance, timezone) {
@@ -689,12 +554,18 @@ export function assertPublicPayload(payload) {
 }
 
 function parseArgs(argv) {
-  const args = {config: DEFAULT_CONFIG_PATH, output: DEFAULT_OUTPUT_PATH, inputs: []};
+  const args = {
+    config: DEFAULT_CONFIG_PATH,
+    output: DEFAULT_OUTPUT_PATH,
+    inputs: [],
+    requireSources: false,
+  };
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === '--config') args.config = path.resolve(argv[++index]);
     else if (token === '--output') args.output = path.resolve(argv[++index]);
     else if (token === '--input') args.inputs.push(path.resolve(argv[++index]));
+    else if (token === '--require-sources') args.requireSources = true;
     else throw new Error(`Unknown argument: ${token}`);
   }
   return args;
@@ -705,38 +576,38 @@ export async function main(argv = process.argv.slice(2)) {
   const config = await readAvailabilityConfig(args.config);
   process.env.TZ = config.timezone;
   const localInputs = await Promise.all(args.inputs.map((input) => readFile(input, 'utf8')));
-  const calendarSources = calendarSourceUrlsFromEnvironment(
-    process.env,
-    config.expected_remote_source_count,
-  );
   const caldavConfig = iCloudCalDavConfigFromEnvironment(
     process.env,
     config.expected_caldav_calendar_count,
   );
-  if ((calendarSources.length || caldavConfig) && localInputs.length) {
-    throw new Error('Choose exactly one availability source mode');
-  }
+  const ideaSnapshot = ideaSnapshotFromEnvironment(process.env);
+  const sourceMode = selectAvailabilitySourceMode({
+    iCloudConfig: caldavConfig,
+    ideaSnapshot,
+    localInputCount: localInputs.length,
+    requireRemoteSources: args.requireSources,
+  });
 
   let payload;
-  if (calendarSources.length || caldavConfig) {
-    if (!calendarSources.length || !caldavConfig) {
-      throw new Error('Availability sources are not fully configured');
-    }
+  if (sourceMode === 'production') {
     const now = DateTime.utc();
     const {windowStart, windowEnd} = availabilityWindow(config, now);
-    const [calendars, caldavIntervals] = await Promise.all([
-      fetchCalendarSources(calendarSources, config.allowed_source_hosts, {
-        requiredSourceHosts: config.required_remote_source_hosts,
-      }),
-      fetchICloudBusyIntervals(caldavConfig, {
-        allowedHosts: config.allowed_caldav_hosts,
-        windowStart,
-        windowEnd,
-      }),
-    ]);
-    const calendarIntervals = calendarTextsToIntervals(calendars, config, now);
-    payload = buildPublicPayload([...calendarIntervals, ...caldavIntervals], config, now);
-  } else if (localInputs.length) {
+    const ideaIntervals = parseIdeaBusySnapshot(ideaSnapshot, config, {
+      now,
+      windowStart,
+      windowEnd,
+    });
+    const iCloudIntervals = await fetchICloudBusyIntervals(caldavConfig, {
+      allowedHosts: config.allowed_caldav_hosts,
+      windowStart,
+      windowEnd,
+    });
+    payload = buildPublicPayload(
+      [...iCloudIntervals, ...ideaIntervals],
+      config,
+      now,
+    );
+  } else if (sourceMode === 'local') {
     payload = sanitizeCalendarText(localInputs, config);
   } else {
     payload = unconfiguredPayload(config);

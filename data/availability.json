@@ -8,16 +8,8 @@
     "*.icloud.com",
     "*.icloud.com.cn"
   ],
-  "expected_remote_source_count": 2,
-  "required_remote_source_hosts": [
-    "calendar.google.com",
-    "event.pku-idea.com"
-  ],
-  "allowed_source_hosts": [
-    "calendar.google.com",
-    "calendar.googleusercontent.com",
-    "event.pku-idea.com"
-  ],
+  "idea_snapshot_coverage_days": 400,
+  "idea_snapshot_max_age_days": 90,
   "display_hours": {
     "start": "08:00",
     "end": "22:00"
