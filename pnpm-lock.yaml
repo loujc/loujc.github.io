@@ -30,6 +30,9 @@ importers:
       node-ical:
         specifier: 0.26.1
         version: 0.26.1
+      saxes:
+        specifier: 6.0.0
+        version: 6.0.0
 
 packages:
 
@@ -404,6 +407,10 @@ packages:
   rrule-temporal@1.6.0:
     resolution: {integrity: sha512-tlhiNroletItRVdVP3knk92MCPNdFmPpehQMxf+jSo0CHZpmp1WUsvdVpg2iS++J9+O7/89J64BldN21kbcBqA==}
 
+  saxes@6.0.0:
+    resolution: {integrity: sha512-xAg7SOnEhrm5zI3puOOKyy1OMcMlIJZYNJY7xLBwSze0UjhPLnWfj2GF2EpT0jmzaJKIWKHLsaSSajf35bcYnA==}
+    engines: {node: '>=v12.22.7'}
+
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
     engines: {node: '>=0.10.0'}
@@ -426,6 +433,9 @@ packages:
 
   util-deprecate@1.0.2:
     resolution: {integrity: sha512-EPD5q1uXyFxJpCrLnCc1nHnq3gOa6DZBocAIiI2TaSCA7VCJ1UJDMagCzIkXNsUYfD1daK//LTEQ8xiIbrHtcw==}
+
+  xmlchars@2.2.0:
+    resolution: {integrity: sha512-JZnDKK8B0RCDw84FNdDAIpZK+JuJw+s7Lz8nksI7SIuU3UXJJslUthsi+uWBUYOwPFwW7W7PRLRfUKpxjtjFCw==}
 
 snapshots:
 
@@ -720,6 +730,10 @@ snapshots:
       '@js-temporal/polyfill': 0.5.1
       temporal-spec: 1.0.0
 
+  saxes@6.0.0:
+    dependencies:
+      xmlchars: 2.2.0
+
   source-map-js@1.2.1: {}
 
   tailwindcss@4.2.4: {}
@@ -735,3 +749,5 @@ snapshots:
   temporal-spec@1.0.0: {}
 
   util-deprecate@1.0.2: {}
+
+  xmlchars@2.2.0: {}

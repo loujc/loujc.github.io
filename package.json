@@ -8,7 +8,7 @@
     "dev": "hugo server --disableFastRender",
     "build": "hugo --cleanDestinationDir --minify && pnpm run pagefind",
     "calendar:generate": "node scripts/generate-busy-calendar.mjs",
-    "calendar:test": "node --test scripts/generate-busy-calendar.test.mjs",
+    "calendar:test": "node --test scripts/generate-busy-calendar.test.mjs scripts/icloud-caldav.test.mjs",
     "pagefind": "pagefind --site public"
   },
   "dependencies": {
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "luxon": "3.7.2",
-    "node-ical": "0.26.1"
+    "node-ical": "0.26.1",
+    "saxes": "6.0.0"
   }
 }

@@ -3,17 +3,17 @@
   "horizon_days": 56,
   "slot_minutes": 30,
   "stale_after_hours": 3,
-  "expected_remote_source_count": 6,
+  "expected_caldav_calendar_count": 4,
+  "allowed_caldav_hosts": [
+    "*.icloud.com",
+    "*.icloud.com.cn"
+  ],
+  "expected_remote_source_count": 2,
   "required_remote_source_hosts": [
-    "*.icloud.com",
-    "*.icloud.com",
-    "*.icloud.com",
-    "*.icloud.com",
     "calendar.google.com",
     "event.pku-idea.com"
   ],
   "allowed_source_hosts": [
-    "*.icloud.com",
     "calendar.google.com",
     "calendar.googleusercontent.com",
     "event.pku-idea.com"

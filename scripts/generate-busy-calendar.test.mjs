@@ -5,6 +5,8 @@ import {DateTime} from 'luxon';
 
 import {
   assertPublicPayload,
+  buildPublicPayload,
+  calendarTextsToIntervals,
   calendarSourceUrlsFromEnvironment,
   fetchCalendarSource,
   fetchCalendarSources,
@@ -112,6 +114,21 @@ test('sanitizer publishes only rounded and merged busy intervals', () => {
     {start: '2026-07-20T07:00:00Z', end: '2026-07-20T08:00:00Z'},
     {start: '2026-07-21T00:00:00Z', end: '2026-07-21T14:00:00Z'},
   ]);
+});
+
+test('iCalendar and CalDAV intervals share one final anonymization boundary', () => {
+  const now = DateTime.fromISO('2026-07-14T00:00:00+08:00');
+  const calendarIntervals = calendarTextsToIntervals([calendar], config, now);
+  const caldavIntervals = [{
+    start: DateTime.fromISO('2026-07-15T02:25:00Z'),
+    end: DateTime.fromISO('2026-07-15T03:00:00Z'),
+  }];
+  const payload = buildPublicPayload([...calendarIntervals, ...caldavIntervals], config, now);
+  assert.deepEqual(payload.busy[0], {
+    start: '2026-07-15T01:00:00Z',
+    end: '2026-07-15T03:00:00Z',
+  });
+  assert.doesNotThrow(() => assertPublicPayload(payload));
 });
 
 test('payload cannot contain any event metadata or source data', () => {

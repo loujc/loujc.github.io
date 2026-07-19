@@ -5,6 +5,11 @@ import {fileURLToPath} from 'node:url';
 import {DateTime, Duration} from 'luxon';
 import ical from 'node-ical';
 
+import {
+  fetchICloudBusyIntervals,
+  iCloudCalDavConfigFromEnvironment,
+} from './icloud-caldav.mjs';
+
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(SCRIPT_DIR, '..');
 const DEFAULT_CONFIG_PATH = path.join(PROJECT_ROOT, 'data', 'availability.json');
@@ -97,6 +102,14 @@ export async function readAvailabilityConfig(configPath = DEFAULT_CONFIG_PATH) {
   }
   const allowedSourceHosts = normalizeAllowedSourceHosts(config.allowed_source_hosts);
   if (
+    !Number.isInteger(config.expected_caldav_calendar_count)
+    || config.expected_caldav_calendar_count < 1
+    || config.expected_caldav_calendar_count > MAX_CALENDAR_SOURCES
+  ) {
+    throw new Error(`expected_caldav_calendar_count must be an integer from 1 to ${MAX_CALENDAR_SOURCES}`);
+  }
+  const allowedCaldavHosts = normalizeAllowedSourceHosts(config.allowed_caldav_hosts);
+  if (
     !Array.isArray(config.required_remote_source_hosts)
     || config.required_remote_source_hosts.length !== config.expected_remote_source_count
   ) {
@@ -108,6 +121,7 @@ export async function readAvailabilityConfig(configPath = DEFAULT_CONFIG_PATH) {
   return {
     ...config,
     allowed_source_hosts: allowedSourceHosts,
+    allowed_caldav_hosts: allowedCaldavHosts,
     required_remote_source_hosts: requiredRemoteSourceHosts,
     display_hours_parts: {start, end},
   };
@@ -510,11 +524,17 @@ function assertParsedEventIsSafe(event, seen = new Set()) {
   }
 }
 
-export function sanitizeCalendarText(calendarTexts, config, now = DateTime.utc()) {
+export function availabilityWindow(config, now = DateTime.utc()) {
+  return {
+    generatedAt: now.toUTC().startOf('second'),
+    windowStart: now.setZone(config.timezone).startOf('day'),
+    windowEnd: now.setZone(config.timezone).startOf('day').plus({days: config.horizon_days}),
+  };
+}
+
+export function calendarTextsToIntervals(calendarTexts, config, now = DateTime.utc()) {
   process.env.TZ = config.timezone;
-  const generatedAt = now.toUTC().startOf('second');
-  const windowStart = now.setZone(config.timezone).startOf('day');
-  const windowEnd = windowStart.plus({days: config.horizon_days});
+  const {windowStart, windowEnd} = availabilityWindow(config, now);
   const intervals = [];
 
   for (const calendarText of calendarTexts) {
@@ -530,14 +550,34 @@ export function sanitizeCalendarText(calendarTexts, config, now = DateTime.utc()
             const rawInterval = instance.isFullDay
               ? fullDayInterval(instance, config.timezone)
               : timedInterval(instance, config.timezone);
-            const rounded = roundOutward(rawInterval, config.slot_minutes);
-            intervals.push(...clipToPublicHours(rounded, config, windowStart, windowEnd));
+            intervals.push(rawInterval);
           }
         }
       });
     } catch {
       throw new Error('Calendar data could not be parsed safely');
     }
+  }
+
+  return intervals;
+}
+
+export function buildPublicPayload(rawIntervals, config, now = DateTime.utc()) {
+  const {generatedAt, windowStart, windowEnd} = availabilityWindow(config, now);
+  const intervals = [];
+  for (const interval of rawIntervals) {
+    if (
+      !interval
+      || !DateTime.isDateTime(interval.start)
+      || !DateTime.isDateTime(interval.end)
+      || !interval.start.isValid
+      || !interval.end.isValid
+      || interval.end <= interval.start
+    ) {
+      throw new Error('Busy interval data could not be parsed safely');
+    }
+    const rounded = roundOutward(interval, config.slot_minutes);
+    intervals.push(...clipToPublicHours(rounded, config, windowStart, windowEnd));
   }
 
   const busy = mergeIntervals(intervals).map((interval) => ({
@@ -558,6 +598,10 @@ export function sanitizeCalendarText(calendarTexts, config, now = DateTime.utc()
   };
   assertPublicPayload(payload);
   return payload;
+}
+
+export function sanitizeCalendarText(calendarTexts, config, now = DateTime.utc()) {
+  return buildPublicPayload(calendarTextsToIntervals(calendarTexts, config, now), config, now);
 }
 
 export function unconfiguredPayload(config, now = DateTime.utc()) {
@@ -665,14 +709,33 @@ export async function main(argv = process.argv.slice(2)) {
     process.env,
     config.expected_remote_source_count,
   );
-  if (calendarSources.length && localInputs.length) throw new Error('Choose exactly one availability source mode');
+  const caldavConfig = iCloudCalDavConfigFromEnvironment(
+    process.env,
+    config.expected_caldav_calendar_count,
+  );
+  if ((calendarSources.length || caldavConfig) && localInputs.length) {
+    throw new Error('Choose exactly one availability source mode');
+  }
 
   let payload;
-  if (calendarSources.length) {
-    const calendars = await fetchCalendarSources(calendarSources, config.allowed_source_hosts, {
-      requiredSourceHosts: config.required_remote_source_hosts,
-    });
-    payload = sanitizeCalendarText(calendars, config);
+  if (calendarSources.length || caldavConfig) {
+    if (!calendarSources.length || !caldavConfig) {
+      throw new Error('Availability sources are not fully configured');
+    }
+    const now = DateTime.utc();
+    const {windowStart, windowEnd} = availabilityWindow(config, now);
+    const [calendars, caldavIntervals] = await Promise.all([
+      fetchCalendarSources(calendarSources, config.allowed_source_hosts, {
+        requiredSourceHosts: config.required_remote_source_hosts,
+      }),
+      fetchICloudBusyIntervals(caldavConfig, {
+        allowedHosts: config.allowed_caldav_hosts,
+        windowStart,
+        windowEnd,
+      }),
+    ]);
+    const calendarIntervals = calendarTextsToIntervals(calendars, config, now);
+    payload = buildPublicPayload([...calendarIntervals, ...caldavIntervals], config, now);
   } else if (localInputs.length) {
     payload = sanitizeCalendarText(localInputs, config);
   } else {

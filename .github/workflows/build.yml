@@ -14,13 +14,13 @@ on:
         required: false
       CALENDAR_ICS_URL_2:
         required: false
-      CALENDAR_ICS_URL_3:
+      ICLOUD_CALDAV_USERNAME:
         required: false
-      CALENDAR_ICS_URL_4:
+      ICLOUD_CALDAV_APP_PASSWORD:
         required: false
-      CALENDAR_ICS_URL_5:
+      ICLOUD_CALDAV_BASE_URL:
         required: false
-      CALENDAR_ICS_URL_6:
+      ICLOUD_CALDAV_CALENDAR_NAMES_JSON:
         required: false
     outputs:
       artifact_id:
@@ -61,15 +61,15 @@ jobs:
     - name: Test calendar privacy contract
       run: pnpm run calendar:test
 
-    - name: Generate anonymized availability from secret calendar feeds
+    - name: Generate anonymized availability from private calendar sources
       if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
       env:
         CALENDAR_ICS_URL_1: ${{ secrets.CALENDAR_ICS_URL_1 }}
         CALENDAR_ICS_URL_2: ${{ secrets.CALENDAR_ICS_URL_2 }}
-        CALENDAR_ICS_URL_3: ${{ secrets.CALENDAR_ICS_URL_3 }}
-        CALENDAR_ICS_URL_4: ${{ secrets.CALENDAR_ICS_URL_4 }}
-        CALENDAR_ICS_URL_5: ${{ secrets.CALENDAR_ICS_URL_5 }}
-        CALENDAR_ICS_URL_6: ${{ secrets.CALENDAR_ICS_URL_6 }}
+        ICLOUD_CALDAV_USERNAME: ${{ secrets.ICLOUD_CALDAV_USERNAME }}
+        ICLOUD_CALDAV_APP_PASSWORD: ${{ secrets.ICLOUD_CALDAV_APP_PASSWORD }}
+        ICLOUD_CALDAV_BASE_URL: ${{ secrets.ICLOUD_CALDAV_BASE_URL }}
+        ICLOUD_CALDAV_CALENDAR_NAMES_JSON: ${{ secrets.ICLOUD_CALDAV_CALENDAR_NAMES_JSON }}
       run: node scripts/generate-busy-calendar.mjs
 
     - name: Generate fail-closed availability without calendar feeds

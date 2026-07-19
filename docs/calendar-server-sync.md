@@ -1,108 +1,151 @@
 # Server-side availability calendar
 
 The production calendar does not read Calendar.app or depend on a Mac. GitHub
-Actions is scheduled at minute 17 of every hour, downloads six calendar feeds
-through secret bearer URLs, and publishes only anonymous occupied intervals.
+Actions is scheduled at minute 17 of every hour and talks directly to the
+calendar providers. It publishes only anonymous occupied intervals.
 
 The data path is:
 
-1. Apple Calendar writes an edit to the calendar provider (iCloud, Google, or
-   IDEA Events) using that account's normal synchronization.
-2. The provider updates its calendar feed addressed by a bearer URL.
-3. A minimal GitHub-hosted availability job fetches all six feeds directly
-   from the provider servers.
-4. The build rounds outward to 30-minute boundaries, clips to 08:00-22:00 in
-   `Asia/Shanghai`, merges overlaps, and writes only `public/availability/busy.json`.
-5. The raw iCalendar bodies enter that GitHub-hosted runner, remain in memory,
-   and are discarded with it. Only the anonymous JSON moves to the separate
-   Hugo build job and final Pages artifact.
+1. Apple Calendar writes an edit to its provider (iCloud, Google, or IDEA
+   Events) using that account's normal synchronization.
+2. The isolated availability job signs in to iCloud CalDAV, dynamically finds
+   the four selected calendar collections, and asks each collection for a
+   bounded `VFREEBUSY` result. iCloud expands recurring events and applies
+   cancellation and transparency rules before returning only busy periods.
+3. The same job downloads the private Google and IDEA Events iCalendar feeds
+   into memory and reduces their events to time intervals.
+4. All intervals are rounded outward to 30-minute boundaries, clipped to
+   08:00-22:00 in `Asia/Shanghai`, merged, and written to
+   `public/availability/busy.json`.
+5. Only that allowlisted JSON file moves to the separate Hugo build job. The
+   CalDAV credential, discovery XML, collection URLs, iCloud `VFREEBUSY`, and
+   Google/IDEA calendar bodies are discarded with the isolated runner.
 
-The Mac may be asleep or offline after the provider has received the edit.
-Refresh latency is the provider's propagation time plus up to approximately one
-hour before the next scheduled site build.
+The Mac may be asleep or offline after the provider has received an edit.
+Refresh latency is provider propagation time plus up to approximately one hour
+before the next scheduled build.
 
 ## Required GitHub Secrets
 
-Exactly six consecutive repository secrets must be configured:
+All six repository secrets must be configured:
 
 ```text
+ICLOUD_CALDAV_USERNAME
+ICLOUD_CALDAV_APP_PASSWORD
+ICLOUD_CALDAV_BASE_URL
+ICLOUD_CALDAV_CALENDAR_NAMES_JSON
 CALENDAR_ICS_URL_1
 CALENDAR_ICS_URL_2
-CALENDAR_ICS_URL_3
-CALENDAR_ICS_URL_4
-CALENDAR_ICS_URL_5
-CALENDAR_ICS_URL_6
 ```
 
-Slots 1-4 are the four selected iCloud calendars, slot 5 is the selected Google
-calendar, and slot 6 is the IDEA Events subscription. This mapping is private
-operational context; calendar names and feed URLs do not belong in the
-repository, issues, commit messages, or Actions logs.
+The two iCalendar slots are ordered: slot 1 is Google and slot 2 is IDEA
+Events. `ICLOUD_CALDAV_CALENDAR_NAMES_JSON` is a JSON array containing exactly
+four selected iCloud display names. Names, usernames, endpoints, passwords,
+collection URLs, and feed URLs are private operational data and do not belong
+in the repository, issues, commit messages, or Actions logs.
 
 Add each value under GitHub repository **Settings → Secrets and variables →
-Actions → New repository secret**. Never paste a feed URL into chat or a shell
-command line. If using the GitHub CLI on macOS, copy one URL and stream it from
-the clipboard so it does not enter shell history:
+Actions → New repository secret**. Never paste credentials or feed URLs into
+chat or a shell command line. With the GitHub CLI on macOS, copy one value and
+stream it from the clipboard so it does not enter shell history:
 
 ```sh
-pbpaste | gh secret set CALENDAR_ICS_URL_1 --repo loujc/loujc.github.io
+pbpaste | gh secret set SECRET_NAME --repo loujc/loujc.github.io
 ```
 
-Repeat with the appropriate slot number. The workflow exposes these six
-secrets only to the main-branch anonymization step in a minimal isolated job;
-pull-request builds receive none of them. The actions in that job are pinned to
-full commit SHAs, and dependency installation uses the committed lockfile with
-lifecycle scripts disabled. Hugo, Pagefind, caches, and downloaded build tools
-run later in a different job that never receives the feed URLs or raw ICS.
+These secrets are exposed only to the main-branch anonymization step in a
+minimal isolated job. Pull-request builds receive none of them. The actions in
+that job are pinned to full commit SHAs, and dependency installation uses the
+committed lockfile with lifecycle scripts disabled. Hugo, Pagefind, caches, and
+downloaded build tools run later in a different job that receives only the
+anonymous JSON artifact.
 
-## Obtaining the feeds
+## iCloud CalDAV
 
-### iCloud (four feeds)
+Create a dedicated app-specific password at
+<https://account.apple.com/account/manage>. No Public Calendar link is needed.
+The workflow uses only the read operations `PROPFIND` and `REPORT`; it contains
+no code path for `PUT`, `POST`, `DELETE`, `MKCOL`, or `PROPPATCH`.
 
-On iCloud.com Calendar, enable **Public Calendar** separately for each selected
-calendar and copy its `webcal://` link. A public iCloud calendar link is a bearer
-secret: anyone who obtains it can subscribe to the original calendar and see
-the event data that calendar publishes. The link must exist for server-side
-polling, but it must be stored only as a GitHub Secret.
+`ICLOUD_CALDAV_USERNAME` must be the Apple Account username for the iCloud
+calendar account, not an unrelated iCloud mail alias. `ICLOUD_CALDAV_BASE_URL`
+must be the CalDAV service URL assigned to that account and region; it can be
+an `icloud.com.cn` partition for accounts hosted in China. During one-time
+setup, both values can be read from the signed-in Mac's local Internet Accounts
+metadata and streamed directly to GitHub Secrets without printing them. The
+workflow then performs standards-based discovery on every run and never stores
+principal, home, or collection paths in repository configuration.
 
-Apple documentation: <https://support.apple.com/en-euro/guide/icloud/mm6b1a9479/icloud>
+On every run, the client follows the standard CalDAV discovery chain from the
+configured iCloud endpoint to the current principal, calendar home, and child
+calendar collections. It selects the four configured display names exactly.
+A missing name, duplicate name, duplicate URL, non-calendar collection, or
+unexpected host fails the entire run before availability is published.
 
-### Google (one feed)
+Each selected collection receives a bounded CalDAV `free-busy-query`. A valid
+response contains one `VFREEBUSY` with `FREEBUSY` periods rather than original
+`VEVENT` fields, so the workflow does not request event titles, locations,
+notes, attendees, organizers, or identifiers. A non-conforming response is
+rejected in memory; it is never retained, logged, or published.
 
-In Google Calendar, open **Settings → Settings for my calendars → Integrate
+Important credential boundary: an Apple app-specific password is not a
+Calendar-only or server-enforced read-only token. Apple documents that such a
+password may let a third-party app access iCloud information including mail,
+contacts, and calendars. The repository code is read-only, but the credential
+must still be protected and revoked immediately if exposed. It can be revoked
+individually in the Apple Account security settings.
+
+Protocol references:
+
+- CalDAV `calendar-home-set` and `free-busy-query`: <https://www.rfc-editor.org/rfc/rfc4791.html>
+- Current-user-principal discovery: <https://www.rfc-editor.org/rfc/rfc5397.html>
+- Apple app-specific passwords: <https://support.apple.com/zh-cn/102654>
+
+## Google and IDEA Events feeds
+
+For Google Calendar, open **Settings → Settings for my calendars → Integrate
 calendar** and copy **Secret address in iCal format**. Google says this address
 should not be shared; reset it immediately if it is exposed.
 
 Google documentation: <https://support.google.com/calendar/answer/37648>
 
-### IDEA Events (one feed)
-
-Use Calendar.app's subscription information to copy the existing IDEA Events
-URL, or obtain a fresh subscription URL from the IDEA Events provider. Only an
-HTTPS or `webcal://` URL hosted by `event.pku-idea.com` is accepted.
+For IDEA Events, use Calendar.app's subscription information to copy the
+existing subscription URL, or obtain a fresh URL from the IDEA Events
+provider. Only an HTTPS or `webcal://` URL hosted by `event.pku-idea.com` is
+accepted.
 
 Apple subscription documentation: <https://support.apple.com/zh-cn/guide/calendar/icl1022/mac>
 
 ## Fail-closed behavior
 
-The build publishes a ready calendar only when all six consecutive secrets
-are present and every feed:
+The build publishes a ready calendar only when the complete iCloud CalDAV
+configuration and both ordered iCalendar sources are present. It fails if any
+source, discovery step, selected collection, or free-busy query fails.
 
-- uses HTTPS after `webcal://` normalization;
-- remains on an allowlisted provider host through every redirect;
-- returns a complete `VCALENDAR` within the response-size and timeout limits;
-- parses without exposing diagnostics or private fields.
+Every network request:
 
-If one configured source is missing, fails, redirects unsafely, is truncated,
-or cannot be parsed, the build fails rather than presenting missing busy time as
-free. With no sources (for example, a pull request), the page emits an explicit
-unconfigured state. The browser also treats data older than three hours as
-unavailable.
+- uses HTTPS and manually validates every redirect;
+- remains on an allowlisted provider host;
+- has strict timeout, redirect, per-response-size, and bounded request-count
+  limits;
+- keeps bearer URLs, credentials, response bodies, and parser diagnostics out
+  of errors and Actions logs.
+
+CalDAV authentication starts only after an allowlisted iCloud host issues a
+Basic challenge. Redirects restart without an Authorization header, preventing
+credentials from being forwarded to a different origin before it is checked.
+Discovery XML rejects DTDs and entities and is parsed with namespace-aware,
+bounded logic.
+
+With no production sources (for example, a pull request), the page emits an
+explicit unconfigured state. A partial configuration is an error rather than a
+partially empty calendar. The browser also treats data older than three hours
+as unavailable.
 
 GitHub can automatically disable scheduled workflows in a public repository
 after 60 days without repository activity. If that happens, re-enable the
-workflow from the Actions tab; until then the three-hour stale check keeps the
-page from presenting old gaps as current free time.
+workflow from the Actions tab; until then the three-hour stale check prevents
+old gaps from appearing current.
 
 The public JSON contract contains only the timezone, date window, display
 hours, generation time, slot size, status, and merged `{start, end}` intervals.

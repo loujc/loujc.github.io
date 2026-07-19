@@ -68,10 +68,10 @@ jobs:
     secrets:
       CALENDAR_ICS_URL_1: ${{ secrets.CALENDAR_ICS_URL_1 }}
       CALENDAR_ICS_URL_2: ${{ secrets.CALENDAR_ICS_URL_2 }}
-      CALENDAR_ICS_URL_3: ${{ secrets.CALENDAR_ICS_URL_3 }}
-      CALENDAR_ICS_URL_4: ${{ secrets.CALENDAR_ICS_URL_4 }}
-      CALENDAR_ICS_URL_5: ${{ secrets.CALENDAR_ICS_URL_5 }}
-      CALENDAR_ICS_URL_6: ${{ secrets.CALENDAR_ICS_URL_6 }}
+      ICLOUD_CALDAV_USERNAME: ${{ secrets.ICLOUD_CALDAV_USERNAME }}
+      ICLOUD_CALDAV_APP_PASSWORD: ${{ secrets.ICLOUD_CALDAV_APP_PASSWORD }}
+      ICLOUD_CALDAV_BASE_URL: ${{ secrets.ICLOUD_CALDAV_BASE_URL }}
+      ICLOUD_CALDAV_CALENDAR_NAMES_JSON: ${{ secrets.ICLOUD_CALDAV_CALENDAR_NAMES_JSON }}
 
   # Deploy website to GitHub Pages hosting (only if configured)
   deploy:
