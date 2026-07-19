@@ -1,4 +1,4 @@
-import {DateTime} from 'luxon';
+import {DateTime, IANAZone} from 'luxon';
 import {SaxesParser} from 'saxes';
 
 const DAV_NAMESPACE = 'DAV:';
@@ -11,6 +11,7 @@ const MAX_XML_DEPTH = 32;
 const MAX_XML_NODES = 50_000;
 const MAX_BUSY_INTERVALS = 50_000;
 const MAX_QUERY_MILLISECONDS = 94 * 24 * 60 * 60 * 1000;
+const MAX_TZID_LENGTH = 255;
 const EXPECTED_CALENDAR_COUNT = 4;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const READ_ONLY_METHODS = new Set(['PROPFIND', 'REPORT']);
@@ -24,6 +25,38 @@ const EVENT_PROPERTY_NAMES = new Set([
 ]);
 const EVENT_STATUS_VALUES = new Set(['TENTATIVE', 'CONFIRMED', 'CANCELLED']);
 const EVENT_TRANSPARENCY_VALUES = new Set(['OPAQUE', 'TRANSPARENT']);
+const EXPANSION_METADATA_PROPERTIES = new Set([
+  'X-EXPANDED',
+  'X-MASTER-DTSTART',
+  'X-MASTER-RRULE',
+]);
+const RRULE_KEYS = new Set([
+  'FREQ',
+  'UNTIL',
+  'COUNT',
+  'INTERVAL',
+  'BYSECOND',
+  'BYMINUTE',
+  'BYHOUR',
+  'BYDAY',
+  'BYMONTHDAY',
+  'BYYEARDAY',
+  'BYWEEKNO',
+  'BYMONTH',
+  'BYSETPOS',
+  'WKST',
+  'RSCALE',
+  'SKIP',
+]);
+const RRULE_FREQUENCIES = new Set([
+  'SECONDLY',
+  'MINUTELY',
+  'HOURLY',
+  'DAILY',
+  'WEEKLY',
+  'MONTHLY',
+  'YEARLY',
+]);
 const ICLOUD_CALDAV_HOST_PATTERN = /^(?:caldav|p\d+-caldav)\.icloud\.com(?:\.cn)?$/;
 
 const CURRENT_USER_PRINCIPAL_REQUEST = `<?xml version="1.0" encoding="utf-8"?>
@@ -588,6 +621,30 @@ function parseUtcCalendarDateTime(value) {
   return result;
 }
 
+function parseIanaCalendarDateTime(value, zoneName) {
+  if (
+    !/^\d{8}T\d{6}$/.test(value)
+    || typeof zoneName !== 'string'
+    || !zoneName
+    || zoneName.length > MAX_TZID_LENGTH
+    || !/^[A-Za-z0-9._+-]+(?:\/[A-Za-z0-9._+-]+)*$/.test(zoneName)
+    || zoneName.split('/').some((component) => component === '.' || component === '..')
+    || !IANAZone.isValidZone(zoneName)
+  ) {
+    throw genericRequestError();
+  }
+  const format = "yyyyLLdd'T'HHmmss";
+  const result = DateTime.fromFormat(value, format, {
+    zone: zoneName,
+    setZone: true,
+    locale: 'en-US',
+  });
+  // Luxon normalizes nonexistent wall-clock times across DST gaps. A strict
+  // round trip prevents that normalization from silently changing an event.
+  if (!result.isValid || result.toFormat(format) !== value) throw genericRequestError();
+  return result;
+}
+
 function parsePositiveDuration(value) {
   const match = /^P(?:(\d+)W|(?:(\d+)D)?(?:T(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?)$/.exec(value);
   if (!match || !match.slice(1).some((part) => part !== undefined)) throw genericRequestError();
@@ -607,14 +664,34 @@ function parsePositiveDuration(value) {
 
 function parseEventDate(content, dateZone) {
   const parameterKeys = [...content.parameters.keys()];
-  if (parameterKeys.some((key) => key !== 'VALUE')) throw genericRequestError();
   const declaredType = content.parameters.get('VALUE')?.toUpperCase() ?? null;
+  const timeZone = content.parameters.get('TZID') ?? null;
   if (/^\d{8}T\d{6}Z$/.test(content.value)) {
-    if (declaredType !== null && declaredType !== 'DATE-TIME') throw genericRequestError();
+    if (
+      parameterKeys.some((key) => key !== 'VALUE')
+      || (declaredType !== null && declaredType !== 'DATE-TIME')
+    ) {
+      throw genericRequestError();
+    }
     return {kind: 'date-time', value: parseUtcCalendarDateTime(content.value)};
   }
+  if (/^\d{8}T\d{6}$/.test(content.value)) {
+    if (
+      parameterKeys.some((key) => key !== 'VALUE' && key !== 'TZID')
+      || timeZone === null
+      || (declaredType !== null && declaredType !== 'DATE-TIME')
+    ) {
+      throw genericRequestError();
+    }
+    return {
+      kind: 'date-time',
+      value: parseIanaCalendarDateTime(content.value, timeZone),
+    };
+  }
   if (/^\d{8}$/.test(content.value)) {
-    if (declaredType !== 'DATE') throw genericRequestError();
+    if (parameterKeys.some((key) => key !== 'VALUE') || declaredType !== 'DATE') {
+      throw genericRequestError();
+    }
     const parsed = DateTime.fromFormat(content.value, 'yyyyLLdd', {zone: dateZone}).startOf('day');
     if (!parsed.isValid) throw genericRequestError();
     return {kind: 'date', value: parsed};
@@ -627,6 +704,90 @@ function parseEventEnum(content, allowedValues) {
   const value = content.value.toUpperCase();
   if (!allowedValues.has(value)) throw genericRequestError();
   return value;
+}
+
+function unescapeExpansionRule(value) {
+  if (
+    typeof value !== 'string'
+    || !value
+    || value.length > 4096
+    || !/^[\x20-\x7e]+$/.test(value)
+  ) {
+    throw genericRequestError();
+  }
+  let result = '';
+  for (let index = 0; index < value.length; index += 1) {
+    if (value[index] !== '\\') {
+      result += value[index];
+      continue;
+    }
+    const escaped = value[index + 1];
+    if (!['\\', ',', ';'].includes(escaped)) throw genericRequestError();
+    result += escaped;
+    index += 1;
+  }
+  return result;
+}
+
+function validateExpansionRule(content) {
+  if (content.parameters.size !== 0) throw genericRequestError();
+  const rule = unescapeExpansionRule(content.value);
+  const parts = rule.split(';');
+  const seen = new Set();
+  for (const part of parts) {
+    const equals = part.indexOf('=');
+    if (equals < 1 || part.indexOf('=', equals + 1) !== -1) throw genericRequestError();
+    const key = part.slice(0, equals);
+    const value = part.slice(equals + 1);
+    if (
+      !RRULE_KEYS.has(key)
+      || seen.has(key)
+      || !value
+      || value.length > 1024
+      || !/^[A-Z0-9,+-]+$/.test(value)
+    ) {
+      throw genericRequestError();
+    }
+    seen.add(key);
+  }
+  if (!seen.has('FREQ')) throw genericRequestError();
+  const frequency = parts.find((part) => part.startsWith('FREQ='))?.slice(5);
+  if (!RRULE_FREQUENCIES.has(frequency)) throw genericRequestError();
+  if (seen.has('COUNT') && seen.has('UNTIL')) throw genericRequestError();
+}
+
+function validateExpansionMasterStart(content) {
+  if (content.parameters.size !== 0) throw genericRequestError();
+  const formats = [
+    ['yyyyLLdd', /^\d{8}$/],
+    ["yyyyLLdd'T'HHmmss", /^\d{8}T\d{6}$/],
+    ["yyyyLLdd'T'HHmmss'Z'", /^\d{8}T\d{6}Z$/],
+  ];
+  for (const [format, pattern] of formats) {
+    if (!pattern.test(content.value)) continue;
+    const parsed = DateTime.fromFormat(content.value, format, {zone: 'utc', locale: 'en-US'});
+    if (parsed.isValid && parsed.toFormat(format) === content.value) return;
+    break;
+  }
+  throw genericRequestError();
+}
+
+function validateExpansionMetadata(content) {
+  if (content.name === 'X-EXPANDED') {
+    if (content.parameters.size !== 0 || content.value.toLowerCase() !== 'true') {
+      throw genericRequestError();
+    }
+    return;
+  }
+  if (content.name === 'X-MASTER-DTSTART') {
+    validateExpansionMasterStart(content);
+    return;
+  }
+  if (content.name === 'X-MASTER-RRULE') {
+    validateExpansionRule(content);
+    return;
+  }
+  throw genericRequestError();
 }
 
 function eventToInterval(properties, requestedStart, requestedEnd, dateZone) {
@@ -655,8 +816,15 @@ function eventToInterval(properties, requestedStart, requestedEnd, dateZone) {
   }
 
   const recurrenceId = properties.get('RECURRENCE-ID');
-  if (recurrenceId && parseEventDate(recurrenceId, dateZone).kind !== start.kind) {
-    throw genericRequestError();
+  if (recurrenceId) {
+    const recurrence = parseEventDate(recurrenceId, dateZone);
+    const iCloudExpandedAllDayMarker = start.kind === 'date'
+      && recurrence.kind === 'date-time'
+      && /^\d{8}T\d{6}Z$/.test(recurrenceId.value)
+      && recurrenceId.parameters.size === 0;
+    if (recurrence.kind !== start.kind && !iCloudExpandedAllDayMarker) {
+      throw genericRequestError();
+    }
   }
   const status = properties.has('STATUS')
     ? parseEventEnum(properties.get('STATUS'), EVENT_STATUS_VALUES)
@@ -680,6 +848,7 @@ function parseExpandedEventCalendar(calendarText, windowStart, windowEnd) {
   let calendarClosed = false;
   let versionCount = 0;
   let eventProperties = null;
+  const expansionMetadata = new Set();
 
   for (const line of lines) {
     if (!line) continue;
@@ -732,6 +901,16 @@ function parseExpandedEventCalendar(calendarText, windowStart, windowEnd) {
       versionCount += 1;
       continue;
     }
+    if (
+      stack.length === 1
+      && stack[0] === 'VCALENDAR'
+      && EXPANSION_METADATA_PROPERTIES.has(content.name)
+    ) {
+      if (expansionMetadata.has(content.name)) throw genericRequestError();
+      validateExpansionMetadata(content);
+      expansionMetadata.add(content.name);
+      continue;
+    }
     if (stack.length === 2 && stack[1] === 'VEVENT') {
       if (!EVENT_PROPERTY_NAMES.has(content.name) || eventProperties.has(content.name)) {
         throw genericRequestError();
@@ -740,7 +919,7 @@ function parseExpandedEventCalendar(calendarText, windowStart, windowEnd) {
       continue;
     }
     // VALARM was deliberately requested without properties. Any value here,
-    // or any non-requested VCALENDAR property, could carry private metadata.
+    // or any non-allowlisted VCALENDAR property, could carry private metadata.
     throw genericRequestError();
   }
 
@@ -750,6 +929,8 @@ function parseExpandedEventCalendar(calendarText, windowStart, windowEnd) {
     || !calendarClosed
     || stack.length !== 0
     || eventProperties !== null
+    || (expansionMetadata.size !== 0
+      && expansionMetadata.size !== EXPANSION_METADATA_PROPERTIES.size)
   ) {
     throw genericRequestError();
   }

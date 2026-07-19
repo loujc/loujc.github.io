@@ -92,6 +92,17 @@ attendees, organizers, event identifiers such as `UID`, or recurrence rules.
 The parser accepts only that allowlist and rejects a response containing any
 other event or alarm field.
 
+Time values may be UTC, all-day dates, or local date-times carrying a valid
+IANA `TZID`. The timezone parameter is used only to convert the event boundary
+to an instant; it is not retained or published.
+
+For expanded repeating events, iCloud also supplies the exact VCALENDAR
+markers `X-EXPANDED`, `X-MASTER-DTSTART`, and `X-MASTER-RRULE` even though they
+are not requested, and it does not honor `novalue="yes"` for them. The client
+accepts them only as a complete group after strict boolean, date-time, and
+recurrence-rule syntax validation, then discards them. They contain recurrence
+timing metadata, never event content, and are not transferred or published.
+
 CalDAV multistatus responses necessarily contain opaque collection or resource
 paths. Those paths and the time-only response body exist briefly in isolated
 runner memory, but are never retained, logged, transferred to the Hugo job, or

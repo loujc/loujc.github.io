@@ -292,6 +292,71 @@ END:VCALENDAR\r
   );
 });
 
+test('calendar-query parser strictly validates and discards iCloud expansion metadata', () => {
+  const calendar = `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+X-EXPANDED:true\r
+X-MASTER-DTSTART:20260721T090000\r
+X-MASTER-RRULE:FREQ=WEEKLY\\;INTERVAL=1\\;BYDAY=MO\\,WE\r
+BEGIN:VEVENT\r
+DTSTART;TZID=Asia/Shanghai:20260721T100000\r
+DTEND;TZID=Asia/Shanghai:20260721T110000\r
+RECURRENCE-ID:20260721T010000Z\r
+END:VEVENT\r
+END:VCALENDAR\r
+`;
+  const intervals = parseCalendarQueryMultiStatus(
+    calendarQueryXml(0, calendar),
+    windowStart,
+    windowEnd,
+  );
+  assert.deepEqual(
+    intervals.map(({start, end}) => [start.toISO(), end.toISO()]),
+    [['2026-07-21T10:00:00.000+08:00', '2026-07-21T11:00:00.000+08:00']],
+  );
+});
+
+test('calendar-query parser accepts strict IANA TZID date-times and preserves DST instants', () => {
+  const calendar = `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+DTSTART;TZID=America/New_York:20260308T013000\r
+DTEND;VALUE=DATE-TIME;TZID=America/New_York:20260308T033000\r
+RECURRENCE-ID;TZID="America/New_York":20260301T013000\r
+END:VEVENT\r
+END:VCALENDAR\r
+`;
+  const intervals = parseCalendarQueryMultiStatus(
+    calendarQueryXml(0, calendar),
+    DateTime.fromISO('2026-03-08T00:00:00Z'),
+    DateTime.fromISO('2026-03-09T00:00:00Z'),
+  );
+  assert.deepEqual(
+    intervals.map(({start, end}) => [start.toISO(), end.toISO(), end.diff(start).as('hours')]),
+    [['2026-03-08T01:30:00.000-05:00', '2026-03-08T03:30:00.000-04:00', 1]],
+  );
+});
+
+test('calendar-query parser accepts a valid cross-zone interval', () => {
+  const calendar = `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+DTSTART;TZID=Asia/Shanghai:20260721T090000\r
+DTEND;TZID=America/New_York:20260721T000000\r
+END:VEVENT\r
+END:VCALENDAR\r
+`;
+  const intervals = parseCalendarQueryMultiStatus(
+    calendarQueryXml(0, calendar),
+    windowStart,
+    windowEnd,
+  );
+  assert.deepEqual(
+    intervals.map(({start, end}) => [start.toISO(), end.toISO(), end.diff(start).as('hours')]),
+    [['2026-07-21T09:00:00.000+08:00', '2026-07-21T00:00:00.000-04:00', 3]],
+  );
+});
+
 test('calendar-query parser handles DATE all-day events in the requested local zone and empty results', () => {
   const localStart = DateTime.fromISO('2026-07-21T00:00:00', {zone: 'Asia/Shanghai'});
   const localEnd = localStart.plus({days: 3});
@@ -303,7 +368,7 @@ END:VEVENT\r
 BEGIN:VEVENT\r
 DTSTART;VALUE=DATE:20260722\r
 DURATION:P1D\r
-RECURRENCE-ID;VALUE=DATE:20260722\r
+RECURRENCE-ID:20260721T160000Z\r
 END:VEVENT\r
 BEGIN:VEVENT\r
 DTSTART:20260722T120000Z\r
@@ -343,21 +408,50 @@ ${extra}\r
 END:VEVENT\r
 END:VCALENDAR\r
 `;
+  const eventFromLines = (...lines) => `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+${lines.join('\r\n')}\r
+END:VEVENT\r
+END:VCALENDAR\r
+`;
   const bodies = [
     calendarQueryXml(0, event(`SUMMARY:${token}`)),
     calendarQueryXml(0, event(`UID:${token}`)),
     calendarQueryXml(0, event(`BEGIN:VALARM\r\nDESCRIPTION:${token}\r\nEND:VALARM`)),
     calendarQueryXml(0, event(`BEGIN:VALARM\r\nTRIGGER:${token}\r\nEND:VALARM`)),
     calendarQueryXml(0, event(`STATUS:${token}`)),
-    calendarQueryXml(0, event('DTEND;TZID=Asia/Shanghai:20260721T100000')),
+    calendarQueryXml(0, eventFromLines('DTSTART:20260721T090000', 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines('DTSTART;TZID=Not_A_Zone:20260721T090000', 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/Shanghai;X-PRIVATE=1:20260721T090000', 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/Shanghai;TZID=America/New_York:20260721T090000', 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/Shanghai:20260721T090000Z', 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines('DTSTART;TZID=America/New_York:20260308T023000', 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines(`DTSTART;TZID=${'A'.repeat(256)}:20260721T090000`, 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/\u0001Shanghai:20260721T090000', 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/Shanghai:20260721', 'DURATION:P1D')),
     calendarQueryXml(0, event('RECURRENCE-ID;RANGE=THISANDFUTURE:20260721T010000Z')),
-    calendarQueryXml(0, event('RECURRENCE-ID;TZID=Asia/Shanghai:20260721T090000')),
+    calendarQueryXml(0, event('RECURRENCE-ID:20260721T090000')),
+    calendarQueryXml(0, event('RECURRENCE-ID;TZID=Invalid/Zone:20260721T090000')),
+    calendarQueryXml(0, event('RECURRENCE-ID;TZID=Asia/Shanghai:20260721')),
+    calendarQueryXml(0, eventFromLines(
+      'DTSTART;VALUE=DATE:20260721',
+      'RECURRENCE-ID;TZID=Asia/Shanghai:20260721T090000',
+    )),
     calendarQueryXml(0, event('RECURRENCE-ID;VALUE=DATE:20260721')),
     calendarQueryXml(0, event('RECURRENCE-ID:20260721T010000Z\r\nRECURRENCE-ID:20260722T010000Z')),
     calendarQueryXml(0, event('RRULE:FREQ=DAILY')),
     calendarQueryXml(0, event('RDATE:20260722T010000Z')),
     calendarQueryXml(0, event('EXDATE:20260722T010000Z')),
     calendarQueryXml(0, event('EXRULE:FREQ=DAILY')),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:${token}\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:${token}\r\nX-MASTER-RRULE:FREQ=DAILY\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:${token}\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\\nSUMMARY=${token}\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\\;X-PRIVATE=${token}\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-PRIVATE:${token}\r\nEND:VCALENDAR\r\n`),
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:${token}\r\nEND:VCALENDAR\r\n`),
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nEND:VTODO\r\nEND:VCALENDAR\r\n`),
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTIMEZONE\r\nEND:VTIMEZONE\r\nEND:VCALENDAR\r\n`),
