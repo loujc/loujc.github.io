@@ -10,16 +10,17 @@ The data path is:
    Events) using that account's normal synchronization.
 2. The isolated availability job signs in to iCloud CalDAV, dynamically finds
    the four selected calendar collections, and asks each collection for a
-   bounded `VFREEBUSY` result. iCloud expands recurring events and applies
-   cancellation and transparency rules before returning only busy periods.
+   bounded, server-expanded projection containing only event time, status, and
+   transparency fields.
 3. The same job downloads the private Google and IDEA Events iCalendar feeds
    into memory and reduces their events to time intervals.
 4. All intervals are rounded outward to 30-minute boundaries, clipped to
    08:00-22:00 in `Asia/Shanghai`, merged, and written to
    `public/availability/busy.json`.
 5. Only that allowlisted JSON file moves to the separate Hugo build job. The
-   CalDAV credential, discovery XML, collection URLs, iCloud `VFREEBUSY`, and
-   Google/IDEA calendar bodies are discarded with the isolated runner.
+   CalDAV credential, discovery XML, opaque collection/resource URLs, iCloud
+   time-only response bodies, and Google/IDEA calendar bodies are discarded
+   with the isolated runner.
 
 The Mac may be asleep or offline after the provider has received an edit.
 Refresh latency is provider propagation time plus up to approximately one hour
@@ -82,11 +83,20 @@ calendar collections. It selects the four configured display names exactly.
 A missing name, duplicate name, duplicate URL, non-calendar collection, or
 unexpected host fails the entire run before availability is published.
 
-Each selected collection receives a bounded CalDAV `free-busy-query`. A valid
-response contains one `VFREEBUSY` with `FREEBUSY` periods rather than original
-`VEVENT` fields, so the workflow does not request event titles, locations,
-notes, attendees, organizers, or identifiers. A non-conforming response is
-rejected in memory; it is never retained, logged, or published.
+Each selected collection receives a bounded CalDAV `calendar-query` with
+server-side recurrence expansion. Its `calendar-data` projection requests only
+`DTSTART`, `DTEND`, `DURATION`, `STATUS`, `TRANSP`, and the time-valued
+`RECURRENCE-ID` required for expanded repeating instances, plus an explicitly
+empty `VALARM` component. It does not request titles, locations, notes,
+attendees, organizers, event identifiers such as `UID`, or recurrence rules.
+The parser accepts only that allowlist and rejects a response containing any
+other event or alarm field.
+
+CalDAV multistatus responses necessarily contain opaque collection or resource
+paths. Those paths and the time-only response body exist briefly in isolated
+runner memory, but are never retained, logged, transferred to the Hugo job, or
+published. A non-conforming response stops the run instead of producing an
+incomplete availability file.
 
 Important credential boundary: an Apple app-specific password is not a
 Calendar-only or server-enforced read-only token. Apple documents that such a
@@ -97,7 +107,8 @@ individually in the Apple Account security settings.
 
 Protocol references:
 
-- CalDAV `calendar-home-set` and `free-busy-query`: <https://www.rfc-editor.org/rfc/rfc4791.html>
+- CalDAV `calendar-home-set`, `calendar-query`, partial retrieval, and recurrence
+  expansion: <https://www.rfc-editor.org/rfc/rfc4791.html>
 - Current-user-principal discovery: <https://www.rfc-editor.org/rfc/rfc5397.html>
 - Apple app-specific passwords: <https://support.apple.com/zh-cn/102654>
 
@@ -120,7 +131,7 @@ Apple subscription documentation: <https://support.apple.com/zh-cn/guide/calenda
 
 The build publishes a ready calendar only when the complete iCloud CalDAV
 configuration and both ordered iCalendar sources are present. It fails if any
-source, discovery step, selected collection, or free-busy query fails.
+source, discovery step, selected collection, or time-only calendar query fails.
 
 Every network request:
 

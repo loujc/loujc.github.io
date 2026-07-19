@@ -7,7 +7,7 @@ import {
   fetchICloudBusyIntervals,
   iCloudCalDavConfigFromEnvironment,
   normalizeICloudCalDavUrl,
-  parseFreeBusyCalendar,
+  parseCalendarQueryMultiStatus,
   parseICloudCalendarNames,
 } from './icloud-caldav.mjs';
 
@@ -77,31 +77,57 @@ function collectionsXml(names = calendarNames, homePath = '/123/calendars') {
 </d:multistatus>`;
 }
 
-function freeBusyCalendar(index = 0) {
+function expandedEventCalendar(index = 0) {
   const startHour = String(index + 1).padStart(2, '0');
   const endHour = String(index + 2).padStart(2, '0');
   return `BEGIN:VCALENDAR\r
 VERSION:2.0\r
-PRODID:-//Private Provider Metadata Must Not Escape//EN\r
-BEGIN:VFREEBUSY\r
-DTSTART:20260721T000000Z\r
-DTEND:20260722T000000Z\r
-FREEBUSY:20260721T${startHour}0000Z/20260721T${endHour}0000Z\r
-FREEBUSY;FBTYPE=BUSY-TENTATIVE:20260721T100000Z/PT30M\r
-FREEBUSY;FBTYPE=FREE:20260721T120000Z/20260721T130000Z\r
-END:VFREEBUSY\r
+BEGIN:VEVENT\r
+DTSTART:20260721T${startHour}0000Z\r
+DTEND:20260721T${endHour}0000Z\r
+TRANSP:OPAQUE\r
+RECURRENCE-ID;VALUE=DATE-TIME:20260720T020000Z\r
+BEGIN:VALARM\r
+END:VALARM\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART:20260721T100000Z\r
+DURATION:PT30M\r
+STATUS:TENTATIVE\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART:20260721T120000Z\r
+DTEND:20260721T130000Z\r
+TRANSP:TRANSPARENT\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART:20260721T140000Z\r
+DURATION:PT1H\r
+STATUS:CANCELLED\r
+END:VEVENT\r
 END:VCALENDAR\r
 `;
 }
 
-function challengeResponse() {
+function calendarQueryXml(index = 0, calendarText = expandedEventCalendar(index)) {
+  return `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:response>
+    <d:href>/123/calendars/selected-${index + 1}/private-object.ics</d:href>
+    ${propstat(`<c:calendar-data content-type="text/calendar" version="2.0">${xmlEscape(calendarText)}</c:calendar-data>`)}
+  </d:response>
+</d:multistatus>`;
+}
+
+function challengeResponse(challenge = 'Basic realm="iCloud"') {
   return new Response(null, {
     status: 401,
-    headers: {'www-authenticate': 'Basic realm="iCloud"'},
+    headers: {'www-authenticate': challenge},
   });
 }
 
 function authenticatedDiscoveryFetch({
+  challenge = 'Basic realm="iCloud"',
   collections = collectionsXml(),
   calendarHomes = ['/123/calendars/'],
   collectionsByHome = {},
@@ -120,7 +146,7 @@ function authenticatedDiscoveryFetch({
         headers: {location: baseUrl},
       });
     }
-    if (!authorization) return challengeResponse();
+    if (!authorization) return challengeResponse(challenge);
     assert.equal(
       authorization,
       `Basic ${Buffer.from(`${secretUsername}:${secretPassword}`, 'utf8').toString('base64')}`,
@@ -137,7 +163,7 @@ function authenticatedDiscoveryFetch({
     }
     const match = /^\/123\/(?:calendars|primary|shared)\/selected-(\d+)\/$/.exec(parsed.pathname);
     if (options.method === 'REPORT' && match) {
-      return new Response(freeBusyCalendar(Number(match[1]) - 1), {status: 200});
+      return new Response(calendarQueryXml(Number(match[1]) - 1), {status: 207});
     }
     return new Response('private unexpected request', {status: 404});
   };
@@ -203,19 +229,35 @@ test('CalDAV URL validation accepts only approved HTTPS Apple hosts', () => {
   }
 });
 
-test('free-busy parser returns clipped UTC intervals and ignores explicit FREE periods', () => {
+test('calendar-query parser returns clipped UTC intervals and applies event availability fields', () => {
   const calendar = `BEGIN:VCALENDAR\r
 VERSION:2.0\r
-BEGIN:VFREEBUSY\r
-FREEBUSY:20260720T230000Z/20260721T003000Z,\r
- 20260721T020000Z/PT1H30M\r
-FREEBUSY;FBTYPE=BUSY-UNAVAILABLE:20260721T040000Z/PT2H\r
-FREEBUSY;FBTYPE=FREE:20260721T070000Z/PT1H\r
-END:VFREEBUSY\r
+BEGIN:VEVENT\r
+DTSTART:20260720T230000Z\r
+DTEND:20260721T003000Z\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART;VALUE=DATE-TIME:20260721T020000Z\r
+DURATION:P1DT30M\r
+STATUS:CONFIRMED\r
+TRANSP:OPAQUE\r
+BEGIN:VALARM\r
+END:VALARM\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART:20260721T030000Z\r
+DURATION:PT30M\r
+TRANSP:TRANSPARENT\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART:20260721T040000Z\r
+DTEND:20260721T043000Z\r
+STATUS:CANCELLED\r
+END:VEVENT\r
 END:VCALENDAR\r
 `;
-  const intervals = parseFreeBusyCalendar(
-    calendar,
+  const intervals = parseCalendarQueryMultiStatus(
+    calendarQueryXml(0, calendar),
     DateTime.fromISO('2026-07-21T00:00:00Z'),
     DateTime.fromISO('2026-07-21T05:00:00Z'),
   );
@@ -223,34 +265,119 @@ END:VCALENDAR\r
     intervals.map(({start, end}) => [start.toISO(), end.toISO()]),
     [
       ['2026-07-21T00:00:00.000Z', '2026-07-21T00:30:00.000Z'],
-      ['2026-07-21T02:00:00.000Z', '2026-07-21T03:30:00.000Z'],
-      ['2026-07-21T04:00:00.000Z', '2026-07-21T05:00:00.000Z'],
+      ['2026-07-21T02:00:00.000Z', '2026-07-21T05:00:00.000Z'],
     ],
   );
   assert.ok(intervals.every(({start, end}) => start.zoneName === 'UTC' && end.zoneName === 'UTC'));
 });
 
-test('free-busy parser fails generically for malformed or unsafe provider data', () => {
-  const token = 'private-provider-diagnostic';
-  const twoFreeBusyComponents = `BEGIN:VCALENDAR\r
-BEGIN:VFREEBUSY\r
-END:VFREEBUSY\r
-BEGIN:VFREEBUSY\r
-END:VFREEBUSY\r
+test('expanded recurring instance uses its actual time while strictly validating RECURRENCE-ID', () => {
+  const calendar = `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+DTSTART:20260721T040000Z\r
+DTEND:20260721T050000Z\r
+RECURRENCE-ID:20260721T010000Z\r
+END:VEVENT\r
 END:VCALENDAR\r
 `;
-  for (const body of [
-    `BEGIN:VCALENDAR\r\nBEGIN:VFREEBUSY\r\nFREEBUSY:${token}\r\n`,
+  const intervals = parseCalendarQueryMultiStatus(
+    calendarQueryXml(0, calendar),
+    windowStart,
+    windowEnd,
+  );
+  assert.deepEqual(
+    intervals.map(({start, end}) => [start.toISO(), end.toISO()]),
+    [['2026-07-21T04:00:00.000Z', '2026-07-21T05:00:00.000Z']],
+  );
+});
+
+test('calendar-query parser handles DATE all-day events in the requested local zone and empty results', () => {
+  const localStart = DateTime.fromISO('2026-07-21T00:00:00', {zone: 'Asia/Shanghai'});
+  const localEnd = localStart.plus({days: 3});
+  const calendar = `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+DTSTART;VALUE=DATE:20260721\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART;VALUE=DATE:20260722\r
+DURATION:P1D\r
+RECURRENCE-ID;VALUE=DATE:20260722\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART:20260722T120000Z\r
+END:VEVENT\r
+END:VCALENDAR\r
+`;
+  const intervals = parseCalendarQueryMultiStatus(
+    calendarQueryXml(0, calendar),
+    localStart,
+    localEnd,
+  );
+  assert.deepEqual(
+    intervals.map(({start, end}) => [start.toISO(), end.toISO()]),
+    [
+      ['2026-07-21T00:00:00.000+08:00', '2026-07-22T00:00:00.000+08:00'],
+      ['2026-07-22T00:00:00.000+08:00', '2026-07-23T00:00:00.000+08:00'],
+    ],
+  );
+  assert.deepEqual(
+    parseCalendarQueryMultiStatus(
+      '<d:multistatus xmlns:d="DAV:"/>',
+      localStart,
+      localEnd,
+    ),
+    [],
+  );
+});
+
+test('calendar-query parser rejects SUMMARY, UID, alarm values, and all other unrequested data', () => {
+  const token = 'private-provider-diagnostic';
+  const event = (extra) => `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+DTSTART:20260721T010000Z\r
+DURATION:PT1H\r
+${extra}\r
+END:VEVENT\r
+END:VCALENDAR\r
+`;
+  const bodies = [
+    calendarQueryXml(0, event(`SUMMARY:${token}`)),
+    calendarQueryXml(0, event(`UID:${token}`)),
+    calendarQueryXml(0, event(`BEGIN:VALARM\r\nDESCRIPTION:${token}\r\nEND:VALARM`)),
+    calendarQueryXml(0, event(`BEGIN:VALARM\r\nTRIGGER:${token}\r\nEND:VALARM`)),
+    calendarQueryXml(0, event(`STATUS:${token}`)),
+    calendarQueryXml(0, event('DTEND;TZID=Asia/Shanghai:20260721T100000')),
+    calendarQueryXml(0, event('RECURRENCE-ID;RANGE=THISANDFUTURE:20260721T010000Z')),
+    calendarQueryXml(0, event('RECURRENCE-ID;TZID=Asia/Shanghai:20260721T090000')),
+    calendarQueryXml(0, event('RECURRENCE-ID;VALUE=DATE:20260721')),
+    calendarQueryXml(0, event('RECURRENCE-ID:20260721T010000Z\r\nRECURRENCE-ID:20260722T010000Z')),
+    calendarQueryXml(0, event('RRULE:FREQ=DAILY')),
+    calendarQueryXml(0, event('RDATE:20260722T010000Z')),
+    calendarQueryXml(0, event('EXDATE:20260722T010000Z')),
+    calendarQueryXml(0, event('EXRULE:FREQ=DAILY')),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:${token}\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTODO\r\nEND:VTODO\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VTIMEZONE\r\nEND:VTIMEZONE\r\nEND:VCALENDAR\r\n`),
     `<!DOCTYPE x [<!ENTITY leak "${token}">]><x/>`,
-    `BEGIN:VCALENDAR\r\nBEGIN:VFREEBUSY\r\nFREEBUSY:20260721T010000/20260721T020000Z\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n`,
-    `BEGIN:VCALENDAR\r\nBEGIN:VFREEBUSY\r\nFREEBUSY:20260721T010000Z/P1DT\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n`,
-    `BEGIN:VCALENDAR\r\nBEGIN:VFREEBUSY\r\nFREEBUSY;FBTYPE=BUSY;FBTYPE=FREE:20260721T010000Z/PT1H\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n`,
-    `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART:20260721T010000Z\r\nDTEND:20260721T020000Z\r\nSUMMARY:${token}\r\nEND:VEVENT\r\nBEGIN:VFREEBUSY\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n`,
-    `${freeBusyCalendar()}${freeBusyCalendar(1)}`,
-    twoFreeBusyComponents,
-  ]) {
+    calendarQueryXml().replace(
+      '<c:calendar-data ',
+      `<d:getetag>${token}</d:getetag><c:calendar-data `,
+    ),
+    calendarQueryXml().replace(
+      '<d:status>HTTP/1.1 200 OK</d:status>',
+      '<d:status>HTTP/1.1 404 Not Found</d:status>',
+    ),
+    calendarQueryXml().replace(
+      '</c:calendar-data>',
+      `<x:private xmlns:x="urn:private">${token}</x:private></c:calendar-data>`,
+    ),
+  ];
+  for (const body of bodies) {
     assert.throws(
-      () => parseFreeBusyCalendar(body, windowStart, windowEnd),
+      () => parseCalendarQueryMultiStatus(body, windowStart, windowEnd),
       (error) => error.message === 'iCloud CalDAV data could not be fetched safely'
         && !error.message.includes(token),
     );
@@ -287,6 +414,22 @@ test('CalDAV discovery selects exactly four named VEVENT calendars and uses read
       .every(({options}) => options.body.includes('start="20260721T000000Z"')
         && options.body.includes('end="20260722T000000Z"')),
   );
+  for (const {options} of requests.filter(
+    ({authorization, options}) => authorization && options.method === 'REPORT',
+  )) {
+    assert.match(options.body, /<c:calendar-query\b/);
+    assert.match(options.body, /<c:expand start="20260721T000000Z" end="20260722T000000Z"\/>/);
+    assert.match(options.body, /<c:comp name="VALARM"\/>/);
+    assert.deepEqual(
+      [...options.body.matchAll(/<c:prop name="([^"]+)"\/>/g)].map((match) => match[1]),
+      ['VERSION', 'DTSTART', 'DTEND', 'DURATION', 'STATUS', 'TRANSP', 'RECURRENCE-ID'],
+    );
+    assert.doesNotMatch(
+      options.body,
+      /\b(?:SUMMARY|UID|DESCRIPTION|LOCATION|ATTENDEE|RRULE|RDATE|EXDATE|EXRULE|VTIMEZONE)\b/,
+    );
+    assert.doesNotMatch(options.body, /free-busy-query/);
+  }
   assert.equal(intervals.length, 8);
   assert.ok(intervals.every(({start, end}) => DateTime.isDateTime(start) && DateTime.isDateTime(end)));
 });
@@ -327,7 +470,10 @@ test('CalDAV discovery searches every advertised calendar home before exact sele
 });
 
 test('redirects are validated and credentials are never forwarded without a fresh Basic challenge', async () => {
-  const {requests, fetchImpl} = authenticatedDiscoveryFetch({redirectBase: true});
+  const {requests, fetchImpl} = authenticatedDiscoveryFetch({
+    challenge: 'Digest realm="other", Basic realm="iCloud"',
+    redirectBase: true,
+  });
   const redirectedConfig = {...config, baseUrl: 'https://caldav.icloud.com/'};
   await fetchICloudBusyIntervals(redirectedConfig, {
     windowStart,

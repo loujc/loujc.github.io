@@ -6,7 +6,7 @@ const CALDAV_NAMESPACE = 'urn:ietf:params:xml:ns:caldav';
 const MAX_REDIRECTS = 5;
 const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_DISCOVERY_BYTES = 2 * 1024 * 1024;
-const MAX_FREE_BUSY_BYTES = 4 * 1024 * 1024;
+const MAX_CALENDAR_QUERY_BYTES = 4 * 1024 * 1024;
 const MAX_XML_DEPTH = 32;
 const MAX_XML_NODES = 50_000;
 const MAX_BUSY_INTERVALS = 50_000;
@@ -14,6 +14,16 @@ const MAX_QUERY_MILLISECONDS = 94 * 24 * 60 * 60 * 1000;
 const EXPECTED_CALENDAR_COUNT = 4;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const READ_ONLY_METHODS = new Set(['PROPFIND', 'REPORT']);
+const EVENT_PROPERTY_NAMES = new Set([
+  'DTSTART',
+  'DTEND',
+  'DURATION',
+  'STATUS',
+  'TRANSP',
+  'RECURRENCE-ID',
+]);
+const EVENT_STATUS_VALUES = new Set(['TENTATIVE', 'CONFIRMED', 'CANCELLED']);
+const EVENT_TRANSPARENCY_VALUES = new Set(['OPAQUE', 'TRANSPARENT']);
 const ICLOUD_CALDAV_HOST_PATTERN = /^(?:caldav|p\d+-caldav)\.icloud\.com(?:\.cn)?$/;
 
 const CURRENT_USER_PRINCIPAL_REQUEST = `<?xml version="1.0" encoding="utf-8"?>
@@ -201,14 +211,32 @@ async function readResponseBytes(response, maxBytes) {
 
 function basicChallengeOffered(response) {
   const challenge = response.headers?.get?.('www-authenticate');
-  // Fail closed unless Basic is the leading challenge. This avoids treating
-  // the word "Basic" inside another scheme's quoted parameters as a scheme.
-  return typeof challenge === 'string' && /^\s*Basic(?:\s|$)/i.test(challenge);
+  if (typeof challenge !== 'string') return false;
+  let quoted = false;
+  let escaped = false;
+  for (let index = 0; index < challenge.length; index += 1) {
+    const character = challenge[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (character === '\\') escaped = true;
+      else if (character === '"') quoted = false;
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+      continue;
+    }
+    if (index !== 0 && character !== ',') continue;
+    let start = index === 0 ? 0 : index + 1;
+    while (/\s/.test(challenge[start] ?? '')) start += 1;
+    if (/^Basic(?:\s|$)/i.test(challenge.slice(start))) return true;
+  }
+  return false;
 }
 
 function requestHeaders(method, authorization) {
   const headers = {
-    Accept: method === 'REPORT' ? 'text/calendar, application/xml;q=0.9' : 'application/xml, text/xml;q=0.9',
+    Accept: 'application/xml, text/xml;q=0.9',
     'Content-Type': 'application/xml; charset=utf-8',
     'User-Agent': 'loujc-availability-calendar/1.0',
   };
@@ -444,6 +472,7 @@ function roundedQueryWindow(windowStart, windowEnd) {
   }
   const requestedStart = windowStart.toUTC();
   const requestedEnd = windowEnd.toUTC();
+  const dateZone = windowStart.zoneName;
   const duration = requestedEnd.toMillis() - requestedStart.toMillis();
   if (duration <= 0 || duration > MAX_QUERY_MILLISECONDS) throw genericConfigurationError();
   const queryStart = DateTime.fromMillis(
@@ -454,22 +483,47 @@ function roundedQueryWindow(windowStart, windowEnd) {
     Math.ceil(requestedEnd.toMillis() / 1000) * 1000,
     {zone: 'utc'},
   );
-  return {requestedStart, requestedEnd, queryStart, queryEnd};
+  return {requestedStart, requestedEnd, queryStart, queryEnd, dateZone};
 }
 
 function formatCalDavTimestamp(value) {
   return value.toUTC().toFormat("yyyyLLdd'T'HHmmss'Z'");
 }
 
-function freeBusyRequestBody(start, end) {
+function calendarQueryRequestBody(start, end) {
+  const rangeStart = formatCalDavTimestamp(start);
+  const rangeEnd = formatCalDavTimestamp(end);
   return `<?xml version="1.0" encoding="utf-8"?>
-<c:free-busy-query xmlns:c="urn:ietf:params:xml:ns:caldav">
-  <c:time-range start="${formatCalDavTimestamp(start)}" end="${formatCalDavTimestamp(end)}"/>
-</c:free-busy-query>`;
+<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:prop>
+    <c:calendar-data content-type="text/calendar" version="2.0">
+      <c:comp name="VCALENDAR">
+        <c:prop name="VERSION"/>
+        <c:comp name="VEVENT">
+          <c:prop name="DTSTART"/>
+          <c:prop name="DTEND"/>
+          <c:prop name="DURATION"/>
+          <c:prop name="STATUS"/>
+          <c:prop name="TRANSP"/>
+          <c:prop name="RECURRENCE-ID"/>
+          <c:comp name="VALARM"/>
+        </c:comp>
+      </c:comp>
+      <c:expand start="${rangeStart}" end="${rangeEnd}"/>
+    </c:calendar-data>
+  </d:prop>
+  <c:filter>
+    <c:comp-filter name="VCALENDAR">
+      <c:comp-filter name="VEVENT">
+        <c:time-range start="${rangeStart}" end="${rangeEnd}"/>
+      </c:comp-filter>
+    </c:comp-filter>
+  </c:filter>
+</c:calendar-query>`;
 }
 
 function unfoldCalendarLines(value) {
-  const physical = String(value).replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  const physical = String(value).trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
   const unfolded = [];
   for (const line of physical) {
     if (/^[ \t]/.test(line)) {
@@ -544,73 +598,253 @@ function parsePositiveDuration(value) {
       + Number(match[4] ?? 0) * 60
       + Number(match[5] ?? 0);
   if (!Number.isSafeInteger(seconds) || seconds <= 0) throw genericRequestError();
-  return seconds;
+  const hasTimePart = match[3] !== undefined || match[4] !== undefined || match[5] !== undefined;
+  return {
+    seconds,
+    dateDays: hasTimePart ? null : Number(match[1] ?? 0) * 7 + Number(match[2] ?? 0),
+  };
 }
 
-function parseFreeBusyPeriod(value) {
-  const parts = value.split('/');
-  if (parts.length !== 2) throw genericRequestError();
-  const start = parseUtcCalendarDateTime(parts[0]);
-  const end = parts[1].startsWith('P')
-    ? start.plus({seconds: parsePositiveDuration(parts[1])})
-    : parseUtcCalendarDateTime(parts[1]);
-  if (!end.isValid || end <= start) throw genericRequestError();
-  return {start, end};
+function parseEventDate(content, dateZone) {
+  const parameterKeys = [...content.parameters.keys()];
+  if (parameterKeys.some((key) => key !== 'VALUE')) throw genericRequestError();
+  const declaredType = content.parameters.get('VALUE')?.toUpperCase() ?? null;
+  if (/^\d{8}T\d{6}Z$/.test(content.value)) {
+    if (declaredType !== null && declaredType !== 'DATE-TIME') throw genericRequestError();
+    return {kind: 'date-time', value: parseUtcCalendarDateTime(content.value)};
+  }
+  if (/^\d{8}$/.test(content.value)) {
+    if (declaredType !== 'DATE') throw genericRequestError();
+    const parsed = DateTime.fromFormat(content.value, 'yyyyLLdd', {zone: dateZone}).startOf('day');
+    if (!parsed.isValid) throw genericRequestError();
+    return {kind: 'date', value: parsed};
+  }
+  throw genericRequestError();
 }
 
-export function parseFreeBusyCalendar(calendarText, windowStart, windowEnd) {
-  try {
-    const {requestedStart, requestedEnd} = roundedQueryWindow(windowStart, windowEnd);
-    const lines = unfoldCalendarLines(calendarText);
-    let calendarDepth = 0;
-    let freeBusyDepth = 0;
-    let calendarCount = 0;
-    let freeBusyCount = 0;
-    let calendarClosed = false;
-    const intervals = [];
+function parseEventEnum(content, allowedValues) {
+  if (content.parameters.size !== 0) throw genericRequestError();
+  const value = content.value.toUpperCase();
+  if (!allowedValues.has(value)) throw genericRequestError();
+  return value;
+}
 
-    for (const line of lines) {
-      if (!line) continue;
-      const content = parseContentLine(line);
-      const token = content.value.trim().toUpperCase();
-      if (content.name === 'BEGIN' && token === 'VCALENDAR') {
-        if (calendarDepth !== 0 || calendarClosed) throw genericRequestError();
-        calendarCount += 1;
-        if (calendarCount !== 1) throw genericRequestError();
-        calendarDepth = 1;
-      } else if (content.name === 'END' && token === 'VCALENDAR') {
-        if (calendarDepth !== 1 || freeBusyDepth !== 0) throw genericRequestError();
-        calendarDepth = 0;
-        calendarClosed = true;
-      } else if (content.name === 'BEGIN' && token === 'VFREEBUSY') {
-        if (calendarDepth !== 1 || freeBusyDepth !== 0) throw genericRequestError();
-        freeBusyCount += 1;
-        if (freeBusyCount !== 1) throw genericRequestError();
-        freeBusyDepth = 1;
-      } else if (content.name === 'END' && token === 'VFREEBUSY') {
-        if (calendarDepth !== 1 || freeBusyDepth !== 1) throw genericRequestError();
-        freeBusyDepth = 0;
-      } else if (content.name === 'BEGIN' || content.name === 'END') {
-        // A free-busy response must not contain VEVENT or another component.
-        throw genericRequestError();
-      } else if (content.name === 'FREEBUSY' && freeBusyDepth === 1) {
-        const type = String(content.parameters.get('FBTYPE') ?? 'BUSY').toUpperCase();
-        if (type === 'FREE') continue;
-        for (const period of content.value.split(',')) {
-          const {start, end} = parseFreeBusyPeriod(period);
-          const clippedStart = start < requestedStart ? requestedStart : start;
-          const clippedEnd = end > requestedEnd ? requestedEnd : end;
-          if (clippedEnd > clippedStart) intervals.push({start: clippedStart, end: clippedEnd});
-          if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
-        }
-      } else if (content.name === 'FREEBUSY') {
-        throw genericRequestError();
-      } else if (calendarDepth !== 1 || calendarClosed) {
+function eventToInterval(properties, requestedStart, requestedEnd, dateZone) {
+  const start = parseEventDate(properties.get('DTSTART'), dateZone);
+  const endProperty = properties.get('DTEND');
+  const durationProperty = properties.get('DURATION');
+  if (endProperty && durationProperty) throw genericRequestError();
+
+  let end;
+  if (endProperty) {
+    const parsedEnd = parseEventDate(endProperty, dateZone);
+    if (parsedEnd.kind !== start.kind || parsedEnd.value <= start.value) throw genericRequestError();
+    end = parsedEnd.value;
+  } else if (durationProperty) {
+    if (durationProperty.parameters.size !== 0) throw genericRequestError();
+    const duration = parsePositiveDuration(durationProperty.value);
+    if (start.kind === 'date') {
+      if (duration.dateDays === null) throw genericRequestError();
+      end = start.value.plus({days: duration.dateDays});
+    } else {
+      end = start.value.plus({seconds: duration.seconds});
+    }
+    if (!end.isValid || end <= start.value) throw genericRequestError();
+  } else {
+    end = start.kind === 'date' ? start.value.plus({days: 1}) : start.value;
+  }
+
+  const recurrenceId = properties.get('RECURRENCE-ID');
+  if (recurrenceId && parseEventDate(recurrenceId, dateZone).kind !== start.kind) {
+    throw genericRequestError();
+  }
+  const status = properties.has('STATUS')
+    ? parseEventEnum(properties.get('STATUS'), EVENT_STATUS_VALUES)
+    : 'CONFIRMED';
+  const transparency = properties.has('TRANSP')
+    ? parseEventEnum(properties.get('TRANSP'), EVENT_TRANSPARENCY_VALUES)
+    : 'OPAQUE';
+  if (status === 'CANCELLED' || transparency === 'TRANSPARENT' || end <= start.value) return null;
+
+  const clippedStart = start.value < requestedStart ? requestedStart : start.value;
+  const clippedEnd = end > requestedEnd ? requestedEnd : end;
+  return clippedEnd > clippedStart ? {start: clippedStart, end: clippedEnd} : null;
+}
+
+function parseExpandedEventCalendar(calendarText, windowStart, windowEnd) {
+  const {requestedStart, requestedEnd, dateZone} = roundedQueryWindow(windowStart, windowEnd);
+  const lines = unfoldCalendarLines(calendarText);
+  const stack = [];
+  const intervals = [];
+  let calendarCount = 0;
+  let calendarClosed = false;
+  let versionCount = 0;
+  let eventProperties = null;
+
+  for (const line of lines) {
+    if (!line) continue;
+    const content = parseContentLine(line);
+    if (content.name === 'BEGIN' || content.name === 'END') {
+      if (content.parameters.size !== 0 || content.value !== content.value.trim()) {
         throw genericRequestError();
       }
+      const component = content.value.toUpperCase();
+      if (content.name === 'BEGIN') {
+        if (component === 'VCALENDAR' && stack.length === 0 && !calendarClosed) {
+          calendarCount += 1;
+          if (calendarCount !== 1) throw genericRequestError();
+        } else if (component === 'VEVENT' && stack.length === 1 && stack[0] === 'VCALENDAR') {
+          eventProperties = new Map();
+        } else if (
+          component !== 'VALARM'
+          || stack.length !== 2
+          || stack[0] !== 'VCALENDAR'
+          || stack[1] !== 'VEVENT'
+        ) {
+          throw genericRequestError();
+        }
+        stack.push(component);
+      } else {
+        if (stack.at(-1) !== component) throw genericRequestError();
+        if (component === 'VEVENT') {
+          if (!eventProperties?.has('DTSTART')) throw genericRequestError();
+          const interval = eventToInterval(
+            eventProperties,
+            requestedStart,
+            requestedEnd,
+            dateZone,
+          );
+          if (interval) intervals.push(interval);
+          if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
+          eventProperties = null;
+        } else if (component === 'VCALENDAR') {
+          calendarClosed = true;
+        }
+        stack.pop();
+      }
+      continue;
     }
-    if (calendarCount !== 1 || freeBusyCount !== 1 || calendarDepth !== 0 || freeBusyDepth !== 0) {
+
+    if (stack.length === 1 && stack[0] === 'VCALENDAR' && content.name === 'VERSION') {
+      if (content.parameters.size !== 0 || content.value !== '2.0' || versionCount !== 0) {
+        throw genericRequestError();
+      }
+      versionCount += 1;
+      continue;
+    }
+    if (stack.length === 2 && stack[1] === 'VEVENT') {
+      if (!EVENT_PROPERTY_NAMES.has(content.name) || eventProperties.has(content.name)) {
+        throw genericRequestError();
+      }
+      eventProperties.set(content.name, content);
+      continue;
+    }
+    // VALARM was deliberately requested without properties. Any value here,
+    // or any non-requested VCALENDAR property, could carry private metadata.
+    throw genericRequestError();
+  }
+
+  if (
+    calendarCount !== 1
+    || versionCount !== 1
+    || !calendarClosed
+    || stack.length !== 0
+    || eventProperties !== null
+  ) {
+    throw genericRequestError();
+  }
+  return intervals;
+}
+
+function calendarDataText(property) {
+  if (property.children.length !== 0) throw genericRequestError();
+  for (const attribute of property.attributes) {
+    if (attribute.uri === 'http://www.w3.org/2000/xmlns/') continue;
+    if (attribute.uri || !['content-type', 'version'].includes(attribute.local)) {
       throw genericRequestError();
+    }
+    if (
+      (attribute.local === 'content-type' && attribute.value.toLowerCase() !== 'text/calendar')
+      || (attribute.local === 'version' && attribute.value !== '2.0')
+    ) {
+      throw genericRequestError();
+    }
+  }
+  if (!property.text.trim()) throw genericRequestError();
+  return property.text;
+}
+
+export function parseCalendarQueryMultiStatus(xml, windowStart, windowEnd) {
+  try {
+    const root = parseXmlTree(xml);
+    if (
+      root.uri !== DAV_NAMESPACE
+      || root.local !== 'multistatus'
+      || root.text.trim()
+      || root.children.some(
+        (child) => child.uri !== DAV_NAMESPACE || child.local !== 'response',
+      )
+    ) {
+      throw genericRequestError();
+    }
+
+    const intervals = [];
+    for (const response of root.children) {
+      if (
+        response.text.trim()
+        || response.children.some(
+          (child) => child.uri !== DAV_NAMESPACE || !['href', 'propstat'].includes(child.local),
+        )
+      ) {
+        throw genericRequestError();
+      }
+      const hrefNodes = childElements(response, DAV_NAMESPACE, 'href');
+      const propstats = childElements(response, DAV_NAMESPACE, 'propstat');
+      // href is required by DAV multistatus but deliberately remains opaque:
+      // it is neither followed nor included in the anonymous output.
+      if (
+        hrefNodes.length !== 1
+        || !hrefNodes[0].text.trim()
+        || hrefNodes[0].children.length
+        || propstats.length === 0
+      ) {
+        throw genericRequestError();
+      }
+
+      const calendarData = [];
+      for (const propstat of propstats) {
+        if (
+          propstat.text.trim()
+          || propstat.children.some(
+            (child) => child.uri !== DAV_NAMESPACE || !['prop', 'status'].includes(child.local),
+          )
+        ) {
+          throw genericRequestError();
+        }
+        const props = childElements(propstat, DAV_NAMESPACE, 'prop');
+        const statuses = childElements(propstat, DAV_NAMESPACE, 'status');
+        if (
+          props.length !== 1
+          || statuses.length !== 1
+          || statuses[0].children.length
+          || !/^HTTP\/\d(?:\.\d)?\s+200(?:\s|$)/i.test(statuses[0].text.trim())
+          || props[0].text.trim()
+          || props[0].children.length !== 1
+          || props[0].children.some(
+            (property) => property.uri !== CALDAV_NAMESPACE || property.local !== 'calendar-data',
+          )
+        ) {
+          throw genericRequestError();
+        }
+        calendarData.push(...props[0].children);
+      }
+      if (calendarData.length !== 1) throw genericRequestError();
+      intervals.push(...parseExpandedEventCalendar(
+        calendarDataText(calendarData[0]),
+        windowStart,
+        windowEnd,
+      ));
+      if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
     }
     return intervals.sort((left, right) => left.start.toMillis() - right.start.toMillis());
   } catch {
@@ -633,7 +867,7 @@ export async function fetchICloudBusyIntervals(
       appPassword: validateCredentialPart(caldavConfig.appPassword, {maxLength: 256}),
     };
     const baseUrl = normalizeICloudCalDavUrl(caldavConfig.baseUrl, allowedHosts);
-    const {requestedStart, requestedEnd, queryStart, queryEnd} = roundedQueryWindow(windowStart, windowEnd);
+    const {queryStart, queryEnd} = roundedQueryWindow(windowStart, windowEnd);
 
     const principalResponse = await readOnlyCalDavRequest(baseUrl, {
       method: 'PROPFIND',
@@ -691,7 +925,7 @@ export async function fetchICloudBusyIntervals(
     }
     const calendarUrls = selectNamedCalendarUrls(collections, calendarNames);
 
-    const requestBody = freeBusyRequestBody(queryStart, queryEnd);
+    const requestBody = calendarQueryRequestBody(queryStart, queryEnd);
     const intervals = [];
     for (const calendarUrl of calendarUrls) {
       const response = await readOnlyCalDavRequest(calendarUrl, {
@@ -700,13 +934,17 @@ export async function fetchICloudBusyIntervals(
         // Depth:1 includes the calendar object resources inside the selected
         // collection. Depth:0 would query only the collection resource itself.
         depth: 1,
-        expectedStatus: 200,
+        expectedStatus: 207,
         credential,
         allowedHosts,
         fetchImpl,
-        maxBytes: MAX_FREE_BUSY_BYTES,
+        maxBytes: MAX_CALENDAR_QUERY_BYTES,
       });
-      intervals.push(...parseFreeBusyCalendar(response.text, requestedStart, requestedEnd));
+      intervals.push(...parseCalendarQueryMultiStatus(
+        response.text,
+        windowStart,
+        windowEnd,
+      ));
       if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
     }
     return intervals.sort((left, right) => left.start.toMillis() - right.start.toMillis());
