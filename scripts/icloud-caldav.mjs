@@ -641,7 +641,14 @@ function parseIanaCalendarDateTime(value, zoneName) {
   });
   // Luxon normalizes nonexistent wall-clock times across DST gaps. A strict
   // round trip prevents that normalization from silently changing an event.
-  if (!result.isValid || result.toFormat(format) !== value) throw genericRequestError();
+  // It otherwise chooses one offset silently during a fall-back overlap.
+  if (
+    !result.isValid
+    || result.toFormat(format) !== value
+    || result.getPossibleOffsets().length !== 1
+  ) {
+    throw genericRequestError();
+  }
   return result;
 }
 
@@ -729,6 +736,76 @@ function unescapeExpansionRule(value) {
   return result;
 }
 
+function rruleInteger(value, minimum, maximum, {allowSign = false} = {}) {
+  if (!(allowSign ? /^[+-]?\d+$/.test(value) : /^\d+$/.test(value))) return false;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= minimum && parsed <= maximum;
+}
+
+function rruleList(value, validator) {
+  const entries = value.split(',');
+  return entries.length > 0 && entries.every((entry) => entry && validator(entry));
+}
+
+function validRRuleUntil(value) {
+  const formats = [
+    ['yyyyLLdd', /^\d{8}$/],
+    ["yyyyLLdd'T'HHmmss", /^\d{8}T\d{6}$/],
+    ["yyyyLLdd'T'HHmmss'Z'", /^\d{8}T\d{6}Z$/],
+  ];
+  for (const [format, pattern] of formats) {
+    if (!pattern.test(value)) continue;
+    const parsed = DateTime.fromFormat(value, format, {zone: 'utc', locale: 'en-US'});
+    return parsed.isValid && parsed.toFormat(format) === value;
+  }
+  return false;
+}
+
+function validRRuleValue(key, value) {
+  if (key === 'FREQ') return RRULE_FREQUENCIES.has(value);
+  if (key === 'UNTIL') return validRRuleUntil(value);
+  if (key === 'COUNT' || key === 'INTERVAL') return rruleInteger(value, 1, 2_147_483_647);
+  if (key === 'BYSECOND') {
+    return rruleList(value, (entry) => rruleInteger(entry, 0, 60));
+  }
+  if (key === 'BYMINUTE') {
+    return rruleList(value, (entry) => rruleInteger(entry, 0, 59));
+  }
+  if (key === 'BYHOUR') {
+    return rruleList(value, (entry) => rruleInteger(entry, 0, 23));
+  }
+  if (key === 'BYDAY') {
+    return rruleList(value, (entry) => {
+      const match = /^([+-]?\d{1,2})?(MO|TU|WE|TH|FR|SA|SU)$/.exec(entry);
+      return Boolean(match) && (match[1] === undefined || (
+        rruleInteger(match[1], -53, 53, {allowSign: true}) && Number(match[1]) !== 0
+      ));
+    });
+  }
+  const signedRanges = {
+    BYMONTHDAY: 31,
+    BYYEARDAY: 366,
+    BYWEEKNO: 53,
+    BYSETPOS: 366,
+  };
+  if (signedRanges[key]) {
+    return rruleList(value, (entry) => (
+      rruleInteger(entry, -signedRanges[key], signedRanges[key], {allowSign: true})
+      && Number(entry) !== 0
+    ));
+  }
+  if (key === 'BYMONTH') {
+    return rruleList(value, (entry) => {
+      const match = /^(\d{1,2})L?$/.exec(entry);
+      return Boolean(match) && rruleInteger(match[1], 1, 13);
+    });
+  }
+  if (key === 'WKST') return /^(?:MO|TU|WE|TH|FR|SA|SU)$/.test(value);
+  if (key === 'RSCALE') return /^[A-Z][A-Z0-9-]{0,63}$/.test(value);
+  if (key === 'SKIP') return /^(?:OMIT|BACKWARD|FORWARD)$/.test(value);
+  return false;
+}
+
 function validateExpansionRule(content) {
   if (content.parameters.size !== 0) throw genericRequestError();
   const rule = unescapeExpansionRule(content.value);
@@ -745,14 +822,13 @@ function validateExpansionRule(content) {
       || !value
       || value.length > 1024
       || !/^[A-Z0-9,+-]+$/.test(value)
+      || !validRRuleValue(key, value)
     ) {
       throw genericRequestError();
     }
     seen.add(key);
   }
   if (!seen.has('FREQ')) throw genericRequestError();
-  const frequency = parts.find((part) => part.startsWith('FREQ='))?.slice(5);
-  if (!RRULE_FREQUENCIES.has(frequency)) throw genericRequestError();
   if (seen.has('COUNT') && seen.has('UNTIL')) throw genericRequestError();
 }
 
@@ -808,7 +884,9 @@ function eventToInterval(properties, requestedStart, requestedEnd, dateZone) {
       if (duration.dateDays === null) throw genericRequestError();
       end = start.value.plus({days: duration.dateDays});
     } else {
-      end = start.value.plus({seconds: duration.seconds});
+      end = duration.dateDays === null
+        ? start.value.plus({seconds: duration.seconds})
+        : start.value.plus({days: duration.dateDays});
     }
     if (!end.isValid || end <= start.value) throw genericRequestError();
   } else {

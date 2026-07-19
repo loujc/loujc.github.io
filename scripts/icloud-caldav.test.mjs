@@ -337,6 +337,26 @@ END:VCALENDAR\r
   );
 });
 
+test('calendar-query parser applies nominal day durations across DST', () => {
+  const calendar = `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+DTSTART;TZID=America/New_York:20260307T120000\r
+DURATION:P1D\r
+END:VEVENT\r
+END:VCALENDAR\r
+`;
+  const intervals = parseCalendarQueryMultiStatus(
+    calendarQueryXml(0, calendar),
+    DateTime.fromISO('2026-03-07T00:00:00Z'),
+    DateTime.fromISO('2026-03-10T00:00:00Z'),
+  );
+  assert.deepEqual(
+    intervals.map(({start, end}) => [start.toISO(), end.toISO(), end.diff(start).as('hours')]),
+    [['2026-03-07T12:00:00.000-05:00', '2026-03-08T12:00:00.000-04:00', 23]],
+  );
+});
+
 test('calendar-query parser accepts a valid cross-zone interval', () => {
   const calendar = `BEGIN:VCALENDAR\r
 VERSION:2.0\r
@@ -427,6 +447,7 @@ END:VCALENDAR\r
     calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/Shanghai;TZID=America/New_York:20260721T090000', 'DURATION:PT1H')),
     calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/Shanghai:20260721T090000Z', 'DURATION:PT1H')),
     calendarQueryXml(0, eventFromLines('DTSTART;TZID=America/New_York:20260308T023000', 'DURATION:PT1H')),
+    calendarQueryXml(0, eventFromLines('DTSTART;TZID=America/New_York:20261101T013000', 'DURATION:PT1H')),
     calendarQueryXml(0, eventFromLines(`DTSTART;TZID=${'A'.repeat(256)}:20260721T090000`, 'DURATION:PT1H')),
     calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/\u0001Shanghai:20260721T090000', 'DURATION:PT1H')),
     calendarQueryXml(0, eventFromLines('DTSTART;TZID=Asia/Shanghai:20260721', 'DURATION:P1D')),
@@ -450,6 +471,8 @@ END:VCALENDAR\r
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:${token}\r\nEND:VCALENDAR\r\n`),
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\\nSUMMARY=${token}\r\nEND:VCALENDAR\r\n`),
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\\;X-PRIVATE=${token}\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\\;BYDAY=SECRET\r\nEND:VCALENDAR\r\n`),
+    calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\\;COUNT=ABC\r\nEND:VCALENDAR\r\n`),
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-EXPANDED:true\r\nX-EXPANDED:true\r\nX-MASTER-DTSTART:20260721T090000\r\nX-MASTER-RRULE:FREQ=DAILY\r\nEND:VCALENDAR\r\n`),
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nX-PRIVATE:${token}\r\nEND:VCALENDAR\r\n`),
     calendarQueryXml(0, `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:${token}\r\nEND:VCALENDAR\r\n`),
