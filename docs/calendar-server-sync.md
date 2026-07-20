@@ -1,9 +1,9 @@
 # Privacy-preserving availability calendar
 
-GitHub Actions is scheduled at minute 17 of every hour. It reads iCloud directly
-from its server and combines it with a pre-anonymized IDEA snapshot created
-locally with EventKit. The Mac is needed only to refresh that infrequently
-changing snapshot, not to build or serve the website.
+GitHub Actions is scheduled at minutes 17 and 47 of every hour. It reads iCloud
+directly from its server and combines it with a pre-anonymized IDEA snapshot
+created locally with EventKit. The Mac is needed only to refresh that
+infrequently changing snapshot, not to build or serve the website.
 
 The data path is:
 
@@ -25,9 +25,11 @@ The data path is:
    the isolated runner.
 
 The Mac may be asleep or offline between IDEA snapshot refreshes. iCloud refresh
-latency is provider propagation time plus up to approximately one hour. IDEA
+latency is provider propagation time plus up to approximately 30 minutes. IDEA
 changes appear after the local refresh command and the next successful
-scheduled build.
+scheduled build. GitHub documents that scheduled Actions may still be delayed
+or dropped during periods of high load:
+<https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule>.
 
 ## Required GitHub Secrets
 
