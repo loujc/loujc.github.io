@@ -4,9 +4,9 @@ on:
   # Trigger the workflow every time you push to the `main` branch
   push:
     branches: ['main']
-  # Sync private calendar providers and refresh anonymous occupied intervals every 30 minutes.
+  # Sync private calendar providers at the top and middle of every hour.
   schedule:
-    - cron: '17,47 * * * *'
+    - cron: '0,30 * * * *'
   # Allows you to run this workflow manually from the Actions tab on GitHub
   workflow_dispatch:
 

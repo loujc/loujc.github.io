@@ -1,8 +1,8 @@
 # Privacy-preserving availability calendar
 
-GitHub Actions is scheduled at minutes 17 and 47 of every hour. It reads iCloud
-directly from its server and combines it with a pre-anonymized IDEA snapshot
-created locally with EventKit. The Mac is needed only to refresh that
+GitHub Actions is scheduled at minute 0 and minute 30 of every hour. It reads
+iCloud directly from its server and combines it with a pre-anonymized IDEA
+snapshot created locally with EventKit. The Mac is needed only to refresh that
 infrequently changing snapshot, not to build or serve the website.
 
 The data path is:

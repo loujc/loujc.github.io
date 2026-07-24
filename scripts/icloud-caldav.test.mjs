@@ -5,6 +5,7 @@ import {DateTime} from 'luxon';
 
 import {
   fetchICloudBusyIntervals,
+  iCloudCalDavFailureStage,
   iCloudCalDavConfigFromEnvironment,
   normalizeICloudCalDavUrl,
   parseCalendarQueryMultiStatus,
@@ -640,6 +641,7 @@ test('unsafe redirects and authentication failures never echo credentials or pro
       fetchImpl: unsupportedChallenge,
     }),
     (error) => error.message === 'iCloud CalDAV data could not be fetched safely'
+      && iCloudCalDavFailureStage(error) === 'principal-request'
       && !error.message.includes(secretPassword),
   );
   assert.equal(requestCount, 1);
@@ -672,7 +674,8 @@ test('missing or duplicate named collections reject the whole fetch before any R
         allowedHosts,
         fetchImpl,
       }),
-      /iCloud CalDAV data could not be fetched safely/,
+      (error) => error.message === 'iCloud CalDAV data could not be fetched safely'
+        && iCloudCalDavFailureStage(error) === 'collection-selection',
     );
     assert.equal(requests.some(({options}) => options.method === 'REPORT'), false);
   }

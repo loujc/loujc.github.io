@@ -7,6 +7,7 @@ import ical from 'node-ical';
 
 import {
   fetchICloudBusyIntervals,
+  iCloudCalDavFailureStage,
   iCloudCalDavConfigFromEnvironment,
 } from './icloud-caldav.mjs';
 import {
@@ -620,6 +621,8 @@ export async function main(argv = process.argv.slice(2)) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
     console.error(`Availability generation failed: ${error.message}`);
+    const failureStage = iCloudCalDavFailureStage(error);
+    if (failureStage) console.error(`Availability failure stage: ${failureStage}`);
     process.exitCode = 1;
   });
 }

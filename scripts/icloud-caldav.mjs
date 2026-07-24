@@ -15,6 +15,21 @@ const MAX_TZID_LENGTH = 255;
 const EXPECTED_CALENDAR_COUNT = 4;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const READ_ONLY_METHODS = new Set(['PROPFIND', 'REPORT']);
+const FAILURE_STAGE_BY_ERROR = new WeakMap();
+const SAFE_FAILURE_STAGES = new Set([
+  'configuration',
+  'principal-request',
+  'principal-parse',
+  'home-request',
+  'home-parse',
+  'collections-request',
+  'collections-parse',
+  'collection-selection',
+  'query-build',
+  'calendar-report',
+  'calendar-parse',
+  'interval-limit',
+]);
 const EVENT_PROPERTY_NAMES = new Set([
   'DTSTART',
   'DTEND',
@@ -89,8 +104,14 @@ function genericConfigurationError() {
   return new Error('iCloud CalDAV configuration could not be validated safely');
 }
 
-function genericRequestError() {
-  return new Error('iCloud CalDAV data could not be fetched safely');
+function genericRequestError(stage) {
+  const error = new Error('iCloud CalDAV data could not be fetched safely');
+  if (SAFE_FAILURE_STAGES.has(stage)) FAILURE_STAGE_BY_ERROR.set(error, stage);
+  return error;
+}
+
+export function iCloudCalDavFailureStage(error) {
+  return FAILURE_STAGE_BY_ERROR.get(error) ?? null;
 }
 
 function normalizeAllowedHosts(value) {
@@ -1160,6 +1181,7 @@ async function fetchCalDavBusyIntervals(
   {windowStart, windowEnd, fetchImpl = globalThis.fetch},
   {normalizeUrl, passwordField, configurationError, requestError},
 ) {
+  let failureStage = 'configuration';
   try {
     if (!caldavConfig || typeof caldavConfig !== 'object') throw configurationError();
     const calendarNames = parseCalendarNames(
@@ -1181,6 +1203,7 @@ async function fetchCalDavBusyIntervals(
     const baseUrl = normalizeUrl(caldavConfig.baseUrl);
     const {queryStart, queryEnd} = roundedQueryWindow(windowStart, windowEnd);
 
+    failureStage = 'principal-request';
     const principalResponse = await readOnlyCalDavRequest(baseUrl, {
       method: 'PROPFIND',
       body: CURRENT_USER_PRINCIPAL_REQUEST,
@@ -1192,6 +1215,7 @@ async function fetchCalDavBusyIntervals(
       fetchImpl,
       maxBytes: MAX_DISCOVERY_BYTES,
     });
+    failureStage = 'principal-parse';
     const principalUrl = uniquePropertyHref(
       parseMultiStatus(principalResponse.text),
       DAV_NAMESPACE,
@@ -1200,6 +1224,7 @@ async function fetchCalDavBusyIntervals(
       normalizeUrl,
     );
 
+    failureStage = 'home-request';
     const homeResponse = await readOnlyCalDavRequest(principalUrl, {
       method: 'PROPFIND',
       body: CALENDAR_HOME_REQUEST,
@@ -1211,6 +1236,7 @@ async function fetchCalDavBusyIntervals(
       fetchImpl,
       maxBytes: MAX_DISCOVERY_BYTES,
     });
+    failureStage = 'home-parse';
     const calendarHomeUrls = propertyHrefs(
       parseMultiStatus(homeResponse.text),
       CALDAV_NAMESPACE,
@@ -1221,6 +1247,7 @@ async function fetchCalDavBusyIntervals(
 
     const collections = [];
     for (const calendarHomeUrl of calendarHomeUrls) {
+      failureStage = 'collections-request';
       const collectionsResponse = await readOnlyCalDavRequest(calendarHomeUrl, {
         method: 'PROPFIND',
         body: CALENDAR_COLLECTIONS_REQUEST,
@@ -1232,17 +1259,21 @@ async function fetchCalDavBusyIntervals(
         fetchImpl,
         maxBytes: MAX_DISCOVERY_BYTES,
       });
+      failureStage = 'collections-parse';
       collections.push(...discoverCalendarCollections(
         collectionsResponse.text,
         collectionsResponse.url,
         normalizeUrl,
       ));
     }
+    failureStage = 'collection-selection';
     const calendarUrls = selectNamedCalendarUrls(collections, calendarNames);
 
+    failureStage = 'query-build';
     const requestBody = calendarQueryRequestBody(queryStart, queryEnd);
     const intervals = [];
     for (const calendarUrl of calendarUrls) {
+      failureStage = 'calendar-report';
       const response = await readOnlyCalDavRequest(calendarUrl, {
         method: 'REPORT',
         body: requestBody,
@@ -1256,16 +1287,18 @@ async function fetchCalDavBusyIntervals(
         fetchImpl,
         maxBytes: MAX_CALENDAR_QUERY_BYTES,
       });
+      failureStage = 'calendar-parse';
       intervals.push(...parseCalendarQueryMultiStatus(
         response.text,
         windowStart,
         windowEnd,
       ));
+      failureStage = 'interval-limit';
       if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
     }
     return intervals.sort((left, right) => left.start.toMillis() - right.start.toMillis());
   } catch {
-    throw requestError();
+    throw requestError(failureStage);
   }
 }
 
