@@ -5,6 +5,7 @@ const DAV_NAMESPACE = 'DAV:';
 const CALDAV_NAMESPACE = 'urn:ietf:params:xml:ns:caldav';
 const MAX_REDIRECTS = 5;
 const REQUEST_TIMEOUT_MS = 20_000;
+const SYNC_TIMEOUT_MS = 3 * 60 * 1000;
 const MAX_DISCOVERY_BYTES = 2 * 1024 * 1024;
 const MAX_CALENDAR_QUERY_BYTES = 4 * 1024 * 1024;
 const MAX_XML_DEPTH = 32;
@@ -13,7 +14,9 @@ const MAX_BUSY_INTERVALS = 50_000;
 const MAX_QUERY_MILLISECONDS = 94 * 24 * 60 * 60 * 1000;
 const MAX_TZID_LENGTH = 255;
 const EXPECTED_CALENDAR_COUNT = 4;
+const REQUEST_RETRY_DELAYS_MS = [2_000, 8_000];
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 const READ_ONLY_METHODS = new Set(['PROPFIND', 'REPORT']);
 const FAILURE_STAGE_BY_ERROR = new WeakMap();
 const SAFE_FAILURE_STAGES = new Set([
@@ -76,6 +79,9 @@ const RRULE_FREQUENCIES = new Set([
   'YEARLY',
 ]);
 const ICLOUD_CALDAV_HOST_PATTERN = /^(?:caldav|p\d+-caldav)\.icloud\.com(?:\.cn)?$/;
+
+class ResponseLimitError extends Error {}
+class RetryableCalDavRequestError extends Error {}
 
 const CURRENT_USER_PRINCIPAL_REQUEST = `<?xml version="1.0" encoding="utf-8"?>
 <d:propfind xmlns:d="DAV:">
@@ -270,11 +276,13 @@ async function cancelResponseBody(response) {
 
 async function readResponseBytes(response, maxBytes) {
   const declaredLength = Number(response.headers?.get?.('content-length'));
-  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) throw genericRequestError();
+  if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+    throw new ResponseLimitError();
+  }
 
   if (!response.body?.getReader) {
     const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.length > maxBytes) throw genericRequestError();
+    if (buffer.length > maxBytes) throw new ResponseLimitError();
     return buffer;
   }
 
@@ -286,7 +294,7 @@ async function readResponseBytes(response, maxBytes) {
       const {done, value} = await reader.read();
       if (done) break;
       bytesRead += value.byteLength;
-      if (bytesRead > maxBytes) throw genericRequestError();
+      if (bytesRead > maxBytes) throw new ResponseLimitError();
       chunks.push(Buffer.from(value));
     }
   } catch (error) {
@@ -350,6 +358,84 @@ async function requestOnce(fetchImpl, url, method, body, depth, signal, authoriz
   });
 }
 
+async function retryableRequestOnce(...args) {
+  try {
+    return await requestOnce(...args);
+  } catch {
+    throw new RetryableCalDavRequestError();
+  }
+}
+
+async function readOnlyCalDavAttempt(
+  url,
+  {
+    method,
+    body,
+    depth,
+    expectedStatus,
+    authorization,
+    normalizeUrl,
+    fetchImpl,
+    maxBytes,
+    deadlineAt,
+  },
+) {
+  const remainingMilliseconds = deadlineAt - Date.now();
+  if (remainingMilliseconds <= 0) throw new RetryableCalDavRequestError();
+  const signal = AbortSignal.timeout(Math.min(REQUEST_TIMEOUT_MS, remainingMilliseconds));
+  for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
+    let response = await retryableRequestOnce(fetchImpl, url, method, body, depth, signal);
+    if (response.status === 401) {
+      const offered = basicChallengeOffered(response);
+      await cancelResponseBody(response);
+      if (!offered) throw new Error('unsupported authentication challenge');
+      response = await retryableRequestOnce(
+        fetchImpl,
+        url,
+        method,
+        body,
+        depth,
+        signal,
+        authorization,
+      );
+      if (response.status === 401) {
+        await cancelResponseBody(response);
+        throw new Error('authentication rejected');
+      }
+    }
+
+    if (RETRYABLE_STATUSES.has(response.status)) {
+      await cancelResponseBody(response);
+      throw new RetryableCalDavRequestError();
+    }
+    if (REDIRECT_STATUSES.has(response.status)) {
+      if (redirects === MAX_REDIRECTS) throw new Error('too many redirects');
+      const location = response.headers?.get?.('location');
+      await cancelResponseBody(response);
+      if (!location) throw new Error('redirect missing location');
+      url = normalizeUrl(new URL(location, url).href);
+      // Authentication is deliberately not forwarded. The new endpoint must
+      // issue its own Basic challenge before it can receive the credential.
+      continue;
+    }
+
+    if (response.status !== expectedStatus) {
+      await cancelResponseBody(response);
+      throw new Error('unexpected response status');
+    }
+    let bytes;
+    try {
+      bytes = await readResponseBytes(response, maxBytes);
+    } catch (error) {
+      if (error instanceof ResponseLimitError) throw error;
+      throw new RetryableCalDavRequestError();
+    }
+    const text = new TextDecoder('utf-8', {fatal: true}).decode(bytes);
+    return {url, text};
+  }
+  throw new Error('too many redirects');
+}
+
 async function readOnlyCalDavRequest(
   target,
   {
@@ -362,47 +448,50 @@ async function readOnlyCalDavRequest(
     requestError,
     fetchImpl,
     maxBytes,
+    retryDelayImpl,
+    deadlineAt,
   },
 ) {
   try {
-    if (!READ_ONLY_METHODS.has(method) || typeof fetchImpl !== 'function') throw new Error('unsafe request');
-    let url = normalizeUrl(target);
-    const signal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
+    if (
+      !READ_ONLY_METHODS.has(method)
+      || typeof fetchImpl !== 'function'
+      || typeof retryDelayImpl !== 'function'
+      || !Number.isFinite(deadlineAt)
+    ) {
+      throw new Error('unsafe request');
+    }
+    const url = normalizeUrl(target);
     const authorization = `Basic ${Buffer.from(`${credential.username}:${credential.password}`, 'utf8').toString('base64')}`;
 
-    for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-      let response = await requestOnce(fetchImpl, url, method, body, depth, signal);
-      if (response.status === 401) {
-        const offered = basicChallengeOffered(response);
-        await cancelResponseBody(response);
-        if (!offered) throw new Error('unsupported authentication challenge');
-        response = await requestOnce(fetchImpl, url, method, body, depth, signal, authorization);
-        if (response.status === 401) {
-          await cancelResponseBody(response);
-          throw new Error('authentication rejected');
+    for (let attempt = 0; attempt <= REQUEST_RETRY_DELAYS_MS.length; attempt += 1) {
+      if (attempt > 0) {
+        const delay = REQUEST_RETRY_DELAYS_MS[attempt - 1];
+        if (deadlineAt - Date.now() <= delay) throw new RetryableCalDavRequestError();
+        await retryDelayImpl(delay);
+      }
+      try {
+        return await readOnlyCalDavAttempt(url, {
+          method,
+          body,
+          depth,
+          expectedStatus,
+          authorization,
+          normalizeUrl,
+          fetchImpl,
+          maxBytes,
+          deadlineAt,
+        });
+      } catch (error) {
+        if (
+          !(error instanceof RetryableCalDavRequestError)
+          || attempt === REQUEST_RETRY_DELAYS_MS.length
+        ) {
+          throw error;
         }
       }
-
-      if (REDIRECT_STATUSES.has(response.status)) {
-        if (redirects === MAX_REDIRECTS) throw new Error('too many redirects');
-        const location = response.headers?.get?.('location');
-        await cancelResponseBody(response);
-        if (!location) throw new Error('redirect missing location');
-        url = normalizeUrl(new URL(location, url).href);
-        // Authentication is deliberately not forwarded. The new endpoint must
-        // issue its own Basic challenge before it can receive the credential.
-        continue;
-      }
-
-      if (response.status !== expectedStatus) {
-        await cancelResponseBody(response);
-        throw new Error('unexpected response status');
-      }
-      const bytes = await readResponseBytes(response, maxBytes);
-      const text = new TextDecoder('utf-8', {fatal: true}).decode(bytes);
-      return {url, text};
     }
-    throw new Error('too many redirects');
+    throw new Error('request attempts exhausted');
   } catch {
     throw requestError();
   }
@@ -1184,7 +1273,14 @@ export function parseCalendarQueryMultiStatus(xml, windowStart, windowEnd) {
 
 async function fetchCalDavBusyIntervals(
   caldavConfig,
-  {windowStart, windowEnd, fetchImpl = globalThis.fetch},
+  {
+    windowStart,
+    windowEnd,
+    fetchImpl = globalThis.fetch,
+    retryDelayImpl = (milliseconds) => new Promise(
+      (resolve) => setTimeout(resolve, milliseconds),
+    ),
+  },
   {normalizeUrl, passwordField, configurationError, requestError},
 ) {
   let failureStage = 'configuration';
@@ -1208,6 +1304,7 @@ async function fetchCalDavBusyIntervals(
     };
     const baseUrl = normalizeUrl(caldavConfig.baseUrl);
     const {queryStart, queryEnd} = roundedQueryWindow(windowStart, windowEnd);
+    const deadlineAt = Date.now() + SYNC_TIMEOUT_MS;
 
     failureStage = 'principal-request';
     const principalResponse = await readOnlyCalDavRequest(baseUrl, {
@@ -1220,6 +1317,8 @@ async function fetchCalDavBusyIntervals(
       requestError,
       fetchImpl,
       maxBytes: MAX_DISCOVERY_BYTES,
+      retryDelayImpl,
+      deadlineAt,
     });
     failureStage = 'principal-parse';
     const principalUrl = uniquePropertyHref(
@@ -1241,6 +1340,8 @@ async function fetchCalDavBusyIntervals(
       requestError,
       fetchImpl,
       maxBytes: MAX_DISCOVERY_BYTES,
+      retryDelayImpl,
+      deadlineAt,
     });
     failureStage = 'home-parse';
     const calendarHomeUrls = propertyHrefs(
@@ -1264,6 +1365,8 @@ async function fetchCalDavBusyIntervals(
         requestError,
         fetchImpl,
         maxBytes: MAX_DISCOVERY_BYTES,
+        retryDelayImpl,
+        deadlineAt,
       });
       failureStage = 'collections-parse';
       collections.push(...discoverCalendarCollections(
@@ -1292,6 +1395,8 @@ async function fetchCalDavBusyIntervals(
         requestError,
         fetchImpl,
         maxBytes: MAX_CALENDAR_QUERY_BYTES,
+        retryDelayImpl,
+        deadlineAt,
       });
       failureStage = 'calendar-parse';
       intervals.push(...parseCalendarQueryMultiStatus(
@@ -1310,12 +1415,18 @@ async function fetchCalDavBusyIntervals(
 
 export async function fetchICloudBusyIntervals(
   caldavConfig,
-  {windowStart, windowEnd, allowedHosts, fetchImpl = globalThis.fetch} = {},
+  {
+    windowStart,
+    windowEnd,
+    allowedHosts,
+    fetchImpl = globalThis.fetch,
+    retryDelayImpl,
+  } = {},
 ) {
   const normalizeUrl = (value) => normalizeICloudCalDavUrl(value, allowedHosts);
   return fetchCalDavBusyIntervals(
     caldavConfig,
-    {windowStart, windowEnd, fetchImpl},
+    {windowStart, windowEnd, fetchImpl, retryDelayImpl},
     {
       normalizeUrl,
       passwordField: 'appPassword',

@@ -59,6 +59,20 @@ stream it from the clipboard so it does not enter shell history:
 pbpaste | gh secret set SECRET_NAME --repo loujc/loujc.github.io
 ```
 
+If the selected iCloud calendars are renamed, the local helper can safely
+refresh the four-name Secret without printing any name. It proceeds only when
+the local iCloud EventKit source contains exactly four uniquely named event
+calendars:
+
+```sh
+./scripts/install-idea-snapshot-helper.sh
+./scripts/refresh-icloud-calendar-selection.sh
+```
+
+Always use the wrapper above. The helper's low-level export mode carries the
+private names on standard output for Secret input and must not be invoked
+interactively or added to logs.
+
 These secrets are exposed only to the main-branch anonymization step in a
 minimal isolated job. Pull-request builds receive none of them. The actions in
 that job are pinned to full commit SHAs, and dependency installation uses the
@@ -188,6 +202,11 @@ Every network request:
 - remains on an allowlisted provider host;
 - has strict timeout, redirect, per-response-size, and bounded request-count
   limits;
+- retries transport failures and HTTP 408, 425, 429, and selected 5xx responses
+  twice with bounded backoff, but never retries authentication, selection, or
+  parser failures;
+- enforces a three-minute deadline across the complete CalDAV synchronization,
+  leaving the workflow time to report a safe failure stage;
 - keeps account endpoints, credentials, response bodies, and parser diagnostics
   out of errors and Actions logs.
 

@@ -7,12 +7,14 @@ private let snapshotSchemaVersion = 1
 private let snapshotEncoding = "day-major-msb0-base64"
 private let requiredCoverageDays = 400
 private let maximumSnapshotBytes = 8 * 1024
-private let maximumCalendarNameBytes = 512
+private let maximumCalendarNameBytes = 1024
+private let maximumCalendarNameUTF16CodeUnits = 256
 
 private enum SnapshotFailure: Error {
     case invalidInput
     case accessDenied
     case calendarMismatch
+    case iCloudSelection
     case invalidEvent
     case encodingFailed
 }
@@ -28,6 +30,8 @@ private func safeFailureStage(_ error: Error) -> String {
         return "permission"
     case .calendarMismatch:
         return "calendar-selection"
+    case .iCloudSelection:
+        return "icloud-selection"
     case .invalidEvent:
         return "event-boundary"
     case .encodingFailed:
@@ -45,12 +49,14 @@ private struct AvailabilityConfig: Decodable {
     let slotMinutes: Int
     let displayHours: DisplayHoursConfig
     let ideaSnapshotCoverageDays: Int
+    let expectedCaldavCalendarCount: Int
 
     private enum CodingKeys: String, CodingKey {
         case timezone
         case slotMinutes = "slot_minutes"
         case displayHours = "display_hours"
         case ideaSnapshotCoverageDays = "idea_snapshot_coverage_days"
+        case expectedCaldavCalendarCount = "expected_caldav_calendar_count"
     }
 }
 
@@ -88,14 +94,22 @@ private struct DayWindow {
     let displayEnd: Date
 }
 
-private func validatedCalendarName(_ rawValue: String) throws -> String {
-    let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+private func validatedCalendarName(
+    _ rawValue: String,
+    trimmingOuterWhitespace: Bool = true
+) throws -> String {
+    let trimmedValue = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    let value = trimmingOuterWhitespace ? trimmedValue : rawValue
     guard !value.isEmpty,
+          trimmingOuterWhitespace || value == trimmedValue,
+          value.utf16.count <= maximumCalendarNameUTF16CodeUnits,
           value.lengthOfBytes(using: .utf8) <= maximumCalendarNameBytes,
-          value.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) }) else {
+          value.unicodeScalars.allSatisfy({
+              $0.value > 0x1f && $0.value != 0x7f
+          }) else {
         throw SnapshotFailure.invalidInput
     }
-    return value
+    return value.precomposedStringWithCanonicalMapping
 }
 
 private func privateCalendarName() throws -> String {
@@ -136,6 +150,45 @@ private func availabilityConfig() throws -> AvailabilityConfig {
     }
     let data = try Data(contentsOf: URL(fileURLWithPath: path), options: [.mappedIfSafe])
     return try JSONDecoder().decode(AvailabilityConfig.self, from: data)
+}
+
+private func currentICloudCalendarNames() async throws -> Data {
+    let config = try availabilityConfig()
+    guard config.expectedCaldavCalendarCount > 0,
+          config.expectedCaldavCalendarCount <= 10 else {
+        throw SnapshotFailure.invalidInput
+    }
+
+    let store = EKEventStore()
+    guard await requestCalendarAccess(store) else {
+        throw SnapshotFailure.accessDenied
+    }
+    let iCloudSources = store.sources.filter {
+        ($0.sourceType == .calDAV || $0.sourceType == .mobileMe)
+            && $0.title.compare(
+                "iCloud",
+                options: [.caseInsensitive, .diacriticInsensitive],
+                range: nil,
+                locale: Locale(identifier: "en_US_POSIX")
+            ) == .orderedSame
+    }
+    guard iCloudSources.count == 1, let iCloudSource = iCloudSources.first else {
+        throw SnapshotFailure.iCloudSelection
+    }
+
+    let names = try store.calendars(for: .event)
+        .filter { $0.source?.sourceIdentifier == iCloudSource.sourceIdentifier }
+        .map {
+            try validatedCalendarName(
+                $0.title,
+                trimmingOuterWhitespace: false
+            )
+        }
+    guard names.count == config.expectedCaldavCalendarCount,
+          Set(names).count == names.count else {
+        throw SnapshotFailure.iCloudSelection
+    }
+    return try JSONEncoder().encode(names)
 }
 
 private func clockMinutes(_ value: String) throws -> Int {
@@ -316,7 +369,8 @@ private func captureSnapshot() async throws -> Data {
     }
     let calendarName = try privateCalendarName()
     let matchingCalendars = store.calendars(for: .event).filter {
-        $0.type == .calDAV && $0.title == calendarName
+        $0.type == .calDAV
+            && $0.title.precomposedStringWithCanonicalMapping == calendarName
     }
     guard matchingCalendars.count == 1, let targetCalendar = matchingCalendars.first else {
         throw SnapshotFailure.calendarMismatch
@@ -422,6 +476,12 @@ private struct AppleCalendarSnapshot {
                 guard await requestCalendarAccess(store) else {
                     throw SnapshotFailure.accessDenied
                 }
+                return
+            }
+            if CommandLine.arguments.count == 2,
+               CommandLine.arguments[1] == "--export-icloud-calendar-names" {
+                let data = try await currentICloudCalendarNames()
+                FileHandle.standardOutput.write(data)
                 return
             }
             guard CommandLine.arguments.count == 1 else {

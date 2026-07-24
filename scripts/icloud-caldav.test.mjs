@@ -606,6 +606,139 @@ test('redirects are validated and credentials are never forwarded without a fres
   assert.ok(requests[2].authorization?.startsWith('Basic '));
 });
 
+test('transient network and provider failures are retried with bounded backoff', async () => {
+  const baseline = authenticatedDiscoveryFetch();
+  const delays = [];
+  let failureCount = 0;
+  const fetchImpl = async (...args) => {
+    if (failureCount === 0) {
+      failureCount += 1;
+      throw new TypeError('private transport diagnostic');
+    }
+    if (failureCount === 1) {
+      failureCount += 1;
+      return new Response('private provider diagnostic', {status: 503});
+    }
+    return baseline.fetchImpl(...args);
+  };
+  const intervals = await fetchICloudBusyIntervals(config, {
+    windowStart,
+    windowEnd,
+    allowedHosts,
+    fetchImpl,
+    retryDelayImpl: async (milliseconds) => {
+      delays.push(milliseconds);
+    },
+  });
+  assert.equal(intervals.length, 8);
+  assert.deepEqual(delays, [2_000, 8_000]);
+});
+
+test('response body transport failures retry without exposing private diagnostics', async () => {
+  const baseline = authenticatedDiscoveryFetch();
+  const privateDiagnostic = `private ${secretUsername} ${secretPassword}`;
+  const delays = [];
+  let injectedFailure = false;
+  const fetchImpl = async (url, options) => {
+    if (
+      !injectedFailure
+      && options.headers.Authorization
+      && new URL(url).pathname === '/'
+    ) {
+      injectedFailure = true;
+      return new Response(new ReadableStream({
+        pull(controller) {
+          controller.error(new TypeError(privateDiagnostic));
+        },
+      }), {status: 207});
+    }
+    return baseline.fetchImpl(url, options);
+  };
+
+  const intervals = await fetchICloudBusyIntervals(config, {
+    windowStart,
+    windowEnd,
+    allowedHosts,
+    fetchImpl,
+    retryDelayImpl: async (milliseconds) => {
+      delays.push(milliseconds);
+    },
+  });
+  assert.equal(intervals.length, 8);
+  assert.deepEqual(delays, [2_000]);
+});
+
+test('response size limit failures are not retried', async () => {
+  let requests = 0;
+  await assert.rejects(
+    fetchICloudBusyIntervals(config, {
+      windowStart,
+      windowEnd,
+      allowedHosts,
+      fetchImpl: async () => {
+        requests += 1;
+        return new Response(null, {
+          status: 207,
+          headers: {'content-length': String(2 * 1024 * 1024 + 1)},
+        });
+      },
+      retryDelayImpl: async () => {
+        throw new Error('response size failures must not retry');
+      },
+    }),
+    (error) => error.message === 'iCloud CalDAV data could not be fetched safely'
+      && iCloudCalDavFailureStage(error) === 'principal-request',
+  );
+  assert.equal(requests, 1);
+});
+
+test('retryable failures exhaust safely while non-retryable authentication is not retried', async () => {
+  const privateBody = `private ${secretUsername} ${secretPassword}`;
+  const delays = [];
+  let retryableRequests = 0;
+  await assert.rejects(
+    fetchICloudBusyIntervals(config, {
+      windowStart,
+      windowEnd,
+      allowedHosts,
+      fetchImpl: async () => {
+        retryableRequests += 1;
+        return new Response(privateBody, {status: 429});
+      },
+      retryDelayImpl: async (milliseconds) => {
+        delays.push(milliseconds);
+      },
+    }),
+    (error) => error.message === 'iCloud CalDAV data could not be fetched safely'
+      && iCloudCalDavFailureStage(error) === 'principal-request'
+      && !error.message.includes(secretUsername)
+      && !error.message.includes(secretPassword),
+  );
+  assert.equal(retryableRequests, 3);
+  assert.deepEqual(delays, [2_000, 8_000]);
+
+  let authenticationRequests = 0;
+  await assert.rejects(
+    fetchICloudBusyIntervals(config, {
+      windowStart,
+      windowEnd,
+      allowedHosts,
+      fetchImpl: async () => {
+        authenticationRequests += 1;
+        return new Response(privateBody, {
+          status: 401,
+          headers: {'www-authenticate': 'Bearer private'},
+        });
+      },
+      retryDelayImpl: async () => {
+        throw new Error('authentication must not retry');
+      },
+    }),
+    /iCloud CalDAV data could not be fetched safely/,
+  );
+  assert.equal(authenticationRequests, 1);
+});
+
 test('unsafe redirects and authentication failures never echo credentials or provider bodies', async () => {
   const token = 'secret-redirect-fragment';
   const unsafeRedirect = async () => new Response(`private body ${secretUsername}`, {

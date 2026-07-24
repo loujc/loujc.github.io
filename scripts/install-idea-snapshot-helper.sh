@@ -41,10 +41,10 @@ trap cleanup EXIT HUP INT TERM
 /usr/bin/plutil -insert LSMinimumSystemVersion -string 13.0 "${STAGED_APP}/Contents/Info.plist"
 /usr/bin/plutil -insert LSUIElement -bool true "${STAGED_APP}/Contents/Info.plist"
 /usr/bin/plutil -insert NSCalendarsFullAccessUsageDescription -string \
-  "Create a local anonymous occupied-time snapshot from one selected calendar." \
+  "Create an anonymous occupied-time snapshot and configure selected iCloud calendars." \
   "${STAGED_APP}/Contents/Info.plist"
 /usr/bin/plutil -insert NSCalendarsUsageDescription -string \
-  "Create a local anonymous occupied-time snapshot from one selected calendar." \
+  "Create an anonymous occupied-time snapshot and configure selected iCloud calendars." \
   "${STAGED_APP}/Contents/Info.plist"
 /usr/bin/plutil -insert NSPrincipalClass -string NSApplication "${STAGED_APP}/Contents/Info.plist"
 
