@@ -662,9 +662,10 @@ test('unsafe redirects and authentication failures never echo credentials or pro
 });
 
 test('missing or duplicate named collections reject the whole fetch before any REPORT', async () => {
-  for (const names of [
-    calendarNames.slice(0, 3),
-    [calendarNames[0], calendarNames[0], calendarNames[2], calendarNames[3]],
+  for (const [names, expectedStage] of [
+    [calendarNames.slice(0, 3), 'collection-selection-missing'],
+    [[calendarNames[0], calendarNames[0], calendarNames[2], calendarNames[3]],
+      'collection-selection-duplicate-name'],
   ]) {
     const {requests, fetchImpl} = authenticatedDiscoveryFetch({collections: collectionsXml(names)});
     await assert.rejects(
@@ -675,7 +676,7 @@ test('missing or duplicate named collections reject the whole fetch before any R
         fetchImpl,
       }),
       (error) => error.message === 'iCloud CalDAV data could not be fetched safely'
-        && iCloudCalDavFailureStage(error) === 'collection-selection',
+        && iCloudCalDavFailureStage(error) === expectedStage,
     );
     assert.equal(requests.some(({options}) => options.method === 'REPORT'), false);
   }

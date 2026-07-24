@@ -25,6 +25,9 @@ const SAFE_FAILURE_STAGES = new Set([
   'collections-request',
   'collections-parse',
   'collection-selection',
+  'collection-selection-missing',
+  'collection-selection-duplicate-name',
+  'collection-selection-duplicate-url',
   'query-build',
   'calendar-report',
   'calendar-parse',
@@ -552,10 +555,13 @@ function discoverCalendarCollections(xml, responseBaseUrl, normalizeUrl) {
 function selectNamedCalendarUrls(collections, desiredNames) {
   const selected = desiredNames.map((name) => {
     const matches = collections.filter((collection) => collection.name === name);
-    if (matches.length !== 1) throw genericRequestError();
+    if (matches.length === 0) throw genericRequestError('collection-selection-missing');
+    if (matches.length > 1) throw genericRequestError('collection-selection-duplicate-name');
     return matches[0].url;
   });
-  if (new Set(selected.map((url) => url.href)).size !== selected.length) throw genericRequestError();
+  if (new Set(selected.map((url) => url.href)).size !== selected.length) {
+    throw genericRequestError('collection-selection-duplicate-url');
+  }
   return selected;
 }
 
@@ -1297,8 +1303,8 @@ async function fetchCalDavBusyIntervals(
       if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
     }
     return intervals.sort((left, right) => left.start.toMillis() - right.start.toMillis());
-  } catch {
-    throw requestError(failureStage);
+  } catch (error) {
+    throw requestError(iCloudCalDavFailureStage(error) ?? failureStage);
   }
 }
 
