@@ -5,6 +5,7 @@ import {DateTime} from 'luxon';
 
 import {
   assertPublicPayload,
+  availabilityWindow,
   buildPublicPayload,
   sanitizeCalendarText,
   selectAvailabilitySourceMode,
@@ -28,6 +29,13 @@ const config = {
 const calendar = `BEGIN:VCALENDAR\r
 VERSION:2.0\r
 PRODID:-//Privacy Test//EN\r
+BEGIN:VEVENT\r
+UID:past-monday\r
+DTSTAMP:20260701T000000Z\r
+DTSTART;TZID=Asia/Shanghai:20260713T090000\r
+DTEND;TZID=Asia/Shanghai:20260713T100000\r
+SUMMARY:Past private meeting\r
+END:VEVENT\r
 BEGIN:VEVENT\r
 UID:private-uid-never-publish\r
 DTSTAMP:20260701T000000Z\r
@@ -89,11 +97,13 @@ END:VEVENT\r
 END:VCALENDAR\r
 `;
 
-test('sanitizer publishes only rounded and merged busy intervals', () => {
+test('sanitizer keeps a past Monday busy interval in the current week', () => {
   const now = DateTime.fromISO('2026-07-14T00:00:00+08:00');
   const payload = sanitizeCalendarText([calendar], config, now);
   assert.equal(payload.status, 'ready');
+  assert.equal(payload.window_start, '2026-07-13');
   assert.deepEqual(payload.busy, [
+    {start: '2026-07-13T01:00:00Z', end: '2026-07-13T02:00:00Z'},
     {start: '2026-07-15T01:00:00Z', end: '2026-07-15T02:30:00Z'},
     {start: '2026-07-16T05:00:00Z', end: '2026-07-16T06:00:00Z'},
     {start: '2026-07-18T05:00:00Z', end: '2026-07-18T06:00:00Z'},
@@ -101,6 +111,16 @@ test('sanitizer publishes only rounded and merged busy intervals', () => {
     {start: '2026-07-20T07:00:00Z', end: '2026-07-20T08:00:00Z'},
     {start: '2026-07-21T00:00:00Z', end: '2026-07-21T14:00:00Z'},
   ]);
+});
+
+test('availability week follows the local Sunday/Monday boundary, not the UTC date', () => {
+  const localSunday = DateTime.fromISO('2026-07-19T15:59:59Z');
+  const localMonday = DateTime.fromISO('2026-07-19T16:00:00Z');
+  assert.equal(localSunday.setZone(config.timezone).toISODate(), '2026-07-19');
+  assert.equal(localMonday.setZone(config.timezone).toISODate(), '2026-07-20');
+  assert.equal(availabilityWindow(config, localSunday).windowStart.toISODate(), '2026-07-13');
+  assert.equal(availabilityWindow(config, localMonday).windowStart.toISODate(), '2026-07-20');
+  assert.equal(unconfiguredPayload(config, localMonday).window_start, '2026-07-20');
 });
 
 test('iCloud and IDEA snapshot intervals share one final anonymization boundary', () => {
@@ -173,6 +193,7 @@ test('payload cannot contain any event metadata or source data', () => {
   const serialized = JSON.stringify(payload);
   for (const secret of [
     'private-uid-never-publish',
+    'Past private meeting',
     'Secret investor meeting',
     'Private office',
     'Confidential agenda',
@@ -207,7 +228,15 @@ test('unconfigured state fails closed instead of implying free time', () => {
   assert.equal(payload.status, 'unconfigured');
   assert.deepEqual(payload.busy, []);
   assert.equal(payload.generated_at, '2026-07-13T16:00:00Z');
+  assert.equal(payload.window_start, '2026-07-13');
   assert.doesNotThrow(() => assertPublicPayload(payload));
+});
+
+test('public window must start on the Monday of its generation week', () => {
+  const payload = unconfiguredPayload(config, DateTime.fromISO('2026-07-14T00:00:00+08:00'));
+  payload.window_start = '2026-07-14';
+  payload.window_end = '2026-07-24';
+  assert.throws(() => assertPublicPayload(payload), /generation week/);
 });
 
 test('privacy validator rejects extra busy fields', () => {

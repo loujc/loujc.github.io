@@ -347,7 +347,16 @@ private func captureSnapshot() async throws -> Data {
     calendar.timeZone = timeZone
 
     let capturedDate = Date(timeIntervalSince1970: floor(Date().timeIntervalSince1970))
-    let coverageStart = calendar.startOfDay(for: capturedDate)
+    let capturedDay = calendar.startOfDay(for: capturedDate)
+    let weekday = calendar.component(.weekday, from: capturedDay)
+    let daysSinceMonday = (weekday + 5) % 7
+    guard let coverageStart = calendar.date(
+        byAdding: .day,
+        value: -daysSinceMonday,
+        to: capturedDay
+    ) else {
+        throw SnapshotFailure.invalidInput
+    }
     guard let coverageEnd = calendar.date(
         byAdding: .day,
         value: requiredCoverageDays,

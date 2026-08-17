@@ -225,7 +225,8 @@ function canonicalBitset(value, expectedBytes, expectedBits) {
 
 function normalizedWindow(config, now, windowStart, windowEnd) {
   if (!DateTime.isDateTime(now) || !now.isValid) fail();
-  const expectedStart = now.setZone(config.timezone).startOf('day');
+  const localDay = now.setZone(config.timezone).startOf('day');
+  const expectedStart = localDay.minus({days: localDay.weekday - 1});
   const expectedEnd = expectedStart.plus({days: config.horizon_days});
   const start = windowStart ?? expectedStart;
   const end = windowEnd ?? expectedEnd;
@@ -299,10 +300,15 @@ export function parseIdeaBusySnapshot(
 
     const capturedAt = atStage('capture-time', () => canonicalCapturedAt(snapshot.captured_at));
     const nowUtc = now.toUTC();
+    const capturedDay = capturedAt.setZone(config.timezone).startOf('day');
+    const capturedWeekStart = capturedDay.minus({days: capturedDay.weekday - 1});
     if (
       capturedAt > nowUtc.plus({minutes: MAX_CLOCK_SKEW_MINUTES})
       || capturedAt < nowUtc.minus({days: config.idea_snapshot_max_age_days})
-      || capturedAt.setZone(config.timezone).toISODate() !== snapshot.coverage_start
+      || (
+        coverageStart.toMillis() !== capturedDay.toMillis()
+        && coverageStart.toMillis() !== capturedWeekStart.toMillis()
+      )
     ) {
       fail('capture-time');
     }

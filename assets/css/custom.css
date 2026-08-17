@@ -40,6 +40,128 @@ a[href="https://hugoblox.com"][target="_blank"] {
   display: none !important;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
+#availability {
+  scroll-margin-top: 5rem;
+}
+
+.availability-jump-link {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) 1.15rem;
+  align-items: center;
+  width: min(100%, 18rem);
+  margin-top: 0.5rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgb(15 118 110 / 28%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 88%);
+  color: #0f172a;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 8%);
+  text-align: left;
+  transform: perspective(900px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform-style: preserve-3d;
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.dark .availability-jump-link {
+  border-color: rgb(94 234 212 / 24%);
+  background: rgb(17 24 39 / 88%);
+  color: #f8fafc;
+  box-shadow: 0 10px 28px rgb(0 0 0 / 20%);
+}
+
+.availability-jump-link:hover,
+.availability-jump-link:focus-visible {
+  border-color: #0f766e;
+  box-shadow: 0 14px 34px rgb(15 118 110 / 15%);
+}
+
+.availability-jump-link:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 3px;
+}
+
+.availability-jump-icon {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+.dark .availability-jump-icon {
+  background: rgb(20 184 166 / 18%);
+  color: #5eead4;
+}
+
+.availability-jump-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 0 0.55rem;
+}
+
+.availability-jump-copy strong {
+  font-size: 0.85rem;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.availability-jump-copy small {
+  margin-top: 0.15rem;
+  overflow-wrap: anywhere;
+  color: #64748b;
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+
+.availability-jump-arrow {
+  width: 1rem;
+  height: 1rem;
+  color: #0f766e;
+  animation: availability-nudge 1.8s ease-in-out infinite;
+}
+
+.dark .availability-jump-copy small {
+  color: #94a3b8;
+}
+
+#section-resume-biography-3 .avatar-wrapper[data-motion-tilt] {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  transform: perspective(1000px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform-style: preserve-3d;
+  transition: transform 220ms ease, filter 220ms ease;
+  will-change: transform;
+}
+
+#section-resume-biography-3 .avatar-wrapper[data-motion-tilt]:hover {
+  filter: drop-shadow(0 18px 24px rgb(15 23 42 / 14%));
+}
+
+.homepage-motion-ready .homepage-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 560ms ease var(--reveal-delay, 0ms), transform 560ms ease var(--reveal-delay, 0ms);
+}
+
+.homepage-motion-ready .homepage-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes availability-nudge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
 .wechat-copy-toast {
   position: fixed;
   z-index: 100;
@@ -71,6 +193,7 @@ a[href="https://hugoblox.com"][target="_blank"] {
   --availability-muted: #64748b;
   --availability-surface: #fff;
   --availability-surface-soft: #f8fafc;
+  --availability-now: #e11d48;
   width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
 }
@@ -82,6 +205,7 @@ a[href="https://hugoblox.com"][target="_blank"] {
   --availability-muted: #94a3b8;
   --availability-surface: rgb(255 255 255 / 3%);
   --availability-surface-soft: rgb(255 255 255 / 2%);
+  --availability-now: #fb7185;
 }
 
 .availability-heading {
@@ -97,7 +221,7 @@ a[href="https://hugoblox.com"][target="_blank"] {
   color: #0f172a;
   font-size: clamp(1.8rem, 3vw, 2.25rem);
   font-weight: 750;
-  letter-spacing: -0.025em;
+  letter-spacing: 0;
 }
 
 .dark .availability-heading h2 {
@@ -114,6 +238,23 @@ a[href="https://hugoblox.com"][target="_blank"] {
   margin: 0.45rem 0 0;
 }
 
+.availability-location-note {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  color: var(--availability-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.availability-location-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex: 0 0 auto;
+  color: #c2410c;
+}
+
 .availability-privacy-badge {
   display: flex;
   align-items: center;
@@ -121,7 +262,7 @@ a[href="https://hugoblox.com"][target="_blank"] {
   max-width: 30rem;
   padding: 0.65rem 0.85rem;
   border: 1px solid color-mix(in srgb, var(--availability-accent) 28%, transparent);
-  border-radius: 0.75rem;
+  border-radius: 8px;
   background: var(--availability-accent-soft);
   color: color-mix(in srgb, var(--availability-accent) 78%, #0f172a);
   font-size: 0.82rem;
@@ -143,7 +284,7 @@ a[href="https://hugoblox.com"][target="_blank"] {
 .availability-card {
   overflow: hidden;
   border: 1px solid var(--availability-border);
-  border-radius: 1rem;
+  border-radius: 8px;
   background: var(--availability-surface);
   box-shadow: 0 14px 45px rgb(15 23 42 / 6%);
 }
@@ -329,6 +470,53 @@ a[href="https://hugoblox.com"][target="_blank"] {
   font-weight: 750;
   line-height: 1.15;
   box-shadow: 0 2px 8px rgb(15 118 110 / 18%);
+  animation: availability-block-in 360ms ease both;
+  animation-delay: calc(var(--availability-block-index, 0) * 28ms);
+}
+
+.availability-now-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  z-index: 5;
+  height: 1px;
+  background: var(--availability-now);
+  pointer-events: none;
+}
+
+.availability-now-line[hidden],
+.availability-now-mobile[hidden] {
+  display: none;
+}
+
+.availability-now-line::before {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--availability-now);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--availability-now) 14%, transparent);
+  content: '';
+}
+
+.availability-now-line time {
+  position: absolute;
+  top: 0.16rem;
+  right: 0.2rem;
+  padding: 0.08rem 0.24rem;
+  border-radius: 3px;
+  background: var(--availability-now);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+@keyframes availability-block-in {
+  from { opacity: 0; transform: scaleY(0.86); }
+  to { opacity: 1; transform: scaleY(1); }
 }
 
 .dark .availability-busy-block {
@@ -388,17 +576,16 @@ a[href="https://hugoblox.com"][target="_blank"] {
 
 .availability-day-card {
   padding: 0.9rem;
-  border: 1px solid var(--availability-border);
-  border-radius: 0.75rem;
-  background: var(--availability-surface);
+  border-bottom: 1px solid var(--availability-border);
+  background: transparent;
 }
 
 .availability-day-card + .availability-day-card {
-  margin-top: 0.65rem;
+  margin-top: 0;
 }
 
 .availability-day-card.is-today {
-  border-color: color-mix(in srgb, var(--availability-accent) 65%, var(--availability-border));
+  background: color-mix(in srgb, var(--availability-accent) 4%, transparent);
 }
 
 .availability-day-card h3 {
@@ -416,6 +603,24 @@ a[href="https://hugoblox.com"][target="_blank"] {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+.availability-now-mobile {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: -0.1rem 0 0.45rem;
+  color: var(--availability-now);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.availability-now-mobile > span {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--availability-now);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--availability-now) 12%, transparent);
 }
 
 .availability-day-card li {
@@ -496,5 +701,24 @@ a[href="https://hugoblox.com"][target="_blank"] {
 
   .availability-updated {
     line-height: 1.4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  .availability-jump-arrow,
+  .availability-busy-block {
+    animation: none;
+  }
+
+  .homepage-motion-ready .homepage-reveal,
+  #section-resume-biography-3 .avatar-wrapper[data-motion-tilt],
+  .availability-jump-link {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }

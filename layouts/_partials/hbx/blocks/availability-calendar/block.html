@@ -6,6 +6,7 @@
 
 {{ $title := index $content "title" | default "Availability" }}
 {{ $text := index $content "text" | default "Public busy times for scheduling." }}
+{{ $location_note := index $content "location_note" | default "" }}
 {{ $privacy_note := index $content "privacy_note" | default "Only occupied times are published. Event details remain private." }}
 {{ $disclaimer := index $content "disclaimer" | default "Blank space is indicative only; please confirm before scheduling." }}
 
@@ -21,6 +22,7 @@
   "today" (index $content "today" | default "Today")
   "updated" (index $content "updated" | default "Last anonymized update: {time}")
   "week_of" (index $content "week_of" | default "Week of {date}")
+  "now" (index $content "now" | default "Now · {time}")
 }}
 {{ $strings_json := jsonify $strings }}
 
@@ -35,6 +37,12 @@
     <div>
       <h2>{{ $title }}</h2>
       <p class="availability-intro">{{ $text }}</p>
+      {{ with $location_note }}
+        <p class="availability-location-note">
+          {{ partial "functions/get_icon" (dict "name" "hero/map-pin" "attributes" "class='availability-location-icon'") }}
+          <span>{{ . }}</span>
+        </p>
+      {{ end }}
     </div>
     <div class="availability-privacy-badge" aria-label="{{ $privacy_note }}">
       <svg viewBox="0 0 24 24" aria-hidden="true">

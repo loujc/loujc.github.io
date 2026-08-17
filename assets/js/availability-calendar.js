@@ -35,7 +35,7 @@
     }
     if (!ISO_DATE.test(payload.window_start) || !ISO_DATE.test(payload.window_end)) return false;
     if (payload.window_end <= payload.window_start) return false;
-    if (instantParts(payload.generated_at, payload.timezone).date !== payload.window_start) return false;
+    if (mondayOf(instantParts(payload.generated_at, payload.timezone).date) !== payload.window_start) return false;
     if (!Number.isInteger(payload.slot_minutes) || payload.slot_minutes < 5 || 60 % payload.slot_minutes !== 0) return false;
     if (!sortedKeysEqual(payload.display_hours, HOURS_KEYS)) return false;
     if (!CLOCK.test(payload.display_hours.start) || !CLOCK.test(payload.display_hours.end)) return false;
@@ -162,13 +162,20 @@
       if (!validPayload(payload) || payload.status !== 'ready') throw new Error('unavailable');
 
       const generatedAt = new Date(payload.generated_at);
-      const age = Date.now() - generatedAt.getTime();
-      if (!Number.isFinite(age) || age < -600_000 || age > staleHours * 3_600_000) {
+      const timezone = payload.timezone || fallbackTimezone;
+      const isFresh = () => {
+        const age = Date.now() - generatedAt.getTime();
+        return Number.isFinite(age) && age >= -600_000 && age <= staleHours * 3_600_000;
+      };
+      const isTodayPublished = () => {
+        const currentDay = todayKey(timezone);
+        return currentDay >= payload.window_start && currentDay < payload.window_end;
+      };
+      if (!isFresh() || !isTodayPublished()) {
         failClosed(strings.stale, 'stale');
         return;
       }
 
-      const timezone = payload.timezone || fallbackTimezone;
       const startMinutes = clockMinutes(payload.display_hours.start);
       const endMinutes = clockMinutes(payload.display_hours.end);
       const totalMinutes = endMinutes - startMinutes;
@@ -213,6 +220,34 @@
         `${strings.busy}, ${timeLabel.format(new Date(interval.start))}–${timeLabel.format(new Date(interval.end))}`
       );
 
+      const updateNowMarkers = () => {
+        const now = new Date();
+        const current = instantParts(now, timezone);
+        const currentLabel = timeLabel.format(now);
+        root.querySelectorAll('.availability-now-line').forEach((marker) => {
+          const inRange = current.date === marker.dataset.day
+            && current.minutes >= startMinutes
+            && current.minutes < endMinutes;
+          marker.hidden = !inRange;
+          if (!inRange) return;
+          marker.style.top = `${((current.minutes - startMinutes) / 60) * HOUR_HEIGHT}px`;
+          marker.setAttribute('aria-label', strings.now.replace('{time}', currentLabel));
+          const label = marker.querySelector('time');
+          label.dateTime = now.toISOString();
+          label.textContent = currentLabel;
+        });
+        root.querySelectorAll('.availability-now-mobile').forEach((marker) => {
+          const inRange = current.date === marker.dataset.day
+            && current.minutes >= startMinutes
+            && current.minutes < endMinutes;
+          marker.hidden = !inRange;
+          if (!inRange) return;
+          const label = marker.querySelector('time');
+          label.dateTime = now.toISOString();
+          label.textContent = strings.now.replace('{time}', currentLabel);
+        });
+      };
+
       const renderDesktop = (days) => {
         desktop.replaceChildren();
         desktop.style.setProperty('--availability-grid-height', `${Math.round((totalMinutes / 60) * HOUR_HEIGHT)}px`);
@@ -252,7 +287,7 @@
             column.setAttribute('aria-label', strings.outside_window);
           }
           if (day === todayKey(timezone)) column.classList.add('is-today');
-          (isPublished ? busyByDay.get(day) || [] : []).forEach((interval) => {
+          (isPublished ? busyByDay.get(day) || [] : []).forEach((interval, index) => {
             const start = Math.max(startMinutes, instantParts(interval.start, timezone).minutes);
             const end = Math.min(endMinutes, instantParts(interval.end, timezone).minutes);
             if (end <= start) return;
@@ -260,11 +295,22 @@
             block.className = 'availability-busy-block';
             block.style.top = `${((start - startMinutes) / 60) * HOUR_HEIGHT}px`;
             block.style.height = `${Math.max(3, ((end - start) / 60) * HOUR_HEIGHT)}px`;
+            block.setAttribute('role', 'img');
             block.setAttribute('aria-label', makeBusyLabel(interval));
             block.title = makeBusyLabel(interval);
+            block.style.setProperty('--availability-block-index', index);
             if (end - start >= 45) block.textContent = strings.busy;
             column.append(block);
           });
+          if (day === todayKey(timezone)) {
+            const marker = document.createElement('div');
+            marker.className = 'availability-now-line';
+            marker.dataset.day = day;
+            marker.setAttribute('role', 'img');
+            const label = document.createElement('time');
+            marker.append(label);
+            column.append(marker);
+          }
           grid.append(column);
         });
         desktop.append(grid);
@@ -279,6 +325,16 @@
           const heading = document.createElement('h3');
           heading.textContent = dateLabel.format(dateFromKey(day));
           card.append(heading);
+          if (day === todayKey(timezone)) {
+            const now = document.createElement('div');
+            now.className = 'availability-now-mobile';
+            now.dataset.day = day;
+            const dot = document.createElement('span');
+            dot.setAttribute('aria-hidden', 'true');
+            const time = document.createElement('time');
+            now.append(dot, time);
+            card.append(now);
+          }
           const isPublished = day >= payload.window_start && day < payload.window_end;
           const intervals = busyByDay.get(day) || [];
           if (!isPublished || !intervals.length) {
@@ -314,6 +370,7 @@
         next.disabled = activeWeek >= maxWeek;
         renderDesktop(days);
         renderMobile(days);
+        updateNowMarkers();
       };
 
       previous.addEventListener('click', () => {
@@ -336,6 +393,22 @@
       footer.hidden = false;
       updated.textContent = strings.updated.replace('{time}', updateLabel.format(generatedAt));
       render();
+      let renderedToday = todayKey(timezone);
+      const refreshTimer = window.setInterval(() => {
+        if (!isFresh() || !isTodayPublished()) {
+          window.clearInterval(refreshTimer);
+          failClosed(strings.stale, 'stale');
+          return;
+        }
+        const nextToday = todayKey(timezone);
+        if (nextToday !== renderedToday) {
+          renderedToday = nextToday;
+          activeWeek = clampWeek(mondayOf(nextToday), minWeek, maxWeek);
+          render();
+          return;
+        }
+        updateNowMarkers();
+      }, 30_000);
     } catch {
       failClosed(strings.unavailable);
     }

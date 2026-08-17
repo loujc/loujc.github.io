@@ -15,6 +15,10 @@ sections:
       button:
         text: Download CV
         url: uploads/cv.pdf
+      availability_cta:
+        text: View availability
+        hint: Find a time for a conversation
+        url: '#availability'
       headings:
         about: About
         interests: Research Interests
@@ -27,17 +31,12 @@ sections:
       avatar:
         size: medium # Options: small (150px), medium (200px, default), large (320px), xl (400px), xxl (500px)
         shape: rounded # Options: circle (default), square, rounded
-  - block: resume-experience
-    id: experience
-    content:
-      username: me
-    design:
-      date_format: 'January 2006'
   - block: availability-calendar
     id: availability
     content:
       title: Availability
       text: Public busy times for scheduling, shown in China Standard Time.
+      location_note: 'Weekdays: usually at Peking University Haidian Campus; weekends uncertain.'
       privacy_note: Only occupied periods are published. Titles, locations, notes, and participants remain private.
       disclaimer: Blank space is indicative only; please contact me to confirm before scheduling.
       loading: Loading anonymized availability…
@@ -51,6 +50,13 @@ sections:
       today: Today
       updated: 'Last anonymized update: {time}'
       week_of: 'Week of {date}'
+      now: 'Now · {time}'
+  - block: resume-experience
+    id: experience
+    content:
+      username: me
+    design:
+      date_format: 'January 2006'
   - block: collection
     id: publications
     content:

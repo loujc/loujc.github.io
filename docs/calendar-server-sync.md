@@ -17,7 +17,8 @@ The data path is:
 4. The isolated availability job connects to the four selected iCloud CalDAV
    collections and decodes the IDEA bitmap in memory.
 5. Both sources are rounded to 30-minute boundaries, clipped to
-   08:00-22:00 in `Asia/Shanghai`, merged, and written to
+   08:00-22:00 in `Asia/Shanghai`, merged into a window beginning on the
+   current week's Monday, and written to
    `public/availability/busy.json`.
 6. Only that allowlisted JSON file moves to the separate Hugo build job. The
    iCloud credential, discovery XML, opaque collection/resource URLs,
@@ -30,6 +31,30 @@ changes appear after the local refresh command and the next successful
 scheduled build. GitHub documents that scheduled Actions may still be delayed
 or dropped during periods of high load:
 <https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule>.
+
+## Booking-link plan
+
+Booking must remain separate from the anonymous public calendar. GitHub Pages
+is static and cannot safely keep provider credentials, reserve a slot
+atomically, or send notification email by itself. The preferred implementation
+is a hosted scheduler that connects directly to Apple Calendar or CalDAV, with
+two event types: 30 minutes and 60 minutes. Each event type should collect the
+guest's name, email, timezone, and a short purpose; enforce minimum notice and
+buffers; recheck conflicts immediately before confirmation; and email both the
+guest and calendar owner after the reservation succeeds.
+
+The homepage should link to those two event types only after the Apple/CalDAV
+connection and end-to-end notification flow have been verified. The scheduler
+must not consume the public `busy.json` as its source of truth, because that
+snapshot is deliberately delayed and read-only. The public calendar remains an
+anonymous preview, while the scheduler performs the authoritative conflict
+check against the private calendar service.
+
+A custom alternative would use a small authenticated serverless API, an atomic
+reservation store, and a transactional email provider. That route offers more
+control but adds credential handling, abuse prevention, retries, and ongoing
+maintenance, so it should be chosen only if a hosted Apple/CalDAV scheduler is
+unsuitable.
 
 ## Required GitHub Secrets
 

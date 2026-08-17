@@ -31,7 +31,10 @@ function minutes(value) {
 function makeSnapshot({
   policy = config,
   capturedAt = now.minus({hours: 1}),
-  coverageStart = capturedAt.setZone(policy.timezone).startOf('day'),
+  coverageStart = (() => {
+    const capturedDay = capturedAt.setZone(policy.timezone).startOf('day');
+    return capturedDay.minus({days: capturedDay.weekday - 1});
+  })(),
   occupied = [],
   overrides = {},
 } = {}) {
@@ -60,6 +63,7 @@ function makeSnapshot({
 test('fixed day-major MSB-first snapshot becomes anonymous merged intervals', () => {
   const snapshot = makeSnapshot({
     occupied: [
+      0 * 28 + 2,
       1 * 28 + 2,
       1 * 28 + 3,
       3 * 28 + 27,
@@ -67,8 +71,9 @@ test('fixed day-major MSB-first snapshot becomes anonymous merged intervals', ()
   });
   const intervals = parseIdeaBusySnapshot(snapshot, config, {now});
   assert.deepEqual(intervals.map(({start, end}) => [start.toISO(), end.toISO()]), [
-    ['2026-07-15T09:00:00.000+08:00', '2026-07-15T10:00:00.000+08:00'],
-    ['2026-07-17T21:30:00.000+08:00', '2026-07-17T22:00:00.000+08:00'],
+    ['2026-07-13T09:00:00.000+08:00', '2026-07-13T09:30:00.000+08:00'],
+    ['2026-07-14T09:00:00.000+08:00', '2026-07-14T10:00:00.000+08:00'],
+    ['2026-07-16T21:30:00.000+08:00', '2026-07-16T22:00:00.000+08:00'],
   ]);
 });
 
@@ -169,7 +174,14 @@ test('captured_at must be canonical UTC, near-current, and no older than 90 days
   );
 });
 
-test('coverage is exact, starts on capture day, and contains the whole public window', () => {
+test('coverage is exact, starts on Monday or a legacy capture day, and contains the public window', () => {
+  const legacyCapturedAt = now.minus({days: 4, hours: 1});
+  const legacy = makeSnapshot({
+    capturedAt: legacyCapturedAt,
+    coverageStart: legacyCapturedAt.setZone(config.timezone).startOf('day'),
+  });
+  assert.doesNotThrow(() => parseIdeaBusySnapshot(legacy, config, {now}));
+
   const wrongEnd = JSON.parse(makeSnapshot());
   wrongEnd.coverage_end = DateTime.fromISO(wrongEnd.coverage_end).minus({days: 1}).toISODate();
   assert.throws(
@@ -189,8 +201,8 @@ test('coverage is exact, starts on capture day, and contains the whole public wi
   );
 
   const wrongStart = JSON.parse(makeSnapshot());
-  wrongStart.coverage_start = DateTime.fromISO(wrongStart.coverage_start).plus({days: 1}).toISODate();
-  wrongStart.coverage_end = DateTime.fromISO(wrongStart.coverage_end).plus({days: 1}).toISODate();
+  wrongStart.coverage_start = DateTime.fromISO(wrongStart.coverage_start).plus({days: 2}).toISODate();
+  wrongStart.coverage_end = DateTime.fromISO(wrongStart.coverage_end).plus({days: 2}).toISODate();
   assert.throws(
     () => parseIdeaBusySnapshot(JSON.stringify(wrongStart), config, {now}),
     /IDEA snapshot could not be validated safely/,

@@ -391,10 +391,12 @@ function assertParsedEventIsSafe(event, seen = new Set()) {
 }
 
 export function availabilityWindow(config, now = DateTime.utc()) {
+  const localDay = now.setZone(config.timezone).startOf('day');
+  const windowStart = localDay.minus({days: localDay.weekday - 1});
   return {
     generatedAt: now.toUTC().startOf('second'),
-    windowStart: now.setZone(config.timezone).startOf('day'),
-    windowEnd: now.setZone(config.timezone).startOf('day').plus({days: config.horizon_days}),
+    windowStart,
+    windowEnd: windowStart.plus({days: config.horizon_days}),
   };
 }
 
@@ -471,15 +473,14 @@ export function sanitizeCalendarText(calendarTexts, config, now = DateTime.utc()
 }
 
 export function unconfiguredPayload(config, now = DateTime.utc()) {
-  const generatedAt = now.toUTC().startOf('second');
-  const windowStart = now.setZone(config.timezone).startOf('day');
+  const {generatedAt, windowStart, windowEnd} = availabilityWindow(config, now);
   const payload = {
     schema_version: 1,
     status: 'unconfigured',
     generated_at: generatedAt.toISO({suppressMilliseconds: true}),
     timezone: config.timezone,
     window_start: windowStart.toISODate(),
-    window_end: windowStart.plus({days: config.horizon_days}).toISODate(),
+    window_end: windowEnd.toISODate(),
     slot_minutes: config.slot_minutes,
     display_hours: {...config.display_hours},
     busy: [],
@@ -510,8 +511,13 @@ export function assertPublicPayload(payload) {
   if (!windowStart.isValid || !windowEnd.isValid || windowEnd <= windowStart) {
     throw new Error('Public calendar payload has an invalid date window');
   }
-  if (generatedAt.setZone(payload.timezone).toISODate() !== payload.window_start) {
-    throw new Error('Public calendar window does not match its generation date');
+  const generatedDay = generatedAt.setZone(payload.timezone).startOf('day');
+  if (
+    windowStart.weekday !== 1
+    || generatedDay < windowStart
+    || generatedDay >= windowStart.plus({days: 7})
+  ) {
+    throw new Error('Public calendar window does not match its generation week');
   }
   if (!Number.isInteger(payload.slot_minutes) || payload.slot_minutes < 5 || 60 % payload.slot_minutes !== 0) {
     throw new Error('Public calendar payload has an invalid slot size');

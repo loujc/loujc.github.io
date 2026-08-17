@@ -82,7 +82,7 @@
   {{ end }}
 {{ end }}
 
-<div class="resume-biography py-8 px-4 sm:py-12 md:py-16 lg:py-24 xl:py-32 relative overflow-hidden">
+<div class="resume-biography py-8 px-4 sm:py-10 md:py-12 lg:py-16 xl:py-20 relative overflow-hidden">
   {{/* Add subtle top gradient for navbar transition */}}
   <div class="max-w-7xl mx-auto">
     <div class="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8 items-start">
@@ -180,7 +180,7 @@
         {{ end }}
 
         {{ if $avatar }}
-        <div class="avatar-wrapper {{ if $img }}-mt-24{{else}}mb-4{{end}}" style="width: {{$display_size}}px; height: {{$display_size}}px;">
+        <div class="avatar-wrapper {{ if $img }}-mt-24{{else}}mb-4{{end}}" data-motion-tilt style="width: {{$display_size}}px; height: {{$display_size}}px;">
           {{ $avatar_image := $avatar.Fit (printf "%sx%s" $generation_size $generation_size) }}
           <img class="avatar {{$shape_class}} border-4 border-white shadow-2xl"
                src="{{ $avatar_image.RelPermalink }}"
@@ -333,6 +333,25 @@
           {{ end }}
           {{ end }}
         </div>
+        {{ end }}
+
+        {{ $availability_cta := index $content "availability_cta" }}
+        {{ if and $availability_cta (reflect.IsMap $availability_cta) }}
+          {{ $cta_text := strings.TrimSpace (printf "%v" (index $availability_cta "text" | default "")) }}
+          {{ $cta_hint := strings.TrimSpace (printf "%v" (index $availability_cta "hint" | default "")) }}
+          {{ $cta_url := strings.TrimSpace (printf "%v" (index $availability_cta "url" | default "")) }}
+          {{ if and $cta_text $cta_url }}
+            <a class="availability-jump-link" href="{{ $cta_url | safeURL }}" data-motion-tilt>
+              <span class="availability-jump-icon" aria-hidden="true">
+                {{ partial "functions/get_icon" (dict "name" "hero/calendar-days" "attributes" "class='w-5 h-5'") }}
+              </span>
+              <span class="availability-jump-copy">
+                <strong>{{ $cta_text }}</strong>
+                {{ with $cta_hint }}<small>{{ . }}</small>{{ end }}
+              </span>
+              {{ partial "functions/get_icon" (dict "name" "hero/chevron-down" "attributes" "class='availability-jump-arrow'") }}
+            </a>
+          {{ end }}
         {{ end }}
       </div>
 
@@ -524,3 +543,6 @@
     </div>
   </div>
 </div>
+
+{{ $motion_script := resources.Get "js/homepage-motion.js" | minify | fingerprint }}
+<script defer src="{{ $motion_script.RelPermalink }}" integrity="{{ $motion_script.Data.Integrity }}"></script>
