@@ -32,25 +32,43 @@ scheduled build. GitHub documents that scheduled Actions may still be delayed
 or dropped during periods of high load:
 <https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule>.
 
-## Booking-link plan
+## Meeting request and booking plan
 
-Booking must remain separate from the anonymous public calendar. GitHub Pages
-is static and cannot safely keep provider credentials, reserve a slot
-atomically, or send notification email by itself. The preferred implementation
-is a hosted scheduler that connects directly to Apple Calendar or CalDAV, with
-two event types: 30 minutes and 60 minutes. Each event type should collect the
-guest's name, email, timezone, and a short purpose; enforce minimum notice and
-buffers; recheck conflicts immediately before confirmation; and email both the
-guest and calendar owner after the reservation succeeds.
+### Implemented: static meeting requests
 
-The homepage should link to those two event types only after the Apple/CalDAV
-connection and end-to-end notification flow have been verified. The scheduler
-must not consume the public `busy.json` as its source of truth, because that
-snapshot is deliberately delayed and read-only. The public calendar remains an
-anonymous preview, while the scheduler performs the authoritative conflict
-check against the private calendar service.
+The homepage now provides a meeting-request tool beside the anonymous calendar.
+It reads the same validated `busy.json`, applies a 24-hour minimum notice, and
+offers 30- or 60-minute candidate times inside the published display window.
+Before preparing a request, it fetches the availability file again without a
+browser cache and rejects a candidate that has become occupied or stale.
 
-A custom alternative would use a small authenticated serverless API, an atomic
+The visitor supplies a name, reply email, and short purpose. The page then
+prepares a local `mailto:` draft addressed to the public profile email. It also
+offers a copy action for visitors without a configured mail client. Visitor
+input stays in the page and the locally generated `mailto:` draft only: it is
+not written to the page URL, browser storage, analytics, the repository, or the
+public calendar.
+
+This flow deliberately says **request**, never **booked**, **reserved**, or
+**confirmed**. GitHub Pages is static and cannot know whether a mail client
+opened, whether a message was sent, or whether the slot is still free when the
+owner reads it. The requester must send the draft and wait for an email reply.
+The public calendar remains an anonymous, delayed preview rather than an
+authoritative reservation system.
+
+### Future: authoritative booking
+
+True booking must remain separate from the anonymous public calendar. GitHub
+Pages cannot safely keep provider credentials, reserve a slot atomically, or
+send transactional email by itself. The preferred implementation is a hosted
+scheduler that connects directly to Apple Calendar or CalDAV, with 30- and
+60-minute event types. It should collect the guest's name, email, timezone, and
+short purpose; enforce minimum notice and explicit buffers; recheck conflicts
+immediately before confirmation; and email both parties after the reservation
+succeeds.
+
+The scheduler must not consume public `busy.json` as its source of truth. A
+custom alternative would use a small authenticated serverless API, an atomic
 reservation store, and a transactional email provider. That route offers more
 control but adds credential handling, abuse prevention, retries, and ongoing
 maintenance, so it should be chosen only if a hosted Apple/CalDAV scheduler is

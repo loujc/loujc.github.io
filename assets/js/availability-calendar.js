@@ -16,6 +16,8 @@
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
   const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
   const CLOCK = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  const scheduling = globalThis.AvailabilityScheduling || {};
+  const {buildMeetingMailto, candidateSlots} = scheduling;
 
   const sortedKeysEqual = (value, expected) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
@@ -138,6 +140,11 @@
     const previous = root.querySelector('[data-action="previous"]');
     const next = root.querySelector('[data-action="next"]');
     const today = root.querySelector('[data-action="today"]');
+    const meeting = root.querySelector('.meeting-request');
+    const meetingForm = meeting?.querySelector('.meeting-request-form');
+    const meetingStatus = meeting?.querySelector('.meeting-request-status');
+    const meetingReview = meeting?.querySelector('.meeting-review');
+    const meetingFallback = meeting?.querySelector('.meeting-email-fallback');
     const locale = root.dataset.locale || 'en-US';
     const fallbackTimezone = root.dataset.timezone || 'Asia/Shanghai';
     const staleHours = Number(root.dataset.staleHours || 3);
@@ -153,6 +160,16 @@
       desktop.hidden = true;
       mobile.hidden = true;
       footer.hidden = true;
+      if (meeting) {
+        meeting.dataset.state = 'unavailable';
+        if (meetingForm) meetingForm.hidden = true;
+        if (meetingReview) meetingReview.hidden = true;
+        if (meetingStatus) {
+          meetingStatus.hidden = false;
+          meetingStatus.textContent = strings.meeting_unavailable;
+        }
+        if (meetingFallback) meetingFallback.hidden = false;
+      }
     };
 
     try {
@@ -215,6 +232,260 @@
         if (!busyByDay.has(day)) busyByDay.set(day, []);
         busyByDay.get(day).push(interval);
       });
+
+      const initializeMeetingRequest = () => {
+        if (!meeting || !meetingForm || !meetingStatus || !meetingReview) return;
+        const recipient = meeting.dataset.meetingRecipient || '';
+        const minNoticeHours = Number(meeting.dataset.minNoticeHours || 24);
+        const dateSelect = meetingForm.elements.namedItem('meeting-date');
+        const timeSelect = meetingForm.elements.namedItem('meeting-time');
+        const nameInput = meetingForm.elements.namedItem('meeting-name');
+        const emailInput = meetingForm.elements.namedItem('meeting-email');
+        const purposeInput = meetingForm.elements.namedItem('meeting-purpose');
+        const reviewButton = meetingForm.querySelector('.meeting-review-button');
+        const reviewCandidate = meetingReview.querySelector('.meeting-review-candidate');
+        const reviewLocal = meetingReview.querySelector('.meeting-review-local');
+        const reviewSnapshot = meetingReview.querySelector('.meeting-review-snapshot');
+        const reviewPurpose = meetingReview.querySelector('.meeting-review-purpose');
+        const openEmail = meetingReview.querySelector('.meeting-open-email');
+        const copyRequest = meetingReview.querySelector('.meeting-copy-request');
+        const feedback = meetingReview.querySelector('.meeting-request-feedback');
+        if (
+          typeof candidateSlots !== 'function' || typeof buildMeetingMailto !== 'function'
+          || !recipient || !Number.isFinite(minNoticeHours) || minNoticeHours < 0
+          || !dateSelect || !timeSelect || !nameInput || !emailInput || !purposeInput
+          || !reviewButton || !reviewCandidate || !reviewLocal || !reviewSnapshot
+          || !reviewPurpose || !openEmail || !copyRequest || !feedback
+        ) {
+          meetingStatus.textContent = strings.meeting_unavailable;
+          return;
+        }
+
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || timezone;
+        const meetingDateLabel = new Intl.DateTimeFormat(locale, {
+          weekday: 'long',
+          month: 'short',
+          day: 'numeric',
+          timeZone: 'UTC',
+        });
+        const ownerSlotLabel = new Intl.DateTimeFormat(locale, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+          timeZone: timezone,
+          timeZoneName: 'short',
+        });
+        const localSlotLabel = new Intl.DateTimeFormat(locale, {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+          timeZone: browserTimezone,
+          timeZoneName: 'short',
+        });
+        const shortOwnerTime = new Intl.DateTimeFormat(locale, {
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+          timeZone: timezone,
+        });
+        const shortLocalTime = new Intl.DateTimeFormat(locale, {
+          hour: '2-digit',
+          minute: '2-digit',
+          hourCycle: 'h23',
+          timeZone: browserTimezone,
+        });
+        let meetingPayload = payload;
+        let slots = [];
+        let copyText = '';
+
+        const selectedDuration = () => Number(
+          meetingForm.querySelector('input[name="meeting-duration"]:checked')?.value || 30,
+        );
+
+        const hideReview = () => {
+          meetingReview.hidden = true;
+          feedback.textContent = '';
+          copyText = '';
+        };
+
+        const populateTimes = () => {
+          const selectedDate = dateSelect.value;
+          const previousValue = timeSelect.value;
+          timeSelect.replaceChildren();
+          const daySlots = slots.filter((slot) => slot.date === selectedDate);
+          daySlots.forEach((slot) => {
+            const option = document.createElement('option');
+            option.value = String(slot.start);
+            const ownerTime = shortOwnerTime.format(new Date(slot.start));
+            const localTime = shortLocalTime.format(new Date(slot.start));
+            option.textContent = browserTimezone === timezone
+              ? ownerTime
+              : `${ownerTime} · ${localTime} ${strings.meeting_local_time}`;
+            timeSelect.append(option);
+          });
+          if (daySlots.some((slot) => String(slot.start) === previousValue)) {
+            timeSelect.value = previousValue;
+          }
+          timeSelect.disabled = daySlots.length === 0;
+          reviewButton.disabled = daySlots.length === 0;
+        };
+
+        const populateSlots = () => {
+          const previousDate = dateSelect.value;
+          slots = candidateSlots(
+            meetingPayload,
+            selectedDuration(),
+            minNoticeHours,
+          );
+          const dates = [...new Set(slots.map((slot) => slot.date))];
+          dateSelect.replaceChildren();
+          dates.forEach((date) => {
+            const option = document.createElement('option');
+            option.value = date;
+            option.textContent = meetingDateLabel.format(dateFromKey(date));
+            dateSelect.append(option);
+          });
+          if (dates.includes(previousDate)) dateSelect.value = previousDate;
+          dateSelect.disabled = dates.length === 0;
+          meetingStatus.hidden = dates.length > 0;
+          meetingStatus.textContent = dates.length > 0 ? '' : strings.meeting_no_slots;
+          populateTimes();
+          hideReview();
+        };
+
+        meetingForm.querySelectorAll('input[name="meeting-duration"]').forEach((input) => {
+          input.addEventListener('change', populateSlots);
+        });
+        dateSelect.addEventListener('change', () => {
+          populateTimes();
+          hideReview();
+        });
+        meetingForm.addEventListener('input', (event) => {
+          if (!event.target.matches('input[name="meeting-duration"]')) hideReview();
+        });
+
+        meetingForm.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          nameInput.value = nameInput.value.trim();
+          emailInput.value = emailInput.value.trim();
+          purposeInput.value = purposeInput.value.trim();
+          if (!meetingForm.checkValidity()) {
+            meetingForm.reportValidity();
+            return;
+          }
+
+          const selectedStart = Number(timeSelect.value);
+          const duration = selectedDuration();
+          if (!Number.isFinite(selectedStart)) return;
+          reviewButton.disabled = true;
+          meetingStatus.hidden = false;
+          meetingStatus.textContent = strings.meeting_loading;
+          hideReview();
+
+          try {
+            const separator = root.dataset.availabilityUrl.includes('?') ? '&' : '?';
+            const response = await fetch(
+              `${root.dataset.availabilityUrl}${separator}meeting-check=${Date.now()}`,
+              {cache: 'no-store', credentials: 'same-origin'},
+            );
+            if (!response.ok) throw new Error('unavailable');
+            const freshPayload = await response.json();
+            const freshGeneratedAt = Date.parse(freshPayload.generated_at);
+            const freshAge = Date.now() - freshGeneratedAt;
+            if (
+              !validPayload(freshPayload)
+              || freshPayload.status !== 'ready'
+              || !Number.isFinite(freshAge)
+              || freshAge < -600_000
+              || freshAge > staleHours * 3_600_000
+              || todayKey(freshPayload.timezone) < freshPayload.window_start
+              || todayKey(freshPayload.timezone) >= freshPayload.window_end
+            ) {
+              throw new Error('unavailable');
+            }
+
+            const freshSlots = candidateSlots(
+              freshPayload,
+              duration,
+              minNoticeHours,
+            );
+            const candidate = freshSlots.find((slot) => slot.start === selectedStart);
+            meetingPayload = freshPayload;
+            if (!candidate) {
+              populateSlots();
+              meetingStatus.hidden = false;
+              meetingStatus.textContent = strings.meeting_changed;
+              return;
+            }
+
+            const ownerCandidate = `${ownerSlotLabel.format(new Date(candidate.start))}–${shortOwnerTime.format(new Date(candidate.end))}`;
+            const localCandidate = `${localSlotLabel.format(new Date(candidate.start))}–${shortLocalTime.format(new Date(candidate.end))}`;
+            const snapshotLabel = updateLabel.format(new Date(freshPayload.generated_at));
+            const durationLabel = duration === 60
+              ? strings.meeting_duration_60
+              : strings.meeting_duration_30;
+            const subject = strings.meeting_email_subject.replace('{name}', nameInput.value);
+            const body = [
+              strings.meeting_title,
+              '',
+              `${strings.meeting_candidate}: ${ownerCandidate}`,
+              `${strings.meeting_local_time}: ${localCandidate} (${browserTimezone})`,
+              `${strings.meeting_duration}: ${durationLabel}`,
+              `${strings.meeting_name}: ${nameInput.value}`,
+              `${strings.meeting_email}: ${emailInput.value}`,
+              `${strings.meeting_purpose}: ${purposeInput.value}`,
+              `${strings.meeting_snapshot}: ${snapshotLabel}`,
+              '',
+              strings.meeting_notice,
+            ].join('\n');
+
+            reviewCandidate.textContent = ownerCandidate;
+            reviewLocal.textContent = `${localCandidate} (${browserTimezone})`;
+            reviewSnapshot.textContent = snapshotLabel;
+            reviewPurpose.textContent = purposeInput.value;
+            openEmail.href = buildMeetingMailto({recipient, subject, body});
+            copyText = `To: ${recipient}\nSubject: ${subject}\n\n${body}`;
+            meetingStatus.hidden = true;
+            meetingReview.hidden = false;
+          } catch {
+            meetingStatus.hidden = false;
+            meetingStatus.textContent = strings.meeting_unavailable;
+          } finally {
+            reviewButton.disabled = false;
+          }
+        });
+
+        copyRequest.addEventListener('click', async () => {
+          if (!copyText) return;
+          let copied = false;
+          try {
+            await navigator.clipboard.writeText(copyText);
+            copied = true;
+          } catch {
+            const textarea = document.createElement('textarea');
+            textarea.value = copyText;
+            textarea.setAttribute('readonly', '');
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.append(textarea);
+            textarea.select();
+            copied = document.execCommand('copy');
+            textarea.remove();
+          }
+          feedback.textContent = copied ? strings.meeting_copied : strings.meeting_unavailable;
+        });
+
+        meeting.dataset.state = 'ready';
+        meetingForm.hidden = false;
+        if (meetingFallback) meetingFallback.hidden = false;
+        populateSlots();
+      };
 
       const makeBusyLabel = (interval) => (
         `${strings.busy}, ${timeLabel.format(new Date(interval.start))}–${timeLabel.format(new Date(interval.end))}`
@@ -386,6 +657,7 @@
         render();
       });
 
+      initializeMeetingRequest();
       state.hidden = true;
       toolbar.hidden = false;
       desktop.hidden = false;

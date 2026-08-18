@@ -180,7 +180,16 @@
         {{ end }}
 
         {{ if $avatar }}
-        <div class="avatar-wrapper {{ if $img }}-mt-24{{else}}mb-4{{end}}" data-motion-tilt style="width: {{$display_size}}px; height: {{$display_size}}px;">
+        {{ $avatar_spotlight_label := index $content "avatar_spotlight_label" | default "Toggle portrait spotlight" }}
+        <button
+          type="button"
+          class="avatar-wrapper {{ if $img }}-mt-24{{else}}mb-4{{end}}"
+          data-motion-tilt
+          data-portrait-spotlight
+          aria-label="{{ $avatar_spotlight_label }}"
+          aria-pressed="false"
+          style="width: {{$display_size}}px; height: {{$display_size}}px;"
+        >
           {{ $avatar_image := $avatar.Fit (printf "%sx%s" $generation_size $generation_size) }}
           <img class="avatar {{$shape_class}} border-4 border-white shadow-2xl"
                src="{{ $avatar_image.RelPermalink }}"
@@ -188,8 +197,9 @@
                width="{{$display_size}}"
                height="{{$display_size}}"
                style="width: {{$display_size}}px; height: {{$display_size}}px; object-fit: cover;">
+          <span class="avatar-spotlight" aria-hidden="true"></span>
           {{ with $status_icon }}<span class="avatar-emoji">{{ . | emojify }}</span>{{ end }}
-        </div>
+        </button>
         {{ end }}
 
         {{/* Name and Role - Centered */}}

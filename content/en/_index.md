@@ -19,6 +19,7 @@ sections:
         text: View availability
         hint: Find a time for a conversation
         url: '#availability'
+      avatar_spotlight_label: Toggle portrait spotlight
       headings:
         about: About
         interests: Research Interests
@@ -51,6 +52,30 @@ sections:
       updated: 'Last anonymized update: {time}'
       week_of: 'Week of {date}'
       now: 'Now · {time}'
+      meeting_title: Request a meeting
+      meeting_intro: Choose a candidate time from my current public availability. I will confirm it by email.
+      meeting_duration: Duration
+      meeting_duration_30: 30 minutes
+      meeting_duration_60: 60 minutes
+      meeting_date: Date
+      meeting_time: Candidate time
+      meeting_name: Your name
+      meeting_email: Reply email
+      meeting_purpose: What would you like to discuss? (optional)
+      meeting_review: Review request
+      meeting_open_email: Open email draft
+      meeting_copy: Copy request
+      meeting_copied: Request copied
+      meeting_no_slots: No candidate times are available for this duration.
+      meeting_loading: Checking candidate times…
+      meeting_unavailable: Meeting requests are temporarily unavailable. You can still email me directly.
+      meeting_changed: That candidate is no longer available. Please choose another time.
+      meeting_notice: This is a meeting request, not a confirmed booking. Send the email draft and wait for my reply.
+      meeting_candidate: Candidate
+      meeting_local_time: Your local time
+      meeting_snapshot: Availability checked
+      meeting_email_subject: Meeting request from {name}
+      meeting_email_fallback: Email directly
   - block: resume-experience
     id: experience
     content:

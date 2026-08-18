@@ -1,15 +1,129 @@
+#section-resume-biography-3 {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: #f8fafc;
+}
+
+.dark #section-resume-biography-3 {
+  background: #09090b;
+}
+
+#section-resume-biography-3 .resume-biography {
+  position: relative;
+  z-index: 1;
+  background: transparent;
+}
+
+#section-resume-biography-3 .md\:col-span-4,
+#section-resume-biography-3 .md\:col-span-4 .space-y-3 {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+#section-resume-biography-3 .md\:col-span-4 .space-y-3 :is(h1, p, a) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.homepage-ambient-canvas {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
 #section-resume-biography-3 .avatar-wrapper {
+  --spot-x: 50%;
+  --spot-y: 34%;
+  position: relative;
   width: min(240px, 70vw) !important;
   height: auto !important;
   aspect-ratio: 5 / 7;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  appearance: none;
 }
 
 #section-resume-biography-3 .avatar {
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100% !important;
   height: 100% !important;
   object-fit: contain !important;
   background: #fff;
+  border-radius: inherit;
+}
+
+#section-resume-biography-3 .avatar-spotlight {
+  position: absolute;
+  z-index: 2;
+  inset: 4px;
+  border-radius: 6px;
+  background: radial-gradient(
+    circle at var(--spot-x) var(--spot-y),
+    rgb(255 255 255 / 62%) 0,
+    rgb(255 255 255 / 22%) 20%,
+    transparent 48%
+  );
+  box-shadow: inset 0 0 22px 4px rgb(255 255 255 / 18%), inset 0 0 0 1px rgb(255 255 255 / 20%);
+  mix-blend-mode: screen;
+  opacity: 0.12;
+  pointer-events: none;
+  transition: opacity 240ms ease, box-shadow 240ms ease;
+}
+
+#section-resume-biography-3 .avatar-wrapper::after {
+  position: absolute;
+  z-index: 3;
+  inset: -1px;
+  border: 1px solid rgb(255 255 255 / 45%);
+  border-radius: inherit;
+  box-shadow: 0 18px 50px rgb(15 23 42 / 12%), 0 0 0 0 rgb(15 118 110 / 0%);
+  content: '';
+  opacity: 0.7;
+  pointer-events: none;
+  transition: border-color 240ms ease, box-shadow 240ms ease, opacity 240ms ease;
+}
+
+.dark #section-resume-biography-3 .avatar-wrapper::after {
+  border-color: rgb(255 255 255 / 20%);
+  box-shadow: 0 20px 55px rgb(0 0 0 / 42%), 0 0 0 0 rgb(94 234 212 / 0%);
+}
+
+#section-resume-biography-3 .avatar-wrapper:is(:hover, :focus-visible, .is-spotlight-active) .avatar-spotlight {
+  opacity: 0.72;
+}
+
+#section-resume-biography-3 .avatar-wrapper.is-spotlight-locked .avatar-spotlight {
+  opacity: 0.88;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 42%);
+}
+
+#section-resume-biography-3 .avatar-wrapper:is(:hover, :focus-visible, .is-spotlight-locked)::after {
+  border-color: rgb(15 118 110 / 38%);
+  box-shadow: 0 22px 54px rgb(15 23 42 / 16%), 0 0 0 5px rgb(15 118 110 / 8%);
+  opacity: 1;
+}
+
+#section-resume-biography-3 .avatar-wrapper:focus-visible {
+  outline: 2px solid #0f766e;
+  outline-offset: 6px;
+}
+
+#section-resume-biography-3 .avatar-wrapper.is-spotlight-pulse::after {
+  animation: portrait-spotlight-pulse 680ms ease-out;
 }
 
 #section-resume-biography-3 a[href*="xiaohongshu.com"] {
@@ -144,6 +258,12 @@ html {
 
 #section-resume-biography-3 .avatar-wrapper[data-motion-tilt]:hover {
   filter: drop-shadow(0 18px 24px rgb(15 23 42 / 14%));
+}
+
+@keyframes portrait-spotlight-pulse {
+  0% { box-shadow: 0 18px 50px rgb(15 23 42 / 12%), 0 0 0 0 rgb(15 118 110 / 20%); }
+  55% { box-shadow: 0 24px 58px rgb(15 23 42 / 18%), 0 0 0 14px rgb(15 118 110 / 7%); }
+  100% { box-shadow: 0 22px 54px rgb(15 23 42 / 16%), 0 0 0 5px rgb(15 118 110 / 8%); }
 }
 
 .homepage-motion-ready .homepage-reveal {
@@ -663,7 +783,328 @@ html {
   color: var(--availability-muted);
 }
 
+.meeting-request {
+  margin-top: 2.75rem;
+  padding: 2rem 0 0.35rem;
+  border-top: 1px solid var(--availability-border);
+  color: #0f172a;
+}
+
+.dark .meeting-request {
+  color: #f8fafc;
+}
+
+.meeting-request-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  max-width: 46rem;
+}
+
+.meeting-request-icon {
+  display: grid;
+  width: 2.35rem;
+  height: 2.35rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--availability-accent) 30%, transparent);
+  border-radius: 50%;
+  background: var(--availability-accent-soft);
+  color: var(--availability-accent);
+}
+
+.meeting-request-heading h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 750;
+  letter-spacing: 0;
+}
+
+.meeting-request-heading p,
+.meeting-request-status,
+.meeting-email-fallback {
+  color: var(--availability-muted);
+}
+
+.meeting-request-heading p {
+  margin: 0.28rem 0 0;
+  line-height: 1.55;
+}
+
+.meeting-request-status {
+  margin: 1.1rem 0 0;
+  font-size: 0.85rem;
+}
+
+.meeting-request-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.35rem;
+}
+
+.meeting-request-form[hidden],
+.meeting-review[hidden] {
+  display: none;
+}
+
+.meeting-duration-field {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.meeting-duration-field legend,
+.meeting-field > span {
+  display: block;
+  margin-bottom: 0.42rem;
+  color: #334155;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.dark .meeting-duration-field legend,
+.dark .meeting-field > span {
+  color: #cbd5e1;
+}
+
+.meeting-segmented-control {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(7.5rem, 1fr));
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--availability-border);
+  border-radius: 7px;
+  background: var(--availability-surface-soft);
+}
+
+.meeting-segmented-control label {
+  position: relative;
+  cursor: pointer;
+}
+
+.meeting-segmented-control input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.meeting-segmented-control span {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  border-radius: 5px;
+  color: var(--availability-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  transition: background 150ms ease, box-shadow 150ms ease, color 150ms ease;
+}
+
+.meeting-segmented-control input:checked + span {
+  background: var(--availability-surface);
+  color: var(--availability-accent);
+  box-shadow: 0 1px 4px rgb(15 23 42 / 10%);
+}
+
+.meeting-segmented-control input:focus-visible + span {
+  outline: 2px solid var(--availability-accent);
+  outline-offset: 1px;
+}
+
+.meeting-field {
+  min-width: 0;
+}
+
+.meeting-field-wide {
+  grid-column: 1 / -1;
+}
+
+.meeting-field input,
+.meeting-field select,
+.meeting-field textarea {
+  width: 100%;
+  min-height: 2.65rem;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid var(--availability-border);
+  border-radius: 7px;
+  background: var(--availability-surface);
+  color: #0f172a;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.dark .meeting-field input,
+.dark .meeting-field select,
+.dark .meeting-field textarea {
+  color: #f8fafc;
+  color-scheme: dark;
+}
+
+.meeting-field textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
+.meeting-field input:focus,
+.meeting-field select:focus,
+.meeting-field textarea:focus {
+  border-color: var(--availability-accent);
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--availability-accent) 13%, transparent);
+}
+
+.meeting-review-button,
+.meeting-open-email,
+.meeting-copy-request {
+  display: inline-flex;
+  min-height: 2.65rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.62rem 0.9rem;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 750;
+  text-decoration: none;
+  transition: border-color 150ms ease, background 150ms ease, color 150ms ease, transform 150ms ease;
+}
+
+.meeting-review-button,
+.meeting-open-email {
+  border: 1px solid var(--availability-accent);
+  background: var(--availability-accent);
+  color: #fff;
+}
+
+.dark .meeting-review-button,
+.dark .meeting-open-email {
+  color: #042f2e;
+}
+
+.meeting-review-button {
+  grid-column: 1 / -1;
+  width: max-content;
+  cursor: pointer;
+}
+
+.meeting-copy-request {
+  border: 1px solid var(--availability-border);
+  background: var(--availability-surface);
+  color: #334155;
+  cursor: pointer;
+}
+
+.dark .meeting-copy-request {
+  color: #e2e8f0;
+}
+
+.meeting-review-button:hover,
+.meeting-open-email:hover,
+.meeting-copy-request:hover {
+  transform: translateY(-1px);
+}
+
+.meeting-review-button:focus-visible,
+.meeting-open-email:focus-visible,
+.meeting-copy-request:focus-visible {
+  outline: 2px solid var(--availability-accent);
+  outline-offset: 3px;
+}
+
+.meeting-review {
+  margin-top: 1.35rem;
+  padding: 1rem;
+  border: 1px solid var(--availability-border);
+  border-radius: 8px;
+  background: var(--availability-surface-soft);
+}
+
+.meeting-review dl {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 0;
+}
+
+.meeting-review dt {
+  color: var(--availability-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.meeting-review dd {
+  margin: 0.22rem 0 0;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.meeting-review-purpose {
+  margin: 0.9rem 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--availability-border);
+  color: #334155;
+  font-size: 0.82rem;
+  white-space: pre-wrap;
+}
+
+.meeting-review-purpose:empty {
+  display: none;
+}
+
+.dark .meeting-review-purpose {
+  color: #cbd5e1;
+}
+
+.meeting-review-notice {
+  margin: 0.85rem 0 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid #d97706;
+  color: #92400e;
+  font-size: 0.76rem;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.dark .meeting-review-notice {
+  color: #fcd34d;
+}
+
+.meeting-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-top: 1rem;
+}
+
+.meeting-request-feedback {
+  display: block;
+  min-height: 1.2rem;
+  margin-top: 0.55rem;
+  color: var(--availability-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.meeting-email-fallback {
+  display: inline-block;
+  margin-top: 0.85rem;
+  font-size: 0.76rem;
+  text-underline-offset: 0.2em;
+}
+
 @media (max-width: 767px) {
+  .homepage-motion-ready .homepage-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
   .availability-calendar {
     width: min(100% - 1.25rem, 42rem);
   }
@@ -702,6 +1143,35 @@ html {
   .availability-updated {
     line-height: 1.4;
   }
+
+  .homepage-ambient-canvas {
+    opacity: 0.62;
+  }
+
+  .meeting-request {
+    margin-top: 2.2rem;
+    padding-top: 1.5rem;
+  }
+
+  .meeting-request-form,
+  .meeting-review dl {
+    grid-template-columns: 1fr;
+  }
+
+  .meeting-field-wide,
+  .meeting-review-button {
+    grid-column: auto;
+  }
+
+  .meeting-review-button,
+  .meeting-open-email,
+  .meeting-copy-request {
+    width: 100%;
+  }
+
+  .meeting-segmented-control {
+    width: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -710,7 +1180,8 @@ html {
   }
 
   .availability-jump-arrow,
-  .availability-busy-block {
+  .availability-busy-block,
+  #section-resume-biography-3 .avatar-wrapper.is-spotlight-pulse::after {
     animation: none;
   }
 
@@ -720,5 +1191,9 @@ html {
     opacity: 1;
     transform: none;
     transition: none;
+  }
+
+  .homepage-ambient-canvas {
+    opacity: 0.55;
   }
 }
