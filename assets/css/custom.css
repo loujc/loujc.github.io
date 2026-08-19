@@ -2,11 +2,24 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: #f8fafc;
+  background: transparent;
 }
 
 .dark #section-resume-biography-3 {
-  background: #09090b;
+  background: transparent;
+}
+
+body.homepage-ambient-ready {
+  background: #f3f5f6;
+}
+
+.dark body.homepage-ambient-ready {
+  background: #090b0e;
+}
+
+body.homepage-ambient-ready .hbb-section,
+body.homepage-ambient-ready .home-section-bg {
+  background-color: transparent !important;
 }
 
 #section-resume-biography-3 .resume-biography {
@@ -29,13 +42,18 @@
 }
 
 .homepage-ambient-canvas {
-  position: absolute;
+  position: fixed;
   z-index: 0;
   inset: 0;
   width: 100%;
   height: 100%;
-  opacity: 0.9;
+  opacity: 1;
   pointer-events: none;
+}
+
+body.homepage-ambient-ready > :not(.homepage-ambient-canvas) {
+  position: relative;
+  z-index: 1;
 }
 
 #section-resume-biography-3 .avatar-wrapper {
@@ -1145,7 +1163,7 @@ html {
   }
 
   .homepage-ambient-canvas {
-    opacity: 0.62;
+    opacity: 0.88;
   }
 
   .meeting-request {
@@ -1194,6 +1212,6 @@ html {
   }
 
   .homepage-ambient-canvas {
-    opacity: 0.55;
+    opacity: 0.82;
   }
 }

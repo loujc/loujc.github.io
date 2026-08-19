@@ -5,6 +5,7 @@
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const finePointer = window.matchMedia('(pointer: fine)').matches;
   document.documentElement.classList.add('homepage-motion-ready');
+  document.body.classList.add('homepage-ambient-ready');
 
   const revealTargets = [
     hero.querySelector('.md\\:col-span-4'),
@@ -40,21 +41,22 @@
   const canvas = document.createElement('canvas');
   canvas.className = 'homepage-ambient-canvas';
   canvas.setAttribute('aria-hidden', 'true');
-  hero.prepend(canvas);
+  document.body.prepend(canvas);
   const context = canvas.getContext('2d', {alpha: true});
-  const pointer = {x: 0.68, y: 0.32, targetX: 0.68, targetY: 0.32};
+  const pointer = {x: 0.58, y: 0.32, targetX: 0.58, targetY: 0.32};
   let width = 0;
   let height = 0;
   let pixelRatio = 1;
+  let scrollProgress = 0;
+  let targetScrollProgress = 0;
   let lastFrame = 0;
   let animationFrame = 0;
   let animationRunning = false;
 
   const resizeCanvas = () => {
     if (!context) return;
-    const bounds = hero.getBoundingClientRect();
-    width = Math.max(1, Math.round(bounds.width));
-    height = Math.max(1, Math.round(bounds.height));
+    width = Math.max(1, Math.round(window.innerWidth));
+    height = Math.max(1, Math.round(window.innerHeight));
     pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     canvas.width = Math.round(width * pixelRatio);
     canvas.height = Math.round(height * pixelRatio);
@@ -63,54 +65,69 @@
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
   };
 
+  const updateScrollProgress = () => {
+    const scrollRange = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+    targetScrollProgress = Math.min(1, Math.max(0, window.scrollY / scrollRange));
+  };
+
+  const roundedBlock = (block, index, phase) => {
+    const pointerX = (pointer.x - 0.5) * block.pointer * width;
+    const pointerY = (pointer.y - 0.5) * block.pointer * height;
+    const scrollX = Math.sin(scrollProgress * Math.PI * 1.7 + index) * block.scroll * width;
+    const scrollY = (scrollProgress - 0.5) * block.scroll * height;
+    const driftX = Math.sin(phase * block.speed + block.offset) * block.drift * width;
+    const driftY = Math.cos(phase * block.speed * 0.8 + block.offset) * block.drift * height;
+    const x = block.x * width + pointerX + scrollX + driftX;
+    const y = block.y * height + pointerY + scrollY + driftY;
+    const blockWidth = block.width * width;
+    const blockHeight = block.height * height;
+    const radius = Math.min(blockWidth, blockHeight) * 0.28;
+
+    context.save();
+    context.translate(x + blockWidth / 2, y + blockHeight / 2);
+    context.rotate(block.rotation + Math.sin(phase * 0.35 + index) * 0.025);
+    context.beginPath();
+    context.roundRect(-blockWidth / 2, -blockHeight / 2, blockWidth, blockHeight, radius);
+    context.fillStyle = block.color;
+    context.fill();
+    context.restore();
+  };
+
   const drawAmbientField = (timestamp = 0) => {
     if (!context || !width || !height) return;
     context.clearRect(0, 0, width, height);
     const dark = document.documentElement.classList.contains('dark');
-    const phase = reducedMotion || !finePointer ? 0 : timestamp / 5200;
-    const centerX = pointer.x * width;
-    const centerY = pointer.y * height;
-    const lineGap = Math.max(42, Math.min(66, height / 12));
-    const lineCount = Math.ceil(height / lineGap) + 5;
+    const phase = reducedMotion ? 0 : timestamp / 7000;
+    const palette = dark
+      ? [
+        'rgba(39, 111, 111, 0.34)',
+        'rgba(45, 72, 122, 0.32)',
+        'rgba(126, 66, 75, 0.25)',
+        'rgba(67, 84, 103, 0.30)',
+        'rgba(108, 91, 52, 0.20)',
+      ]
+      : [
+        'rgba(151, 222, 211, 0.50)',
+        'rgba(165, 195, 239, 0.47)',
+        'rgba(239, 181, 164, 0.40)',
+        'rgba(195, 207, 219, 0.44)',
+        'rgba(230, 211, 154, 0.34)',
+      ];
+    const blocks = [
+      {x: -0.16, y: -0.12, width: 0.78, height: 0.42, rotation: -0.08, pointer: 0.035, scroll: 0.06, drift: 0.018, speed: 0.65, offset: 0.2},
+      {x: 0.48, y: -0.03, width: 0.72, height: 0.38, rotation: 0.09, pointer: -0.028, scroll: 0.05, drift: 0.022, speed: 0.55, offset: 1.4},
+      {x: 0.12, y: 0.30, width: 0.62, height: 0.36, rotation: 0.04, pointer: 0.025, scroll: -0.05, drift: 0.018, speed: 0.75, offset: 2.6},
+      {x: 0.56, y: 0.48, width: 0.62, height: 0.42, rotation: -0.07, pointer: -0.035, scroll: 0.07, drift: 0.025, speed: 0.48, offset: 3.8},
+      {x: -0.12, y: 0.70, width: 0.82, height: 0.38, rotation: 0.06, pointer: 0.02, scroll: -0.06, drift: 0.02, speed: 0.58, offset: 5.1},
+    ].map((block, index) => ({...block, color: palette[index]}));
 
-    context.lineWidth = 1;
-    context.lineCap = 'round';
-    for (let index = -2; index < lineCount; index += 1) {
-      const baseY = index * lineGap;
-      const warm = index % 5 === 0;
-      context.strokeStyle = dark
-        ? (warm ? 'rgba(226, 232, 240, 0.075)' : 'rgba(148, 163, 184, 0.085)')
-        : (warm ? 'rgba(100, 116, 139, 0.06)' : 'rgba(148, 163, 184, 0.07)');
-      context.beginPath();
-      for (let x = -60; x <= width + 60; x += 36) {
-        const distance = (x - centerX) / Math.max(width * 0.26, 1);
-        const pointerInfluence = Math.exp(-(distance * distance)) * (centerY - baseY) * 0.075;
-        const wave = Math.sin(x / 190 + phase + index * 0.72) * 7;
-        const y = baseY + wave + pointerInfluence;
-        if (x === -60) context.moveTo(x, y);
-        else context.lineTo(x, y);
-      }
-      context.stroke();
-    }
+    context.save();
+    context.filter = `blur(${Math.max(38, Math.min(74, width * 0.052))}px) saturate(108%)`;
+    blocks.forEach((block, index) => roundedBlock(block, index, phase));
+    context.restore();
 
-    const railCount = 7;
-    for (let index = 0; index < railCount; index += 1) {
-      const baseX = ((index + 0.5) / railCount) * width;
-      const distance = (baseX - centerX) / Math.max(width * 0.32, 1);
-      const influence = Math.exp(-(distance * distance)) * (pointer.x - 0.5) * 22;
-      context.strokeStyle = dark ? 'rgba(226, 232, 240, 0.035)' : 'rgba(15, 23, 42, 0.035)';
-      context.beginPath();
-      context.moveTo(baseX, -20);
-      context.bezierCurveTo(
-        baseX + influence,
-        height * 0.28,
-        baseX - influence,
-        height * 0.72,
-        baseX,
-        height + 20,
-      );
-      context.stroke();
-    }
+    context.fillStyle = dark ? 'rgba(7, 10, 14, 0.28)' : 'rgba(255, 255, 255, 0.28)';
+    context.fillRect(0, 0, width, height);
   };
 
   const animateAmbientField = (timestamp) => {
@@ -123,6 +140,7 @@
       lastFrame = timestamp;
       pointer.x += (pointer.targetX - pointer.x) * 0.075;
       pointer.y += (pointer.targetY - pointer.y) * 0.075;
+      scrollProgress += (targetScrollProgress - scrollProgress) * 0.06;
       drawAmbientField(timestamp);
     }
     animationFrame = window.requestAnimationFrame(animateAmbientField);
@@ -141,6 +159,8 @@
   };
 
   if (context) {
+    updateScrollProgress();
+    scrollProgress = targetScrollProgress;
     resizeCanvas();
     drawAmbientField();
     startAmbientAnimation();
@@ -148,20 +168,19 @@
       resizeCanvas();
       drawAmbientField(lastFrame);
     };
-    if ('ResizeObserver' in window) new ResizeObserver(redrawAfterResize).observe(hero);
-    else window.addEventListener('resize', redrawAfterResize, {passive: true});
+    window.addEventListener('resize', redrawAfterResize, {passive: true});
+    window.addEventListener('scroll', updateScrollProgress, {passive: true});
     new MutationObserver(() => drawAmbientField(lastFrame)).observe(
       document.documentElement,
       {attributes: true, attributeFilter: ['class']},
     );
     if (finePointer) {
-      hero.addEventListener('pointermove', (event) => {
-        const bounds = hero.getBoundingClientRect();
-        pointer.targetX = Math.min(1, Math.max(0, (event.clientX - bounds.left) / bounds.width));
-        pointer.targetY = Math.min(1, Math.max(0, (event.clientY - bounds.top) / bounds.height));
+      window.addEventListener('pointermove', (event) => {
+        pointer.targetX = Math.min(1, Math.max(0, event.clientX / width));
+        pointer.targetY = Math.min(1, Math.max(0, event.clientY / height));
       }, {passive: true});
-      hero.addEventListener('pointerleave', () => {
-        pointer.targetX = 0.68;
+      document.documentElement.addEventListener('pointerleave', () => {
+        pointer.targetX = 0.58;
         pointer.targetY = 0.32;
       });
     }
