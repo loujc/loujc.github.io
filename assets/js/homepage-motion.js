@@ -82,10 +82,12 @@
     const blockWidth = block.width * width;
     const blockHeight = block.height * height;
     const radius = Math.min(blockWidth, blockHeight) * 0.28;
+    const breathe = 1 + Math.sin(phase * block.speed * 0.65 + block.offset) * 0.035;
 
     context.save();
     context.translate(x + blockWidth / 2, y + blockHeight / 2);
     context.rotate(block.rotation + Math.sin(phase * 0.35 + index) * 0.025);
+    context.scale(breathe, 1 / breathe);
     context.beginPath();
     context.roundRect(-blockWidth / 2, -blockHeight / 2, blockWidth, blockHeight, radius);
     context.fillStyle = block.color;
@@ -114,11 +116,11 @@
         'rgba(230, 211, 154, 0.34)',
       ];
     const blocks = [
-      {x: -0.16, y: -0.12, width: 0.78, height: 0.42, rotation: -0.08, pointer: 0.035, scroll: 0.06, drift: 0.018, speed: 0.65, offset: 0.2},
-      {x: 0.48, y: -0.03, width: 0.72, height: 0.38, rotation: 0.09, pointer: -0.028, scroll: 0.05, drift: 0.022, speed: 0.55, offset: 1.4},
-      {x: 0.12, y: 0.30, width: 0.62, height: 0.36, rotation: 0.04, pointer: 0.025, scroll: -0.05, drift: 0.018, speed: 0.75, offset: 2.6},
-      {x: 0.56, y: 0.48, width: 0.62, height: 0.42, rotation: -0.07, pointer: -0.035, scroll: 0.07, drift: 0.025, speed: 0.48, offset: 3.8},
-      {x: -0.12, y: 0.70, width: 0.82, height: 0.38, rotation: 0.06, pointer: 0.02, scroll: -0.06, drift: 0.02, speed: 0.58, offset: 5.1},
+      {x: -0.16, y: -0.12, width: 0.78, height: 0.42, rotation: -0.08, pointer: 0.035, scroll: 0.06, drift: 0.026, speed: 0.65, offset: 0.2},
+      {x: 0.48, y: -0.03, width: 0.72, height: 0.38, rotation: 0.09, pointer: -0.028, scroll: 0.05, drift: 0.031, speed: 0.55, offset: 1.4},
+      {x: 0.12, y: 0.30, width: 0.62, height: 0.36, rotation: 0.04, pointer: 0.025, scroll: -0.05, drift: 0.026, speed: 0.75, offset: 2.6},
+      {x: 0.56, y: 0.48, width: 0.62, height: 0.42, rotation: -0.07, pointer: -0.035, scroll: 0.07, drift: 0.034, speed: 0.48, offset: 3.8},
+      {x: -0.12, y: 0.70, width: 0.82, height: 0.38, rotation: 0.06, pointer: 0.02, scroll: -0.06, drift: 0.028, speed: 0.58, offset: 5.1},
     ].map((block, index) => ({...block, color: palette[index]}));
 
     context.save();
@@ -147,7 +149,7 @@
   };
 
   const startAmbientAnimation = () => {
-    if (reducedMotion || !finePointer || animationRunning) return;
+    if (reducedMotion || animationRunning) return;
     animationRunning = true;
     animationFrame = window.requestAnimationFrame(animateAmbientField);
   };
