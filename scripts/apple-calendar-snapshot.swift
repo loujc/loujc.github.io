@@ -203,7 +203,7 @@ private func clockMinutes(_ value: String) throws -> Int {
     }
     let hour = Int(bytes[0] - 48) * 10 + Int(bytes[1] - 48)
     let minute = Int(bytes[3] - 48) * 10 + Int(bytes[4] - 48)
-    guard hour <= 23, minute <= 59 else {
+    guard minute <= 59, hour <= 24, !(hour == 24 && minute != 0) else {
         throw SnapshotFailure.invalidInput
     }
     return hour * 60 + minute
@@ -231,15 +231,27 @@ private func localDate(
     minutesAfterMidnight: Int,
     calendar: Calendar
 ) throws -> Date {
-    let day = calendar.dateComponents([.year, .month, .day], from: dayStart)
+    guard minutesAfterMidnight >= 0, minutesAfterMidnight <= 24 * 60 else {
+        throw SnapshotFailure.invalidInput
+    }
+    let targetDay: Date
+    if minutesAfterMidnight == 24 * 60 {
+        guard let nextDay = calendar.date(byAdding: .day, value: 1, to: dayStart) else {
+            throw SnapshotFailure.invalidInput
+        }
+        targetDay = nextDay
+    } else {
+        targetDay = dayStart
+    }
+    let day = calendar.dateComponents([.year, .month, .day], from: targetDay)
     var components = DateComponents()
     components.calendar = calendar
     components.timeZone = calendar.timeZone
     components.year = day.year
     components.month = day.month
     components.day = day.day
-    components.hour = minutesAfterMidnight / 60
-    components.minute = minutesAfterMidnight % 60
+    components.hour = minutesAfterMidnight == 24 * 60 ? 0 : minutesAfterMidnight / 60
+    components.minute = minutesAfterMidnight == 24 * 60 ? 0 : minutesAfterMidnight % 60
     components.second = 0
     guard let date = calendar.date(from: components) else {
         throw SnapshotFailure.invalidInput

@@ -143,12 +143,12 @@ function assertNoDuplicateObjectKeys(jsonText) {
   if (index !== jsonText.length) fail();
 }
 
-function clockMinutes(value) {
+function clockMinutes(value, {allowEndOfDay = false} = {}) {
   const match = /^(\d{2}):(\d{2})$/.exec(String(value));
   if (!match) fail();
   const hour = Number(match[1]);
   const minute = Number(match[2]);
-  if (hour > 23 || minute > 59) fail();
+  if (minute > 59 || hour > 24 || (hour === 24 && minute !== 0) || (hour === 24 && !allowEndOfDay)) fail();
   return hour * 60 + minute;
 }
 
@@ -175,7 +175,7 @@ function validatePolicyConfig(config) {
   }
   if (!sameKeys(config.display_hours, DISPLAY_HOURS_KEYS)) fail();
   const displayStart = clockMinutes(config.display_hours.start);
-  const displayEnd = clockMinutes(config.display_hours.end);
+  const displayEnd = clockMinutes(config.display_hours.end, {allowEndOfDay: true});
   if (displayEnd <= displayStart || (displayEnd - displayStart) % config.slot_minutes !== 0) fail();
   return {
     displayStart,

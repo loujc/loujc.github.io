@@ -16,6 +16,7 @@
   const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
   const ISO_UTC = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/;
   const CLOCK = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+  const END_CLOCK = /^(?:[01]\d|2[0-3]):[0-5]\d$|24:00$/;
   const scheduling = globalThis.AvailabilityScheduling || {};
   const {buildMeetingMailto, candidateSlots} = scheduling;
 
@@ -40,7 +41,7 @@
     if (mondayOf(instantParts(payload.generated_at, payload.timezone).date) !== payload.window_start) return false;
     if (!Number.isInteger(payload.slot_minutes) || payload.slot_minutes < 5 || 60 % payload.slot_minutes !== 0) return false;
     if (!sortedKeysEqual(payload.display_hours, HOURS_KEYS)) return false;
-    if (!CLOCK.test(payload.display_hours.start) || !CLOCK.test(payload.display_hours.end)) return false;
+    if (!CLOCK.test(payload.display_hours.start) || !END_CLOCK.test(payload.display_hours.end)) return false;
     if (payload.display_hours.end <= payload.display_hours.start) return false;
     if (!Array.isArray(payload.busy)) return false;
     if (payload.status === 'unconfigured' && payload.busy.length) return false;
@@ -55,11 +56,13 @@
       if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || start <= previousEnd) return false;
       const localStart = instantParts(interval.start, payload.timezone);
       const localEnd = instantParts(interval.end, payload.timezone);
+      const endsAtDayBoundary = localEnd.date === addDays(localStart.date, 1) && localEnd.minutes === 0;
+      const localEndMinutes = endsAtDayBoundary ? 1440 : localEnd.minutes;
       if (localStart.date < payload.window_start
-          || localEnd.date >= payload.window_end
-          || localStart.date !== localEnd.date
+          || localEnd.date > payload.window_end
+          || (localStart.date !== localEnd.date && !endsAtDayBoundary)
           || localStart.minutes < publicStartMinutes
-          || localEnd.minutes > publicEndMinutes) return false;
+          || localEndMinutes > publicEndMinutes) return false;
       previousEnd = end;
       return true;
     });
@@ -487,9 +490,16 @@
         populateSlots();
       };
 
-      const makeBusyLabel = (interval) => (
-        `${strings.busy}, ${timeLabel.format(new Date(interval.start))}–${timeLabel.format(new Date(interval.end))}`
-      );
+      const formatBusyTime = (value, day, allowDayBoundary = false) => {
+        const parts = instantParts(value, timezone);
+        if (allowDayBoundary && parts.date === addDays(day, 1) && parts.minutes === 0) return '24:00';
+        return timeLabel.format(new Date(value));
+      };
+
+      const makeBusyLabel = (interval) => {
+        const day = instantParts(interval.start, timezone).date;
+        return `${strings.busy}, ${formatBusyTime(interval.start, day)}–${formatBusyTime(interval.end, day, true)}`;
+      };
 
       const updateNowMarkers = () => {
         const now = new Date();
@@ -560,7 +570,9 @@
           if (day === todayKey(timezone)) column.classList.add('is-today');
           (isPublished ? busyByDay.get(day) || [] : []).forEach((interval, index) => {
             const start = Math.max(startMinutes, instantParts(interval.start, timezone).minutes);
-            const end = Math.min(endMinutes, instantParts(interval.end, timezone).minutes);
+            const endParts = instantParts(interval.end, timezone);
+            const endAtDayBoundary = endParts.date === addDays(day, 1) && endParts.minutes === 0;
+            const end = Math.min(endMinutes, endAtDayBoundary ? 1440 : endParts.minutes);
             if (end <= start) return;
             const block = document.createElement('div');
             block.className = 'availability-busy-block';
@@ -622,7 +634,7 @@
               const label = document.createElement('strong');
               label.textContent = strings.busy;
               const time = document.createElement('time');
-              time.textContent = `${timeLabel.format(new Date(interval.start))}–${timeLabel.format(new Date(interval.end))}`;
+              time.textContent = `${formatBusyTime(interval.start, day)}–${formatBusyTime(interval.end, day, true)}`;
               item.append(swatch, label, time);
               list.append(item);
             });

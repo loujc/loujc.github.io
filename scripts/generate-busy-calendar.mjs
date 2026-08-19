@@ -53,12 +53,14 @@ function eventOccupiesTime(event) {
   return normalizeToken(event.transparency) !== 'TRANSPARENT';
 }
 
-function parseClock(value, name) {
+function parseClock(value, name, {allowEndOfDay = false} = {}) {
   const match = /^(\d{2}):(\d{2})$/.exec(String(value));
   if (!match) throw new Error(`${name} must use HH:MM format`);
   const hour = Number(match[1]);
   const minute = Number(match[2]);
-  if (hour > 23 || minute > 59) throw new Error(`${name} is outside a valid day`);
+  if (minute > 59 || hour > 24 || (hour === 24 && minute !== 0) || (hour === 24 && !allowEndOfDay)) {
+    throw new Error(`${name} is outside a valid day`);
+  }
   return {hour, minute};
 }
 
@@ -90,7 +92,7 @@ export async function readAvailabilityConfig(configPath = DEFAULT_CONFIG_PATH) {
     throw new Error('slot_minutes must evenly divide one hour');
   }
   const start = parseClock(config.display_hours?.start, 'display_hours.start');
-  const end = parseClock(config.display_hours?.end, 'display_hours.end');
+  const end = parseClock(config.display_hours?.end, 'display_hours.end', {allowEndOfDay: true});
   if (end.hour * 60 + end.minute <= start.hour * 60 + start.minute) {
     throw new Error('display_hours.end must be later than display_hours.start');
   }
@@ -526,7 +528,7 @@ export function assertPublicPayload(payload) {
     throw new Error('Public calendar display hours contain unexpected fields');
   }
   const displayStart = parseClock(payload.display_hours.start, 'display_hours.start');
-  const displayEnd = parseClock(payload.display_hours.end, 'display_hours.end');
+  const displayEnd = parseClock(payload.display_hours.end, 'display_hours.end', {allowEndOfDay: true});
   if (displayEnd.hour * 60 + displayEnd.minute <= displayStart.hour * 60 + displayStart.minute) {
     throw new Error('Public calendar payload has invalid display hours');
   }
@@ -548,11 +550,19 @@ export function assertPublicPayload(payload) {
     }
     const localStart = intervalStart.setZone(payload.timezone);
     const localEnd = intervalEnd.setZone(payload.timezone);
-    if (localStart < windowStart || localEnd > windowEnd || localStart.toISODate() !== localEnd.toISODate()) {
+    const localStartDay = localStart.startOf('day');
+    const endsAtDayBoundary = localEnd.equals(localStartDay.plus({days: 1}));
+    if (
+      localStart < windowStart
+      || localEnd > windowEnd
+      || (localStart.toISODate() !== localEnd.toISODate() && !endsAtDayBoundary)
+    ) {
       throw new Error('Busy interval is outside the public date window');
     }
-    const publicStart = localStart.startOf('day').set(displayStart);
-    const publicEnd = localStart.startOf('day').set(displayEnd);
+    const publicStart = localStartDay.set(displayStart);
+    const publicEnd = displayEnd.hour === 24
+      ? localStartDay.plus({days: 1})
+      : localStartDay.set(displayEnd);
     if (localStart < publicStart || localEnd > publicEnd) {
       throw new Error('Busy interval is outside public display hours');
     }

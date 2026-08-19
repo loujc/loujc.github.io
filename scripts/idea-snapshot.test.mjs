@@ -18,7 +18,7 @@ const config = {
   slot_minutes: 30,
   idea_snapshot_coverage_days: 400,
   idea_snapshot_max_age_days: 90,
-  display_hours: {start: '08:00', end: '22:00'},
+  display_hours: {start: '08:00', end: '24:00'},
 };
 const validatorPath = fileURLToPath(new URL('./idea-snapshot.mjs', import.meta.url));
 const repositoryConfigPath = fileURLToPath(new URL('../data/availability.json', import.meta.url));
@@ -63,17 +63,17 @@ function makeSnapshot({
 test('fixed day-major MSB-first snapshot becomes anonymous merged intervals', () => {
   const snapshot = makeSnapshot({
     occupied: [
-      0 * 28 + 2,
-      1 * 28 + 2,
-      1 * 28 + 3,
-      3 * 28 + 27,
+      0 * 32 + 2,
+      1 * 32 + 2,
+      1 * 32 + 3,
+      3 * 32 + 31,
     ],
   });
   const intervals = parseIdeaBusySnapshot(snapshot, config, {now});
   assert.deepEqual(intervals.map(({start, end}) => [start.toISO(), end.toISO()]), [
     ['2026-07-13T09:00:00.000+08:00', '2026-07-13T09:30:00.000+08:00'],
     ['2026-07-14T09:00:00.000+08:00', '2026-07-14T10:00:00.000+08:00'],
-    ['2026-07-16T21:30:00.000+08:00', '2026-07-16T22:00:00.000+08:00'],
+    ['2026-07-16T23:30:00.000+08:00', '2026-07-17T00:00:00.000+08:00'],
   ]);
 });
 

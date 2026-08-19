@@ -60,3 +60,15 @@ test('meeting mailto percent-encodes visitor content in the draft query', () => 
   assert.equal(mailto.includes('\n'), false);
   assert.match(mailto, /body=Line%20one%0APurpose%3A%20chips%20%2B%20agents%3F$/);
 });
+
+test('candidate slots can use the final half-hour before midnight', () => {
+  const midnightPayload = {
+    ...payload,
+    display_hours: {start: '23:00', end: '24:00'},
+  };
+  const slots = candidateSlots(midnightPayload, 30, 0, Date.parse('2026-08-18T00:00:00Z'));
+  assert.deepEqual(slots.map(({start}) => new Date(start).toISOString()), [
+    '2026-08-20T15:00:00.000Z',
+    '2026-08-20T15:30:00.000Z',
+  ]);
+});

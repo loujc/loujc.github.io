@@ -253,6 +253,18 @@ test('privacy validator rejects busy time outside the published hours', () => {
   assert.throws(() => assertPublicPayload(payload), /display hours/);
 });
 
+test('public validator accepts an occupied interval ending at midnight', () => {
+  const midnightConfig = {
+    ...config,
+    display_hours: {start: '08:00', end: '24:00'},
+    display_hours_parts: {start: {hour: 8, minute: 0}, end: {hour: 24, minute: 0}},
+  };
+  const payload = unconfiguredPayload(midnightConfig, DateTime.fromISO('2026-07-14T00:00:00+08:00'));
+  payload.status = 'ready';
+  payload.busy.push({start: '2026-07-14T15:30:00Z', end: '2026-07-14T16:00:00Z'});
+  assert.doesNotThrow(() => assertPublicPayload(payload));
+});
+
 test('parser diagnostics cannot leak private identifiers to public logs', () => {
   const duplicateUidCalendar = `BEGIN:VCALENDAR\r
 VERSION:2.0\r
