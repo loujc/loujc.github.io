@@ -1,0 +1,174 @@
+{{- $isZh := eq .Lang "zh" -}}
+{{- $displayName := cond $isZh "楼锦程" "Jincheng Lou" -}}
+{{- $portrait := resources.Get "media/authors/me.jpg" -}}
+{{- if not $portrait -}}{{- errorf "quiet tech demo requires assets/media/authors/me.jpg" -}}{{- end -}}
+{{- $portrait = $portrait.Fill "960x1240 Center webp q88" -}}
+{{- $cssSource := resources.Get "css/quiet-tech-demo.css" -}}
+{{- $jsSource := resources.Get "js/quiet-tech-demo.js" -}}
+{{- if not $cssSource -}}{{- errorf "quiet tech demo requires assets/css/quiet-tech-demo.css" -}}{{- end -}}
+{{- if not $jsSource -}}{{- errorf "quiet tech demo requires assets/js/quiet-tech-demo.js" -}}{{- end -}}
+{{- $css := $cssSource | minify | fingerprint -}}
+{{- $js := $jsSource | minify | fingerprint -}}
+{{- $projects := slice (site.GetPage "/projects/lego") (site.GetPage "/projects/aris") (site.GetPage "/projects/unfold") -}}
+{{- $publications := first 5 ((where site.RegularPages "Section" "publications").ByDate.Reverse) -}}
+<!doctype html>
+<html lang="{{ .Lang }}" data-quiet-tech>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f5f6f4">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="{{ if $isZh }}楼锦程当前主页的 Quiet Tech 交互概念。{{ else }}A Quiet Tech interaction concept for Jincheng Lou's current homepage.{{ end }}">
+  <title>{{ if $isZh }}楼锦程 · Quiet Tech Demo{{ else }}Jincheng Lou · Quiet Tech Demo{{ end }}</title>
+  <link rel="preload" href="{{ $portrait.RelPermalink }}" as="image" fetchpriority="high">
+  <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+  <noscript><style>.qt-reveal{opacity:1!important;transform:none!important;filter:none!important}</style></noscript>
+</head>
+<body class="qt-page">
+  <a class="qt-skip" href="#qt-main">{{ if $isZh }}跳到正文{{ else }}Skip to content{{ end }}</a>
+  <div class="qt-ambient" aria-hidden="true">
+    <span class="qt-ambient__field qt-ambient__field--a"></span>
+    <span class="qt-ambient__field qt-ambient__field--b"></span>
+    <span class="qt-ambient__field qt-ambient__field--c"></span>
+    <span class="qt-ambient__halo"></span>
+    <span class="qt-ambient__grain"></span>
+  </div>
+  <div class="qt-signal-layer" aria-hidden="true"><span></span><i></i><b></b></div>
+
+  <header class="qt-header">
+    <a class="qt-brand qt-magnetic" href="{{ site.Home.RelPermalink }}" aria-label="{{ if $isZh }}返回当前主页{{ else }}Back to current homepage{{ end }}">
+      <span>JL</span><strong>{{ $displayName }}</strong>
+    </a>
+    <nav aria-label="{{ if $isZh }}Demo 导航{{ else }}Demo navigation{{ end }}">
+      <a href="#qt-about">{{ if $isZh }}关于{{ else }}About{{ end }}</a>
+      <a href="#qt-work">{{ if $isZh }}作品{{ else }}Work{{ end }}</a>
+      <a href="#qt-papers">{{ if $isZh }}论文{{ else }}Papers{{ end }}</a>
+      <a href="#qt-contact">{{ if $isZh }}联系{{ else }}Contact{{ end }}</a>
+    </nav>
+    <div class="qt-header__tools">
+      <button class="qt-icon-button" type="button" data-theme-toggle aria-pressed="false" aria-label="{{ if $isZh }}切换明暗模式{{ else }}Toggle light and dark preview{{ end }}">◐</button>
+      <button class="qt-command-trigger" type="button" data-command-open aria-haspopup="dialog"><span>{{ if $isZh }}导航{{ else }}Navigate{{ end }}</span><kbd>⌘K</kbd></button>
+      {{ range .AllTranslations }}{{ if ne .Lang $.Lang }}<a class="qt-language" href="{{ .RelPermalink }}" hreflang="{{ .Lang }}">{{ if eq .Lang "zh" }}中{{ else }}EN{{ end }}</a>{{ end }}{{ end }}
+    </div>
+  </header>
+
+  <main id="qt-main">
+    <section class="qt-section qt-hero" id="qt-about" data-qt-section="1">
+      <div class="qt-hero__copy qt-reveal">
+        <p class="qt-kicker"><span></span>{{ if $isZh }}AI AGENTS · EDA · CHIP DESIGN{{ else }}AI AGENTS · EDA · CHIP DESIGN{{ end }}</p>
+        <h1>{{ if $isZh }}楼锦程{{ else }}Jincheng Lou{{ end }}</h1>
+        <p class="qt-role">{{ if $isZh }}ChipBagel 创始人兼 CEO<br>北京大学集成电路学院博士生{{ else }}Founder & CEO, ChipBagel<br>Ph.D. Candidate, Peking University{{ end }}</p>
+        <p class="qt-intro">{{ if $isZh }}在 AI Agent、EDA 与芯片设计交叉处构建研究系统、设计工具与产品。关注如何让复杂工程知识成为可调用、可组合、可验证的智能能力。{{ else }}Building research systems, design tools, and products where AI agents meet EDA and chip design—turning complex engineering knowledge into capabilities that can be invoked, composed, and verified.{{ end }}</p>
+        <div class="qt-actions">
+          <a class="qt-primary qt-magnetic" href="#qt-work">{{ if $isZh }}查看精选作品{{ else }}View selected work{{ end }} <span>↘</span></a>
+          <a class="qt-secondary qt-magnetic" href="{{ site.Home.RelPermalink }}#availability">{{ if $isZh }}查看可约时间{{ else }}View availability{{ end }} <span>↗</span></a>
+        </div>
+        <ul class="qt-interests" aria-label="{{ if $isZh }}研究兴趣{{ else }}Research interests{{ end }}">
+          <li>Agentic EDA</li><li>LLMs for Chip Design</li><li>Multimodal Circuit Intelligence</li><li>Hardware-Efficient AI</li>
+        </ul>
+      </div>
+      <div class="qt-portrait-wrap qt-reveal" data-delay="1">
+        <button class="qt-portrait" type="button" aria-pressed="false" aria-label="{{ if $isZh }}锁定人像聚光灯{{ else }}Lock portrait spotlight{{ end }}">
+          <img src="{{ $portrait.RelPermalink }}" width="960" height="1240" alt="{{ $displayName }}" fetchpriority="high">
+          <span class="qt-portrait__light" aria-hidden="true"></span>
+          <span class="qt-portrait__edge" aria-hidden="true"></span>
+        </button>
+        <p><span></span>{{ if $isZh }}点击锁定聚光 · 鼠标改变光线{{ else }}Click to lock · move to shape the light{{ end }}</p>
+      </div>
+    </section>
+
+    <section class="qt-section qt-statement" aria-label="{{ if $isZh }}个人主张{{ else }}Personal statement{{ end }}">
+      <p class="qt-section-label qt-reveal">01 / {{ if $isZh }}方法{{ else }}Method{{ end }}</p>
+      <h2 class="qt-reveal">{{ if $isZh }}研究、工程与创业，<em>共用同一套创造逻辑。</em>{{ else }}Research, engineering, and entrepreneurship <em>share one logic of creation.</em>{{ end }}</h2>
+      <p class="qt-reveal">{{ if $isZh }}发现问题，构造系统，验证结果，然后把能力交给更多人。{{ else }}Find the problem, construct the system, verify the result, then put the capability into more hands.{{ end }}</p>
+    </section>
+
+    <section class="qt-section qt-work" id="qt-work" data-qt-section="2">
+      <header class="qt-section-heading qt-reveal">
+        <div><p class="qt-section-label">02 / {{ if $isZh }}精选作品{{ else }}Selected work{{ end }}</p><h2>{{ if $isZh }}从研究原型到可用系统{{ else }}From research prototype<br>to usable system{{ end }}</h2></div>
+        <p>{{ if $isZh }}保留当前主页的项目内容，只增强光感、层级和轻微鼠标景深。{{ else }}The same projects as the current homepage, with quieter depth, light, and pointer response.{{ end }}</p>
+      </header>
+      <div class="qt-project-grid">
+        {{ range $index, $project := $projects }}{{ if $project }}
+          {{- $featured := $project.Resources.GetMatch "featured.*" -}}
+          {{- $processed := $featured -}}
+          {{- with $featured -}}{{- if ne .MediaType.SubType "svg" -}}{{- $processed = .Fit "1280x900 webp q86" -}}{{- end -}}{{- end -}}
+          <article class="qt-project qt-reveal" data-delay="{{ $index }}">
+            <a href="{{ $project.Params.external_link }}" target="_blank" rel="noopener noreferrer">
+              <div class="qt-project__visual">
+                {{ with $processed }}<img src="{{ .RelPermalink }}" alt="" loading="lazy">{{ end }}
+                <span class="qt-project__glare" aria-hidden="true"></span>
+              </div>
+              <div class="qt-project__meta"><span>0{{ add $index 1 }}</span><div><h3>{{ $project.Title }}</h3><p>{{ $project.Summary }}</p></div><b aria-hidden="true">↗</b></div>
+            </a>
+          </article>
+        {{ end }}{{ end }}
+      </div>
+    </section>
+
+    <section class="qt-section qt-papers" id="qt-papers" data-qt-section="3">
+      <header class="qt-section-heading qt-reveal">
+        <div><p class="qt-section-label">03 / {{ if $isZh }}近期论文{{ else }}Recent publications{{ end }}</p><h2>{{ if $isZh }}论文，不做卡片墙{{ else }}Editorial, not a card wall{{ end }}</h2></div>
+        <a href="{{ site.Home.RelPermalink }}#publications">{{ if $isZh }}查看全部论文{{ else }}View all publications{{ end }} ↗</a>
+      </header>
+      <ol class="qt-paper-list">
+        {{ range $index, $paper := $publications }}
+          <li class="qt-reveal" data-delay="{{ mod $index 3 }}">
+            <span>{{ printf "%02d" (add $index 1) }}</span>
+            <a href="{{ $paper.RelPermalink }}"><h3>{{ $paper.Title }}</h3><p>{{ with $paper.Params.publication }}{{ if reflect.IsMap . }}{{ index . "short_name" | default (index . "name") }}{{ else }}{{ . | markdownify | plainify }}{{ end }}{{ else }}{{ $paper.Date.Format "2006" }}{{ end }}</p></a>
+            <time datetime="{{ $paper.Date.Format "2006-01-02" }}">{{ $paper.Date.Format "2006" }}</time>
+          </li>
+        {{ end }}
+      </ol>
+    </section>
+
+    <section class="qt-section qt-path" id="qt-path" data-qt-section="4">
+      <header class="qt-section-heading qt-reveal"><div><p class="qt-section-label">04 / {{ if $isZh }}经历{{ else }}Experience{{ end }}</p><h2>{{ if $isZh }}持续构建的轨迹{{ else }}A trajectory of building{{ end }}</h2></div></header>
+      <div class="qt-timeline">
+        <article class="qt-reveal"><time>2026—</time><div><h3>ChipBagel</h3><p>{{ if $isZh }}创始人兼 CEO · AI Agent × EDA × 芯片设计{{ else }}Founder & CEO · AI agents × EDA × chip design{{ end }}</p></div></article>
+        <article class="qt-reveal"><time>2024—</time><div><h3>{{ if $isZh }}北京大学{{ else }}Peking University{{ end }}</h3><p>{{ if $isZh }}集成电路学院博士生 · Agentic EDA{{ else }}Ph.D. candidate · Agentic EDA{{ end }}</p></div></article>
+        <article class="qt-reveal"><time>2023—24</time><div><h3>Takway.AI</h3><p>{{ if $isZh }}联合创始人兼 CEO · AI 原生硬件{{ else }}Co-founder & CEO · AI-native hardware{{ end }}</p></div></article>
+        <article class="qt-reveal"><time>2021—24</time><div><h3>{{ if $isZh }}北京大学{{ else }}Peking University{{ end }}</h3><p>{{ if $isZh }}集成电路工程硕士 · AI 芯片与软硬件协同{{ else }}M.Eng. · AI chips and hardware–software co-design{{ end }}</p></div></article>
+      </div>
+    </section>
+
+    <section class="qt-tech-stage" id="qt-contact" data-qt-section="5">
+      <div class="qt-tech-stage__grid" aria-hidden="true"></div>
+      <div class="qt-tech-stage__beam" aria-hidden="true"></div>
+      <div class="qt-tech-stage__scan" aria-hidden="true"></div>
+      <div class="qt-tech-stage__copy qt-reveal">
+        <p class="qt-section-label">05 / {{ if $isZh }}建立连接{{ else }}Open channel{{ end }}</p>
+        <h2>{{ if $isZh }}让下一件值得发生的事，<br><em>进入信号范围。</em>{{ else }}Bring the next worthwhile thing<br><em>into signal range.</em>{{ end }}</h2>
+        <p>{{ if $isZh }}日历仍然使用当前主页上的匿名占用数据；这个 Demo 不复制或缓存任何私人行程。{{ else }}Availability still uses the anonymous busy-time view on the current homepage. This demo copies or stores no private calendar data.{{ end }}</p>
+        <div class="qt-tech-actions">
+          <a class="qt-tech-primary qt-magnetic" href="{{ site.Home.RelPermalink }}#availability">{{ if $isZh }}打开实时空闲时间{{ else }}Open live availability{{ end }} ↗</a>
+          <a href="mailto:jinchenglou@stu.pku.edu.cn">jinchenglou@stu.pku.edu.cn</a>
+        </div>
+      </div>
+      <div class="qt-tech-stage__status qt-reveal" data-delay="1">
+        <span><i></i>SYSTEM ONLINE</span><span>BEIJING · 39.9042° N</span><span>{{ now.Year }} · JINCHENG LOU</span>
+      </div>
+    </section>
+  </main>
+
+  <button class="qt-key-hint" type="button" data-command-open><kbd>⌘K</kbd><span>{{ if $isZh }}快速导航{{ else }}Quick navigation{{ end }}</span></button>
+  <div class="qt-pointer" aria-hidden="true"><span></span></div>
+  <output class="qt-toast" aria-live="polite"></output>
+
+  <dialog class="qt-command" aria-labelledby="qt-command-title">
+    <div class="qt-command__panel">
+      <header><div><span>COMMAND</span><h2 id="qt-command-title">{{ if $isZh }}快速导航{{ else }}Quick navigation{{ end }}</h2></div><button type="button" data-command-close aria-label="{{ if $isZh }}关闭{{ else }}Close{{ end }}">Esc</button></header>
+      <nav>
+        <button type="button" data-jump="qt-about"><kbd>1</kbd><span>{{ if $isZh }}关于与简介{{ else }}About and introduction{{ end }}</span></button>
+        <button type="button" data-jump="qt-work"><kbd>2</kbd><span>{{ if $isZh }}精选项目{{ else }}Selected projects{{ end }}</span></button>
+        <button type="button" data-jump="qt-papers"><kbd>3</kbd><span>{{ if $isZh }}近期论文{{ else }}Recent publications{{ end }}</span></button>
+        <button type="button" data-jump="qt-path"><kbd>4</kbd><span>{{ if $isZh }}经历轨迹{{ else }}Experience path{{ end }}</span></button>
+        <button type="button" data-jump="qt-contact"><kbd>5</kbd><span>{{ if $isZh }}联系与日历{{ else }}Contact and availability{{ end }}</span></button>
+      </nav>
+      <footer><span><kbd>D</kbd> {{ if $isZh }}明暗模式{{ else }}theme{{ end }}</span><span><kbd>L</kbd> Signal Layer</span></footer>
+    </div>
+  </dialog>
+  <script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" defer></script>
+</body>
+</html>
