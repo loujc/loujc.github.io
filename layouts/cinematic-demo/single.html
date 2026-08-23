@@ -1,0 +1,215 @@
+{{- $isZh := eq .Lang "zh" -}}
+{{- $displayName := cond $isZh "楼锦程" "Jincheng Lou" -}}
+{{- $portrait := resources.Get "media/authors/me.jpg" -}}
+{{- if not $portrait -}}{{- errorf "cinematic demo requires assets/media/authors/me.jpg" -}}{{- end -}}
+{{- $portrait = $portrait.Fill "1050x1380 Center webp q88" -}}
+{{- $lego := site.GetPage "/projects/lego" -}}
+{{- $aris := site.GetPage "/projects/aris" -}}
+{{- $unfold := site.GetPage "/projects/unfold" -}}
+{{- $cssSource := resources.Get "css/cinematic-demo.css" -}}
+{{- $jsSource := resources.Get "js/cinematic-demo.js" -}}
+{{- if not $cssSource -}}{{- errorf "cinematic demo requires assets/css/cinematic-demo.css" -}}{{- end -}}
+{{- if not $jsSource -}}{{- errorf "cinematic demo requires assets/js/cinematic-demo.js" -}}{{- end -}}
+{{- $css := $cssSource | minify | fingerprint -}}
+{{- $js := $jsSource | minify | fingerprint -}}
+<!doctype html>
+<html lang="{{ .Lang }}" data-cinematic-page>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f3f0eb">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="{{ if $isZh }}楼锦程的电影感个人主页概念：Agentic EDA、芯片设计与 AI 产品。{{ else }}A cinematic portfolio concept for Jincheng Lou: Agentic EDA, chip design, and AI products.{{ end }}">
+  <title>{{ if $isZh }}楼锦程 · 电影感主页概念{{ else }}Jincheng Lou · Cinematic Portfolio{{ end }}</title>
+  <link rel="preload" href="{{ $portrait.RelPermalink }}" as="image" fetchpriority="high">
+  <link rel="stylesheet" href="{{ $css.RelPermalink }}" integrity="{{ $css.Data.Integrity }}">
+  <noscript><style>.reveal{opacity:1!important;filter:none!important;transform:none!important}</style></noscript>
+</head>
+<body class="cinematic" data-scene="hero">
+  <a class="skip-link" href="#cinematic-main">{{ if $isZh }}跳到正文{{ else }}Skip to content{{ end }}</a>
+
+  <div class="ambient-stage" aria-hidden="true">
+    <div class="ambient-stage__wash"></div>
+    <div class="ambient-orb ambient-orb--one"></div>
+    <div class="ambient-orb ambient-orb--two"></div>
+    <div class="ambient-orb ambient-orb--three"></div>
+    <div class="ambient-stage__light"></div>
+    <div class="ambient-stage__grain"></div>
+  </div>
+
+  <header class="cinematic-header" aria-label="{{ if $isZh }}页面导航{{ else }}Page navigation{{ end }}">
+    <a class="wordmark magnetic" href="{{ site.Home.RelPermalink }}" aria-label="{{ if $isZh }}返回主页{{ else }}Back to homepage{{ end }}">
+      <span class="wordmark__mark" aria-hidden="true">JL</span>
+      <span class="wordmark__label">Jincheng Lou</span>
+    </a>
+    <div class="header-actions">
+      <span class="concept-label">{{ if $isZh }}概念实验 01{{ else }}Concept study 01{{ end }}</span>
+      {{ range .AllTranslations }}
+        {{ if ne .Lang $.Lang }}
+          <a class="language-link magnetic" href="{{ .RelPermalink }}" hreflang="{{ .Lang }}">{{ if eq .Lang "zh" }}中{{ else }}EN{{ end }}</a>
+        {{ end }}
+      {{ end }}
+    </div>
+  </header>
+
+  <div class="scroll-meter" aria-hidden="true"><span></span></div>
+
+  <main id="cinematic-main">
+    <section class="scene hero-scene" data-scene-name="hero">
+      <div class="hero-copy reveal">
+        <p class="kicker"><span></span>{{ if $isZh }}构建智能，进入物理世界{{ else }}Building intelligence into the physical world{{ end }}</p>
+        <h1 aria-label="{{ $displayName }}">
+          <span class="hero-name">{{ if $isZh }}楼锦程{{ else }}Jincheng{{ end }}</span>
+          <span class="hero-name hero-name--outline">{{ if $isZh }}Jincheng Lou{{ else }}Lou{{ end }}</span>
+        </h1>
+        <p class="hero-deck">
+          {{ if $isZh }}ChipBagel 创始人兼 CEO。北京大学博士生。探索 AI Agent、EDA 与芯片设计的交界。{{ else }}Founder & CEO of ChipBagel. Ph.D. candidate at Peking University. Exploring the frontier where AI agents meet EDA and chip design.{{ end }}
+        </p>
+        <div class="hero-actions">
+          <a class="primary-link magnetic" href="#work"><span>{{ if $isZh }}探索作品{{ else }}Explore the work{{ end }}</span><b aria-hidden="true">↘</b></a>
+          <a class="text-link magnetic" href="mailto:jinchenglou@stu.pku.edu.cn">{{ if $isZh }}开始对话{{ else }}Start a conversation{{ end }}<span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+
+      <div class="portrait-wrap reveal" data-reveal-delay="1">
+        <button class="portrait" type="button" aria-pressed="false" aria-label="{{ if $isZh }}切换人像聚光灯{{ else }}Toggle portrait spotlight{{ end }}">
+          <span class="portrait__frame">
+            <img src="{{ $portrait.RelPermalink }}" width="1050" height="1380" alt="{{ $displayName }}" fetchpriority="high">
+            <span class="portrait__spotlight" aria-hidden="true"></span>
+            <span class="portrait__veil" aria-hidden="true"></span>
+          </span>
+          <span class="portrait__caption"><i></i>{{ if $isZh }}点击，聚焦人物{{ else }}Tap to focus the subject{{ end }}</span>
+        </button>
+        <p class="portrait-note">BEIJING<br>39.9042° N<br>116.4074° E</p>
+      </div>
+
+      <a class="scroll-cue" href="#manifesto"><span>{{ if $isZh }}向下滚动{{ else }}Scroll to enter{{ end }}</span><i aria-hidden="true"></i></a>
+    </section>
+
+    <section class="scene manifesto-scene" id="manifesto" data-scene-name="manifesto">
+      <div class="section-index reveal">01 / 04</div>
+      <div class="manifesto-copy">
+        <p class="eyebrow reveal">{{ if $isZh }}信念{{ else }}Manifesto{{ end }}</p>
+        <h2 class="split-statement" data-split-text>
+          {{ if $isZh }}智能不该只辅助设计。它应该理解、推演，并真正参与创造。{{ else }}Intelligence should not merely assist design. It should understand, reason, and participate in creation.{{ end }}
+        </h2>
+        <p class="manifesto-body reveal">
+          {{ if $isZh }}我把研究、工程与创业放在同一条轨道上：让复杂的芯片设计知识成为 Agent 可以调用、组合并验证的能力。{{ else }}I place research, engineering, and entrepreneurship on one trajectory: turning hard-won chip-design knowledge into capabilities that agents can invoke, compose, and verify.{{ end }}
+        </p>
+      </div>
+      <div class="manifesto-orbit" aria-hidden="true"><span></span><i></i></div>
+    </section>
+
+    <section class="scene proof-scene" data-scene-name="proof">
+      <div class="proof-intro reveal">
+        <p class="eyebrow">{{ if $isZh }}从硅到智能{{ else }}From silicon to intelligence{{ end }}</p>
+        <p>{{ if $isZh }}不是一条线性的简历，而是一组彼此增强的实践。{{ else }}Not a linear résumé, but a set of practices that compound.{{ end }}</p>
+      </div>
+      <div class="proof-grid">
+        <article class="proof-card reveal">
+          <strong data-count="42">42</strong>
+          <span>{{ if $isZh }}个可组合电路技能{{ else }}composable circuit skills{{ end }}</span>
+          <p>{{ if $isZh }}从 11 个 EDA 项目提炼为可执行能力。{{ else }}Distilled from methods across 11 EDA projects.{{ end }}</p>
+        </article>
+        <article class="proof-card reveal" data-reveal-delay="1">
+          <strong><em>22</em>–<em>28</em><small>nm</small></strong>
+          <span>{{ if $isZh }}流片实践{{ else }}tapeout experience{{ end }}</span>
+          <p>{{ if $isZh }}NPU 算法设计、优化与软硬件协同。{{ else }}NPU algorithm design, optimization, and hardware–software co-design.{{ end }}</p>
+        </article>
+        <article class="proof-card reveal" data-reveal-delay="2">
+          <strong data-count="30">30<small>+</small></strong>
+          <span>{{ if $isZh }}项赛事与创新荣誉{{ else }}awards in engineering & innovation{{ end }}</span>
+          <p>{{ if $isZh }}包含全国一等奖与顶会最佳论文提名。{{ else }}Including national first prizes and best-paper nominations.{{ end }}</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="scene work-scene" id="work" data-scene-name="work">
+      <div class="work-heading reveal">
+        <div>
+          <p class="section-index">02 / 04</p>
+          <p class="eyebrow">{{ if $isZh }}精选作品{{ else }}Selected work{{ end }}</p>
+        </div>
+        <h2>{{ if $isZh }}三个项目，<br>同一个方向。{{ else }}Three projects.<br>One trajectory.{{ end }}</h2>
+      </div>
+
+      <div class="project-stack">
+        {{- range $index, $project := slice $lego $aris $unfold -}}
+          {{- if $project -}}
+            {{- $featured := $project.Resources.GetMatch "featured.*" -}}
+            {{- $processed := $featured -}}
+            {{- with $featured -}}{{- if ne .MediaType.SubType "svg" -}}{{- $processed = .Fill "1500x980 Center webp q86" -}}{{- end -}}{{- end -}}
+            <article class="project-card reveal" data-project="{{ add $index 1 }}">
+              <a href="{{ $project.Params.external_link }}" target="_blank" rel="noopener noreferrer" aria-label="{{ $project.Title }} · {{ if $isZh }}在 GitHub 查看{{ else }}View on GitHub{{ end }}">
+                <div class="project-visual">
+                  {{ with $processed }}<img src="{{ .RelPermalink }}" alt="" loading="lazy">{{ end }}
+                  <span class="project-glare" aria-hidden="true"></span>
+                  <span class="project-number" aria-hidden="true">0{{ add $index 1 }}</span>
+                  <span class="project-lineage" aria-hidden="true">
+                    {{- if eq $index 0 -}}{{ if $isZh }}研究方法 → 电路技能 → 设计系统{{ else }}Research → Circuit skills → Design system{{ end }}
+                    {{- else if eq $index 1 -}}{{ if $isZh }}想法发现 → 实验循环 → 论文{{ else }}Ideas → Experiment loops → Papers{{ end }}
+                    {{- else -}}{{ if $isZh }}视频理解 → 知识结构 → 学习体验{{ else }}Video understanding → Knowledge → Learning{{ end }}{{- end -}}
+                  </span>
+                </div>
+                <div class="project-info">
+                  <div>
+                    <p>{{ delimit $project.Params.tags " · " }}</p>
+                    <h3>{{ $project.Title }}</h3>
+                  </div>
+                  <p class="project-summary">{{ $project.Summary }}</p>
+                  <span class="project-arrow" aria-hidden="true">↗</span>
+                </div>
+              </a>
+            </article>
+          {{- end -}}
+        {{- end -}}
+      </div>
+    </section>
+
+    <section class="scene path-scene" data-scene-name="path">
+      <div class="path-heading reveal">
+        <p class="section-index">03 / 04</p>
+        <h2>{{ if $isZh }}研究是一种<br><em>持续运动。</em>{{ else }}Research is<br><em>motion with intent.</em>{{ end }}</h2>
+      </div>
+      <ol class="path-list">
+        <li class="reveal"><span>2026—</span><div><b>ChipBagel</b><p>{{ if $isZh }}创始人兼 CEO · AI Agent × EDA × 芯片设计{{ else }}Founder & CEO · AI agents × EDA × chip design{{ end }}</p></div></li>
+        <li class="reveal"><span>2024—</span><div><b>{{ if $isZh }}北京大学{{ else }}Peking University{{ end }}</b><p>{{ if $isZh }}集成电路学院博士生 · Agentic EDA{{ else }}Ph.D. candidate · Agentic EDA{{ end }}</p></div></li>
+        <li class="reveal"><span>2023—24</span><div><b>Takway.AI</b><p>{{ if $isZh }}联合创始人兼 CEO · AI 原生硬件{{ else }}Co-founder & CEO · AI-native hardware{{ end }}</p></div></li>
+        <li class="reveal"><span>2021—24</span><div><b>{{ if $isZh }}北京大学{{ else }}Peking University{{ end }}</b><p>{{ if $isZh }}集成电路工程硕士 · AI 芯片与软硬件协同{{ else }}M.Eng. · AI chips and hardware–software co-design{{ end }}</p></div></li>
+      </ol>
+    </section>
+
+    <section class="scene contact-scene" data-scene-name="contact">
+      <div class="contact-copy reveal">
+        <p class="section-index">04 / 04</p>
+        <p class="eyebrow">{{ if $isZh }}建立连接{{ else }}Open channel{{ end }}</p>
+        <h2>{{ if $isZh }}下一件值得<br>发生的事？{{ else }}What should<br>exist next?{{ end }}</h2>
+        <a class="contact-mail magnetic" href="mailto:jinchenglou@stu.pku.edu.cn">
+          <span>{{ if $isZh }}写信给我{{ else }}Write to me{{ end }}</span>
+          <i aria-hidden="true">↗</i>
+        </a>
+      </div>
+      <div class="contact-meta reveal" data-reveal-delay="1">
+        <p>{{ if $isZh }}北京 · 中国{{ else }}Beijing · China{{ end }}</p>
+        <div>
+          <a href="https://github.com/loujc" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+          <a href="{{ site.Home.RelPermalink }}">{{ if $isZh }}当前主页 ↗{{ else }}Current site ↗{{ end }}</a>
+        </div>
+        <small>© {{ now.Year }} Jincheng Lou</small>
+      </div>
+      <div class="credits-strip" aria-label="{{ if $isZh }}片尾信息{{ else }}End credits{{ end }}">
+        <span>JINCHENG LOU</span>
+        <span>AGENTIC EDA</span>
+        <span>PEKING UNIVERSITY</span>
+        <span>CHIPBAGEL</span>
+        <span>BEIJING · {{ now.Year }}</span>
+      </div>
+    </section>
+  </main>
+
+  <div class="cursor-orbit" aria-hidden="true"><span></span></div>
+  <div class="easter-toast" role="status" aria-live="polite"></div>
+  <script src="{{ $js.RelPermalink }}" integrity="{{ $js.Data.Integrity }}" defer></script>
+</body>
+</html>
