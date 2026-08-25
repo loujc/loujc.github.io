@@ -408,7 +408,7 @@ private func captureSnapshot() async throws -> Data {
     for event in events {
         let status = event.status
         let availability = event.availability
-        if status == .canceled || availability == .free {
+        if status == .canceled || (availability == .free && !event.isAllDay) {
             continue
         }
         guard let eventStart = event.startDate,

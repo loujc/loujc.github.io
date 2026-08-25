@@ -1070,7 +1070,11 @@ function eventToInterval(properties, requestedStart, requestedEnd, dateZone) {
   const transparency = properties.has('TRANSP')
     ? parseEventEnum(properties.get('TRANSP'), EVENT_TRANSPARENCY_VALUES)
     : 'OPAQUE';
-  if (status === 'CANCELLED' || transparency === 'TRANSPARENT' || end <= start.value) return null;
+  if (
+    status === 'CANCELLED'
+    || (transparency === 'TRANSPARENT' && start.kind !== 'date')
+    || end <= start.value
+  ) return null;
 
   const clippedStart = start.value < requestedStart ? requestedStart : start.value;
   const clippedEnd = end > requestedEnd ? requestedEnd : end;

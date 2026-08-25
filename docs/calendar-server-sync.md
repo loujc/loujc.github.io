@@ -9,15 +9,17 @@ The data path is:
 
 1. Apple Calendar continues to synchronize edits normally with each provider.
 2. When the IDEA calendar changes, a local EventKit helper queries its expanded
-   occurrences, ignores cancelled or explicitly free events, and immediately
-   converts the result to a fixed-length occupied/free bitmap. It never reads
-   event titles, notes, locations, attendees, organizers, or identifiers.
+   occurrences, ignores cancelled events and explicitly free timed events, and
+   immediately converts the result to a fixed-length occupied/free bitmap.
+   All-day events are conservatively treated as occupied even when Apple marks
+   them free. The helper never reads event titles, notes, locations, attendees,
+   organizers, or identifiers.
 3. The anonymous bitmap is streamed directly into a repository Actions Secret;
    no raw calendar export or IDEA account credential is uploaded.
 4. The isolated availability job connects to the four selected iCloud CalDAV
    collections and decodes the IDEA bitmap in memory.
 5. Both sources are rounded to 30-minute boundaries, clipped to
-   08:00-22:00 in `Asia/Shanghai`, merged into a window beginning on the
+   08:00-24:00 in `Asia/Shanghai`, merged into a window beginning on the
    current week's Monday, and written to
    `public/availability/busy.json`.
 6. Only that allowlisted JSON file moves to the separate Hugo build job. The
@@ -192,7 +194,9 @@ but Calendar.app itself is not queried by GitHub Actions. A small local EventKit
 helper selects exactly one configured CalDAV calendar and asks EventKit for
 expanded occurrences, including recurring instances and detached exceptions.
 The implementation accesses only start/end boundaries, cancellation status,
-and free/busy availability. It contains no event save, update, or delete path.
+all-day status, and free/busy availability. All-day events fail closed as
+occupied even if their provider availability is free. It contains no event
+save, update, or delete path.
 
 macOS grants EventKit calendar reading through the system's full-calendar-access
 permission; it does not offer a separate read-only authorization level. The

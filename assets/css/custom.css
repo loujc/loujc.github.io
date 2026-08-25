@@ -56,22 +56,6 @@ body.homepage-ambient-ready #site-header {
   box-shadow: 0 1px 0 rgb(255 255 255 / 3%);
 }
 
-body.homepage-ambient-ready .hbb-section:not(#section-resume-biography-3)::before {
-  position: absolute;
-  z-index: -1;
-  top: 0;
-  left: 50%;
-  width: min(82vw, 72rem);
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 72%) 36%, rgb(15 23 42 / 9%) 50%, rgb(255 255 255 / 72%) 64%, transparent);
-  content: '';
-  transform: translateX(-50%);
-}
-
-.dark body.homepage-ambient-ready .hbb-section:not(#section-resume-biography-3)::before {
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 5%) 22%, rgb(255 255 255 / 15%) 50%, rgb(255 255 255 / 5%) 78%, transparent);
-}
-
 #section-resume-biography-3 .resume-biography {
   position: relative;
   z-index: 1;

@@ -378,18 +378,20 @@ END:VCALENDAR\r
   );
 });
 
-test('calendar-query parser handles DATE all-day events in the requested local zone and empty results', () => {
+test('calendar-query parser treats transparent DATE all-day events as occupied in the local zone', () => {
   const localStart = DateTime.fromISO('2026-07-21T00:00:00', {zone: 'Asia/Shanghai'});
   const localEnd = localStart.plus({days: 3});
   const calendar = `BEGIN:VCALENDAR\r
 VERSION:2.0\r
 BEGIN:VEVENT\r
 DTSTART;VALUE=DATE:20260721\r
+TRANSP:TRANSPARENT\r
 END:VEVENT\r
 BEGIN:VEVENT\r
 DTSTART;VALUE=DATE:20260722\r
 DURATION:P1D\r
 RECURRENCE-ID:20260721T160000Z\r
+TRANSP:TRANSPARENT\r
 END:VEVENT\r
 BEGIN:VEVENT\r
 DTSTART:20260722T120000Z\r
