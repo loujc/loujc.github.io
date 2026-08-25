@@ -890,11 +890,21 @@ function isAllDayBoundary(start, end, dateZone) {
   if (start.kind === 'date') return true;
   const localStart = start.value.setZone(dateZone);
   const localEnd = end.setZone(dateZone);
-  return localStart.isValid
+  const localDayBoundary = localStart.isValid
     && localEnd.isValid
     && localEnd > localStart
     && localStart.toMillis() === localStart.startOf('day').toMillis()
     && localEnd.toMillis() === localEnd.startOf('day').toMillis();
+  const utcStart = start.value.toUTC();
+  const utcEnd = end.toUTC();
+  const utcDuration = utcEnd.toMillis() - utcStart.toMillis();
+  const utcDayBoundary = utcStart.isValid
+    && utcEnd.isValid
+    && utcDuration > 0
+    && utcDuration % (24 * 60 * 60 * 1000) === 0
+    && utcStart.toMillis() === utcStart.startOf('day').toMillis()
+    && utcEnd.toMillis() === utcEnd.startOf('day').toMillis();
+  return localDayBoundary || utcDayBoundary;
 }
 
 function unescapeExpansionRule(value) {

@@ -589,6 +589,11 @@ DTSTART:20260720T160000Z\r
 DTEND:20260721T160000Z\r
 TRANSP:TRANSPARENT\r
 END:VEVENT\r
+BEGIN:VEVENT\r
+DTSTART:20260721T000000Z\r
+DTEND:20260722T000000Z\r
+TRANSP:TRANSPARENT\r
+END:VEVENT\r
 END:VCALENDAR\r
 `;
   const {fetchImpl} = authenticatedDiscoveryFetch({
@@ -602,11 +607,15 @@ END:VCALENDAR\r
     allowedHosts,
     fetchImpl,
   });
-  assert.equal(intervals.length, 2);
-  assert.ok(intervals.every(({start, end}) => (
+  assert.equal(intervals.length, 4);
+  assert.equal(intervals.filter(({start, end}) => (
     start.toMillis() === policyWindowStart.toMillis()
     && end.toMillis() === policyWindowEnd.toMillis()
-  )));
+  )).length, 2);
+  assert.equal(intervals.filter(({start, end}) => (
+    start.toMillis() === DateTime.fromISO('2026-07-21T00:00:00Z', {setZone: true}).toMillis()
+    && end.toMillis() === policyWindowEnd.toMillis()
+  )).length, 2);
 });
 
 test('CalDAV discovery searches every advertised calendar home before exact selection', async () => {
