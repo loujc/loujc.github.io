@@ -886,6 +886,17 @@ function parseEventEnum(content, allowedValues) {
   return value;
 }
 
+function isAllDayBoundary(start, end, dateZone) {
+  if (start.kind === 'date') return true;
+  const localStart = start.value.setZone(dateZone);
+  const localEnd = end.setZone(dateZone);
+  return localStart.isValid
+    && localEnd.isValid
+    && localEnd > localStart
+    && localStart.toMillis() === localStart.startOf('day').toMillis()
+    && localEnd.toMillis() === localEnd.startOf('day').toMillis();
+}
+
 function unescapeExpansionRule(value) {
   if (
     typeof value !== 'string'
@@ -1089,11 +1100,12 @@ function eventToInterval(
   const transparency = properties.has('TRANSP')
     ? parseEventEnum(properties.get('TRANSP'), EVENT_TRANSPARENCY_VALUES)
     : 'OPAQUE';
+  const isAllDay = isAllDayBoundary(start, end, dateZone);
   if (
     status === 'CANCELLED'
     || (
       transparency === 'TRANSPARENT'
-      && !(start.kind === 'date' && occupyTransparentAllDay)
+      && !(isAllDay && occupyTransparentAllDay)
     )
     || end <= start.value
   ) return null;

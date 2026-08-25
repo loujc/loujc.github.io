@@ -585,8 +585,8 @@ test('only policy-selected calendars publish transparent all-day events', async 
   const transparentAllDay = () => `BEGIN:VCALENDAR\r
 VERSION:2.0\r
 BEGIN:VEVENT\r
-DTSTART;VALUE=DATE:20260721\r
-DTEND;VALUE=DATE:20260722\r
+DTSTART:20260720T160000Z\r
+DTEND:20260721T160000Z\r
 TRANSP:TRANSPARENT\r
 END:VEVENT\r
 END:VCALENDAR\r
