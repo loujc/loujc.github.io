@@ -594,17 +594,18 @@ END:VCALENDAR\r
   const {fetchImpl} = authenticatedDiscoveryFetch({
     calendarTextForIndex: transparentAllDay,
   });
+  const policyWindowStart = DateTime.fromISO('2026-07-21T00:00:00', {zone: 'Asia/Shanghai'});
+  const policyWindowEnd = policyWindowStart.plus({days: 1});
   const intervals = await fetchICloudBusyIntervals(config, {
-    windowStart,
-    windowEnd,
+    windowStart: policyWindowStart,
+    windowEnd: policyWindowEnd,
     allowedHosts,
     fetchImpl,
   });
   assert.equal(intervals.length, 2);
-  const localMidnight = DateTime.fromISO('2026-07-22T00:00:00', {zone: 'Asia/Shanghai'});
   assert.ok(intervals.every(({start, end}) => (
-    start.toMillis() === windowStart.toMillis()
-    && end.toMillis() === localMidnight.toMillis()
+    start.toMillis() === policyWindowStart.toMillis()
+    && end.toMillis() === policyWindowEnd.toMillis()
   )));
 });
 
