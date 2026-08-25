@@ -50,8 +50,7 @@ function eventOccupiesTime(event) {
   if (!event || event.type !== 'VEVENT') return false;
   if (normalizeToken(event.status) === 'CANCELLED') return false;
   if (normalizeToken(event.method) === 'CANCEL') return false;
-  const isAllDay = event.datetype === 'date' || event.start?.dateOnly === true;
-  return isAllDay || normalizeToken(event.transparency) !== 'TRANSPARENT';
+  return normalizeToken(event.transparency) !== 'TRANSPARENT';
 }
 
 function parseClock(value, name, {allowEndOfDay = false} = {}) {

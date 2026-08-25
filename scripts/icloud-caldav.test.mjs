@@ -25,6 +25,7 @@ const config = {
   username: secretUsername,
   appPassword: secretPassword,
   calendarNames,
+  allDayBusyCalendarNames: calendarNames.slice(0, 2),
   expectedCalendarCount: 4,
 };
 
@@ -133,6 +134,7 @@ function authenticatedDiscoveryFetch({
   calendarHomes = ['/123/calendars/'],
   collectionsByHome = {},
   redirectBase = false,
+  calendarTextForIndex = expandedEventCalendar,
 } = {}) {
   const requests = [];
   const fetchImpl = async (url, options) => {
@@ -164,7 +166,8 @@ function authenticatedDiscoveryFetch({
     }
     const match = /^\/123\/(?:calendars|primary|shared)\/selected-(\d+)\/$/.exec(parsed.pathname);
     if (options.method === 'REPORT' && match) {
-      return new Response(calendarQueryXml(Number(match[1]) - 1), {status: 207});
+      const index = Number(match[1]) - 1;
+      return new Response(calendarQueryXml(index, calendarTextForIndex(index)), {status: 207});
     }
     return new Response('private unexpected request', {status: 404});
   };
@@ -178,6 +181,7 @@ test('environment config is all-or-none and parses exactly four unique calendar 
     ICLOUD_CALDAV_USERNAME: `  ${secretUsername}  `,
     ICLOUD_CALDAV_APP_PASSWORD: `  ${secretPassword}  `,
     ICLOUD_CALDAV_CALENDAR_NAMES_JSON: JSON.stringify(calendarNames),
+    ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON: JSON.stringify(calendarNames.slice(0, 2)),
   };
   assert.deepEqual(iCloudCalDavConfigFromEnvironment(environment), config);
   assert.deepEqual(parseICloudCalendarNames(JSON.stringify(calendarNames)), calendarNames);
@@ -198,6 +202,23 @@ test('environment config is all-or-none and parses exactly four unique calendar 
   );
   assert.throws(
     () => parseICloudCalendarNames(JSON.stringify(['One', 'Two', 'Three'])),
+    /could not be validated safely/,
+  );
+  assert.throws(
+    () => iCloudCalDavConfigFromEnvironment({
+      ...environment,
+      ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON: JSON.stringify([
+        calendarNames[0],
+        'Not Selected',
+      ]),
+    }),
+    /could not be validated safely/,
+  );
+  assert.throws(
+    () => iCloudCalDavConfigFromEnvironment({
+      ...environment,
+      ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON: JSON.stringify([calendarNames[0]]),
+    }),
     /could not be validated safely/,
   );
 });
@@ -398,10 +419,16 @@ DTSTART:20260722T120000Z\r
 END:VEVENT\r
 END:VCALENDAR\r
 `;
+  const responseXml = calendarQueryXml(0, calendar);
+  assert.deepEqual(
+    parseCalendarQueryMultiStatus(responseXml, localStart, localEnd),
+    [],
+  );
   const intervals = parseCalendarQueryMultiStatus(
-    calendarQueryXml(0, calendar),
+    responseXml,
     localStart,
     localEnd,
+    {occupyTransparentAllDay: true},
   );
   assert.deepEqual(
     intervals.map(({start, end}) => [start.toISO(), end.toISO()]),
@@ -552,6 +579,33 @@ test('CalDAV discovery selects exactly four named VEVENT calendars and uses read
   }
   assert.equal(intervals.length, 8);
   assert.ok(intervals.every(({start, end}) => DateTime.isDateTime(start) && DateTime.isDateTime(end)));
+});
+
+test('only policy-selected calendars publish transparent all-day events', async () => {
+  const transparentAllDay = () => `BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+DTSTART;VALUE=DATE:20260721\r
+DTEND;VALUE=DATE:20260722\r
+TRANSP:TRANSPARENT\r
+END:VEVENT\r
+END:VCALENDAR\r
+`;
+  const {fetchImpl} = authenticatedDiscoveryFetch({
+    calendarTextForIndex: transparentAllDay,
+  });
+  const intervals = await fetchICloudBusyIntervals(config, {
+    windowStart,
+    windowEnd,
+    allowedHosts,
+    fetchImpl,
+  });
+  assert.equal(intervals.length, 2);
+  const localMidnight = DateTime.fromISO('2026-07-22T00:00:00', {zone: 'Asia/Shanghai'});
+  assert.ok(intervals.every(({start, end}) => (
+    start.toMillis() === windowStart.toMillis()
+    && end.toMillis() === localMidnight.toMillis()
+  )));
 });
 
 test('CalDAV discovery searches every advertised calendar home before exact selection', async () => {

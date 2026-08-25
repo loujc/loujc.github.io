@@ -18,6 +18,8 @@ on:
         required: true
       ICLOUD_CALDAV_CALENDAR_NAMES_JSON:
         required: true
+      ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON:
+        required: true
       IDEA_BUSY_SNAPSHOT:
         required: true
     outputs:
@@ -66,6 +68,7 @@ jobs:
         ICLOUD_CALDAV_APP_PASSWORD: ${{ secrets.ICLOUD_CALDAV_APP_PASSWORD }}
         ICLOUD_CALDAV_BASE_URL: ${{ secrets.ICLOUD_CALDAV_BASE_URL }}
         ICLOUD_CALDAV_CALENDAR_NAMES_JSON: ${{ secrets.ICLOUD_CALDAV_CALENDAR_NAMES_JSON }}
+        ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON: ${{ secrets.ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON }}
         IDEA_BUSY_SNAPSHOT: ${{ secrets.IDEA_BUSY_SNAPSHOT }}
       run: node scripts/generate-busy-calendar.mjs --require-sources
 

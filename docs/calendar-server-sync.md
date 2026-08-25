@@ -9,15 +9,15 @@ The data path is:
 
 1. Apple Calendar continues to synchronize edits normally with each provider.
 2. When the IDEA calendar changes, a local EventKit helper queries its expanded
-   occurrences, ignores cancelled events and explicitly free timed events, and
-   immediately converts the result to a fixed-length occupied/free bitmap.
-   All-day events are conservatively treated as occupied even when Apple marks
-   them free. The helper never reads event titles, notes, locations, attendees,
-   organizers, or identifiers.
+   occurrences, ignores cancelled or explicitly free events, and immediately
+   converts the result to a fixed-length occupied/free bitmap. The helper never
+   reads event titles, notes, locations, attendees, organizers, or identifiers.
 3. The anonymous bitmap is streamed directly into a repository Actions Secret;
    no raw calendar export or IDEA account credential is uploaded.
 4. The isolated availability job connects to the four selected iCloud CalDAV
-   collections and decodes the IDEA bitmap in memory.
+   collections and decodes the IDEA bitmap in memory. A separate private policy
+   names exactly two of those collections whose transparent all-day events must
+   still count as occupied.
 5. Both sources are rounded to 30-minute boundaries, clipped to
    08:00-24:00 in `Asia/Shanghai`, merged into a window beginning on the
    current week's Monday, and written to
@@ -78,22 +78,26 @@ unsuitable.
 
 ## Required GitHub Secrets
 
-All five repository secrets must be configured:
+All six repository secrets must be configured:
 
 ```text
 ICLOUD_CALDAV_USERNAME
 ICLOUD_CALDAV_APP_PASSWORD
 ICLOUD_CALDAV_BASE_URL
 ICLOUD_CALDAV_CALENDAR_NAMES_JSON
+ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON
 IDEA_BUSY_SNAPSHOT
 ```
 
 `ICLOUD_CALDAV_CALENDAR_NAMES_JSON` is a JSON array containing exactly four
-selected iCloud display names. `IDEA_BUSY_SNAPSHOT` is a compact bitmap produced
-locally and contains no event metadata or account credential. Calendar names,
-usernames, endpoints, passwords, collection URLs, and source bitmaps are private
-operational data and do not belong in the repository, issues, commit messages,
-or Actions logs.
+selected iCloud display names.
+`ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON` is a two-name subset controlling
+which selected collections treat transparent all-day events as occupied. The
+other two selected collections continue to ignore transparent all-day events.
+`IDEA_BUSY_SNAPSHOT` is a compact bitmap produced locally and contains no event
+metadata or account credential. Calendar names, usernames, endpoints, passwords,
+collection URLs, policy names, and source bitmaps are private operational data
+and do not belong in the repository, issues, commit messages, or Actions logs.
 
 Add each value under GitHub repository **Settings → Secrets and variables →
 Actions → New repository secret**. Never paste credentials into
@@ -158,7 +162,10 @@ other event or alarm field.
 
 Time values may be UTC, all-day dates, or local date-times carrying a valid
 IANA `TZID`. The timezone parameter is used only to convert the event boundary
-to an instant; it is not retained or published.
+to an instant; it is not retained or published. Transparent all-day events are
+published only for the two collections named by the private all-day policy;
+transparent timed events and transparent all-day events from all other
+collections remain free.
 
 For expanded repeating events, iCloud also supplies the exact VCALENDAR
 markers `X-EXPANDED`, `X-MASTER-DTSTART`, and `X-MASTER-RRULE` even though they
@@ -194,9 +201,7 @@ but Calendar.app itself is not queried by GitHub Actions. A small local EventKit
 helper selects exactly one configured CalDAV calendar and asks EventKit for
 expanded occurrences, including recurring instances and detached exceptions.
 The implementation accesses only start/end boundaries, cancellation status,
-all-day status, and free/busy availability. All-day events fail closed as
-occupied even if their provider availability is free. It contains no event
-save, update, or delete path.
+and free/busy availability. It contains no event save, update, or delete path.
 
 macOS grants EventKit calendar reading through the system's full-calendar-access
 permission; it does not offer a separate read-only authorization level. The
@@ -204,7 +209,7 @@ helper is therefore intentionally narrow and auditable even though the system
 permission dialog is broader than the fields it uses.
 
 Before leaving the Mac, every occurrence is filtered, rounded outward, clipped
-to the public 08:00-22:00 display window, and encoded as a fixed 30-minute-slot
+to the public 08:00-24:00 display window, and encoded as a fixed 30-minute-slot
 bitmap. The bitmap covers 400 days, is capped at 8 KiB, and contains no calendar
 name, event count, identifier, title, or raw event timestamp. It is streamed
 directly to `IDEA_BUSY_SNAPSHOT` and never committed.

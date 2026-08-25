@@ -107,7 +107,9 @@ const ENVIRONMENT_KEYS = Object.freeze({
   username: 'ICLOUD_CALDAV_USERNAME',
   appPassword: 'ICLOUD_CALDAV_APP_PASSWORD',
   calendarNamesJson: 'ICLOUD_CALDAV_CALENDAR_NAMES_JSON',
+  allDayBusyCalendarNamesJson: 'ICLOUD_CALDAV_ALL_DAY_BUSY_CALENDAR_NAMES_JSON',
 });
+const EXPECTED_ALL_DAY_BUSY_CALENDAR_COUNT = 2;
 
 function genericConfigurationError() {
   return new Error('iCloud CalDAV configuration could not be validated safely');
@@ -235,6 +237,20 @@ function calDavConfigFromEnvironment(
   if (configured === 0) return null;
   if (configured !== Object.keys(keys).length) throw configurationError();
 
+  const calendarNames = parseCalendarNames(
+    values.calendarNamesJson,
+    expectedCount,
+    configurationError,
+  );
+  const allDayBusyCalendarNames = parseCalendarNames(
+    values.allDayBusyCalendarNamesJson,
+    EXPECTED_ALL_DAY_BUSY_CALENDAR_COUNT,
+    configurationError,
+  );
+  if (!allDayBusyCalendarNames.every((name) => calendarNames.includes(name))) {
+    throw configurationError();
+  }
+
   return {
     baseUrl: String(values.baseUrl).trim(),
     username: validateCredentialPart(values.username, {
@@ -246,11 +262,8 @@ function calDavConfigFromEnvironment(
       maxLength: 256,
       configurationError,
     }),
-    calendarNames: parseCalendarNames(
-      values.calendarNamesJson,
-      expectedCount,
-      configurationError,
-    ),
+    calendarNames,
+    allDayBusyCalendarNames,
     expectedCalendarCount: expectedCount,
   };
 }
@@ -641,14 +654,14 @@ function discoverCalendarCollections(xml, responseBaseUrl, normalizeUrl) {
   return collections;
 }
 
-function selectNamedCalendarUrls(collections, desiredNames) {
+function selectNamedCalendars(collections, desiredNames) {
   const selected = desiredNames.map((name) => {
     const matches = collections.filter((collection) => collection.name === name);
     if (matches.length === 0) throw genericRequestError('collection-selection-missing');
     if (matches.length > 1) throw genericRequestError('collection-selection-duplicate-name');
-    return matches[0].url;
+    return matches[0];
   });
-  if (new Set(selected.map((url) => url.href)).size !== selected.length) {
+  if (new Set(selected.map((calendar) => calendar.url.href)).size !== selected.length) {
     throw genericRequestError('collection-selection-duplicate-url');
   }
   return selected;
@@ -1026,7 +1039,13 @@ function validateExpansionMetadata(content) {
   throw genericRequestError();
 }
 
-function eventToInterval(properties, requestedStart, requestedEnd, dateZone) {
+function eventToInterval(
+  properties,
+  requestedStart,
+  requestedEnd,
+  dateZone,
+  {occupyTransparentAllDay = false} = {},
+) {
   const start = parseEventDate(properties.get('DTSTART'), dateZone);
   const endProperty = properties.get('DTEND');
   const durationProperty = properties.get('DURATION');
@@ -1072,7 +1091,10 @@ function eventToInterval(properties, requestedStart, requestedEnd, dateZone) {
     : 'OPAQUE';
   if (
     status === 'CANCELLED'
-    || (transparency === 'TRANSPARENT' && start.kind !== 'date')
+    || (
+      transparency === 'TRANSPARENT'
+      && !(start.kind === 'date' && occupyTransparentAllDay)
+    )
     || end <= start.value
   ) return null;
 
@@ -1081,7 +1103,12 @@ function eventToInterval(properties, requestedStart, requestedEnd, dateZone) {
   return clippedEnd > clippedStart ? {start: clippedStart, end: clippedEnd} : null;
 }
 
-function parseExpandedEventCalendar(calendarText, windowStart, windowEnd) {
+function parseExpandedEventCalendar(
+  calendarText,
+  windowStart,
+  windowEnd,
+  {occupyTransparentAllDay = false} = {},
+) {
   const {requestedStart, requestedEnd, dateZone} = roundedQueryWindow(windowStart, windowEnd);
   const lines = unfoldCalendarLines(calendarText);
   const stack = [];
@@ -1124,6 +1151,7 @@ function parseExpandedEventCalendar(calendarText, windowStart, windowEnd) {
             requestedStart,
             requestedEnd,
             dateZone,
+            {occupyTransparentAllDay},
           );
           if (interval) intervals.push(interval);
           if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
@@ -1197,7 +1225,12 @@ function calendarDataText(property) {
   return property.text;
 }
 
-export function parseCalendarQueryMultiStatus(xml, windowStart, windowEnd) {
+export function parseCalendarQueryMultiStatus(
+  xml,
+  windowStart,
+  windowEnd,
+  {occupyTransparentAllDay = false} = {},
+) {
   try {
     const root = parseXmlTree(xml);
     if (
@@ -1266,6 +1299,7 @@ export function parseCalendarQueryMultiStatus(xml, windowStart, windowEnd) {
         calendarDataText(calendarData[0]),
         windowStart,
         windowEnd,
+        {occupyTransparentAllDay},
       ));
       if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
     }
@@ -1295,6 +1329,14 @@ async function fetchCalDavBusyIntervals(
       caldavConfig.expectedCalendarCount,
       configurationError,
     );
+    const allDayBusyCalendarNames = parseCalendarNames(
+      JSON.stringify(caldavConfig.allDayBusyCalendarNames),
+      EXPECTED_ALL_DAY_BUSY_CALENDAR_COUNT,
+      configurationError,
+    );
+    if (!allDayBusyCalendarNames.every((name) => calendarNames.includes(name))) {
+      throw configurationError();
+    }
     const credential = {
       username: validateCredentialPart(caldavConfig.username, {
         allowColon: false,
@@ -1380,14 +1422,14 @@ async function fetchCalDavBusyIntervals(
       ));
     }
     failureStage = 'collection-selection';
-    const calendarUrls = selectNamedCalendarUrls(collections, calendarNames);
+    const selectedCalendars = selectNamedCalendars(collections, calendarNames);
 
     failureStage = 'query-build';
     const requestBody = calendarQueryRequestBody(queryStart, queryEnd);
     const intervals = [];
-    for (const calendarUrl of calendarUrls) {
+    for (const calendar of selectedCalendars) {
       failureStage = 'calendar-report';
-      const response = await readOnlyCalDavRequest(calendarUrl, {
+      const response = await readOnlyCalDavRequest(calendar.url, {
         method: 'REPORT',
         body: requestBody,
         // Depth:1 includes the calendar object resources inside the selected
@@ -1407,6 +1449,7 @@ async function fetchCalDavBusyIntervals(
         response.text,
         windowStart,
         windowEnd,
+        {occupyTransparentAllDay: allDayBusyCalendarNames.includes(calendar.name)},
       ));
       failureStage = 'interval-limit';
       if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
