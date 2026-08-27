@@ -16,7 +16,7 @@ const config = {
   timezone: 'Asia/Shanghai',
   horizon_days: 10,
   slot_minutes: 30,
-  stale_after_hours: 3,
+  stale_after_hours: 6,
   idea_snapshot_coverage_days: 400,
   idea_snapshot_max_age_days: 90,
   display_hours: {start: '08:00', end: '22:00'},

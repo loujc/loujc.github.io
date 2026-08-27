@@ -150,7 +150,7 @@
     const meetingFallback = meeting?.querySelector('.meeting-email-fallback');
     const locale = root.dataset.locale || 'en-US';
     const fallbackTimezone = root.dataset.timezone || 'Asia/Shanghai';
-    const staleHours = Number(root.dataset.staleHours || 3);
+    const staleHours = Number(root.dataset.staleHours || 6);
 
     makeButtonIconLabel(previous, strings.previous_week);
     makeButtonIconLabel(next, strings.next_week);

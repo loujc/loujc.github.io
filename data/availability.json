@@ -2,7 +2,7 @@
   "timezone": "Asia/Shanghai",
   "horizon_days": 56,
   "slot_minutes": 30,
-  "stale_after_hours": 3,
+  "stale_after_hours": 6,
   "expected_caldav_calendar_count": 4,
   "allowed_caldav_hosts": [
     "*.icloud.com",

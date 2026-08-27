@@ -33,6 +33,9 @@ changes appear after the local refresh command and the next successful
 scheduled build. GitHub documents that scheduled Actions may still be delayed
 or dropped during periods of high load:
 <https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule>.
+The public page therefore tolerates an anonymous snapshot up to six hours old;
+after six hours it still fails closed and hides both the calendar and candidate
+meeting controls instead of implying that stale blank time is free.
 
 ## Meeting request and booking plan
 
