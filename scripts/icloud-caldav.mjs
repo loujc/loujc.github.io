@@ -35,6 +35,65 @@ const SAFE_FAILURE_STAGES = new Set([
   'calendar-report',
   'calendar-parse',
   'interval-limit',
+  // Fixed format diagnostics only; never include provider values or event identifiers.
+  'unfold-calendar-lines-1',
+  'unfold-calendar-lines-2',
+  'split-outside-quotes-1',
+  'parse-content-line-1',
+  'parse-content-line-2',
+  'parse-content-line-3',
+  'parse-utc-calendar-date-time-1',
+  'parse-utc-calendar-date-time-2',
+  'parse-iana-calendar-date-time-1',
+  'parse-iana-calendar-date-time-2',
+  'parse-positive-duration-1',
+  'parse-positive-duration-2',
+  'parse-event-date-1',
+  'parse-event-date-2',
+  'parse-event-date-3',
+  'parse-event-date-4',
+  'parse-event-date-5',
+  'parse-event-enum-1',
+  'parse-event-enum-2',
+  'unescape-expansion-rule-1',
+  'unescape-expansion-rule-2',
+  'validate-expansion-rule-1',
+  'validate-expansion-rule-2',
+  'validate-expansion-rule-3',
+  'validate-expansion-rule-4',
+  'validate-expansion-rule-5',
+  'validate-expansion-master-start-1',
+  'validate-expansion-master-start-2',
+  'validate-expansion-metadata-1',
+  'validate-expansion-metadata-2',
+  'event-to-interval-1',
+  'event-to-interval-2',
+  'event-to-interval-3',
+  'event-to-interval-4',
+  'event-to-interval-5',
+  'event-to-interval-6',
+  'parse-expanded-event-calendar-1',
+  'parse-expanded-event-calendar-2',
+  'parse-expanded-event-calendar-3',
+  'parse-expanded-event-calendar-4',
+  'parse-expanded-event-calendar-5',
+  'parse-expanded-event-calendar-6',
+  'parse-expanded-event-calendar-7',
+  'parse-expanded-event-calendar-8',
+  'parse-expanded-event-calendar-9',
+  'parse-expanded-event-calendar-10',
+  'parse-expanded-event-calendar-11',
+  'calendar-data-text-1',
+  'calendar-data-text-2',
+  'calendar-data-text-3',
+  'calendar-data-text-4',
+  'parse-calendar-query-multi-status-1',
+  'parse-calendar-query-multi-status-2',
+  'parse-calendar-query-multi-status-3',
+  'parse-calendar-query-multi-status-4',
+  'parse-calendar-query-multi-status-5',
+  'parse-calendar-query-multi-status-6',
+  'parse-calendar-query-multi-status-7',
 ]);
 const EVENT_PROPERTY_NAMES = new Set([
   'DTSTART',
@@ -733,12 +792,12 @@ function unfoldCalendarLines(value) {
   const unfolded = [];
   for (const line of physical) {
     if (/^[ \t]/.test(line)) {
-      if (!unfolded.length) throw genericRequestError();
+      if (!unfolded.length) throw genericRequestError('unfold-calendar-lines-1');
       unfolded[unfolded.length - 1] += line.slice(1);
     } else {
       unfolded.push(line);
     }
-    if (unfolded.at(-1)?.length > 1_000_000) throw genericRequestError();
+    if (unfolded.at(-1)?.length > 1_000_000) throw genericRequestError('unfold-calendar-lines-2');
   }
   return unfolded;
 }
@@ -754,7 +813,7 @@ function splitOutsideQuotes(value, delimiter) {
       start = index + 1;
     }
   }
-  if (quoted) throw genericRequestError();
+  if (quoted) throw genericRequestError('split-outside-quotes-1');
   parts.push(value.slice(start));
   return parts;
 }
@@ -769,15 +828,15 @@ function parseContentLine(line) {
       break;
     }
   }
-  if (separator < 1 || quoted) throw genericRequestError();
+  if (separator < 1 || quoted) throw genericRequestError('parse-content-line-1');
   const headerParts = splitOutsideQuotes(line.slice(0, separator), ';');
   const name = headerParts.shift().toUpperCase();
   const parameters = new Map();
   for (const parameter of headerParts) {
     const equals = parameter.indexOf('=');
-    if (equals < 1) throw genericRequestError();
+    if (equals < 1) throw genericRequestError('parse-content-line-2');
     const key = parameter.slice(0, equals).toUpperCase();
-    if (parameters.has(key)) throw genericRequestError();
+    if (parameters.has(key)) throw genericRequestError('parse-content-line-3');
     let parameterValue = parameter.slice(equals + 1);
     if (parameterValue.startsWith('"') && parameterValue.endsWith('"')) {
       parameterValue = parameterValue.slice(1, -1);
@@ -788,9 +847,9 @@ function parseContentLine(line) {
 }
 
 function parseUtcCalendarDateTime(value) {
-  if (!/^\d{8}T\d{6}Z$/.test(value)) throw genericRequestError();
+  if (!/^\d{8}T\d{6}Z$/.test(value)) throw genericRequestError('parse-utc-calendar-date-time-1');
   const result = DateTime.fromFormat(value, "yyyyLLdd'T'HHmmss'Z'", {zone: 'utc'});
-  if (!result.isValid) throw genericRequestError();
+  if (!result.isValid) throw genericRequestError('parse-utc-calendar-date-time-2');
   return result;
 }
 
@@ -804,7 +863,7 @@ function parseIanaCalendarDateTime(value, zoneName) {
     || zoneName.split('/').some((component) => component === '.' || component === '..')
     || !IANAZone.isValidZone(zoneName)
   ) {
-    throw genericRequestError();
+    throw genericRequestError('parse-iana-calendar-date-time-1');
   }
   const format = "yyyyLLdd'T'HHmmss";
   const result = DateTime.fromFormat(value, format, {
@@ -820,21 +879,21 @@ function parseIanaCalendarDateTime(value, zoneName) {
     || result.toFormat(format) !== value
     || result.getPossibleOffsets().length !== 1
   ) {
-    throw genericRequestError();
+    throw genericRequestError('parse-iana-calendar-date-time-2');
   }
   return result;
 }
 
 function parsePositiveDuration(value) {
   const match = /^P(?:(\d+)W|(?:(\d+)D)?(?:T(?=\d)(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?)$/.exec(value);
-  if (!match || !match.slice(1).some((part) => part !== undefined)) throw genericRequestError();
+  if (!match || !match.slice(1).some((part) => part !== undefined)) throw genericRequestError('parse-positive-duration-1');
   const seconds = match[1] !== undefined
     ? Number(match[1]) * 7 * 24 * 60 * 60
     : Number(match[2] ?? 0) * 24 * 60 * 60
       + Number(match[3] ?? 0) * 60 * 60
       + Number(match[4] ?? 0) * 60
       + Number(match[5] ?? 0);
-  if (!Number.isSafeInteger(seconds) || seconds <= 0) throw genericRequestError();
+  if (!Number.isSafeInteger(seconds) || seconds <= 0) throw genericRequestError('parse-positive-duration-2');
   const hasTimePart = match[3] !== undefined || match[4] !== undefined || match[5] !== undefined;
   return {
     seconds,
@@ -851,7 +910,7 @@ function parseEventDate(content, dateZone) {
       parameterKeys.some((key) => key !== 'VALUE')
       || (declaredType !== null && declaredType !== 'DATE-TIME')
     ) {
-      throw genericRequestError();
+      throw genericRequestError('parse-event-date-1');
     }
     return {kind: 'date-time', value: parseUtcCalendarDateTime(content.value)};
   }
@@ -861,7 +920,7 @@ function parseEventDate(content, dateZone) {
       || timeZone === null
       || (declaredType !== null && declaredType !== 'DATE-TIME')
     ) {
-      throw genericRequestError();
+      throw genericRequestError('parse-event-date-2');
     }
     return {
       kind: 'date-time',
@@ -870,19 +929,19 @@ function parseEventDate(content, dateZone) {
   }
   if (/^\d{8}$/.test(content.value)) {
     if (parameterKeys.some((key) => key !== 'VALUE') || declaredType !== 'DATE') {
-      throw genericRequestError();
+      throw genericRequestError('parse-event-date-3');
     }
     const parsed = DateTime.fromFormat(content.value, 'yyyyLLdd', {zone: dateZone}).startOf('day');
-    if (!parsed.isValid) throw genericRequestError();
+    if (!parsed.isValid) throw genericRequestError('parse-event-date-4');
     return {kind: 'date', value: parsed};
   }
-  throw genericRequestError();
+  throw genericRequestError('parse-event-date-5');
 }
 
 function parseEventEnum(content, allowedValues) {
-  if (content.parameters.size !== 0) throw genericRequestError();
+  if (content.parameters.size !== 0) throw genericRequestError('parse-event-enum-1');
   const value = content.value.toUpperCase();
-  if (!allowedValues.has(value)) throw genericRequestError();
+  if (!allowedValues.has(value)) throw genericRequestError('parse-event-enum-2');
   return value;
 }
 
@@ -914,7 +973,7 @@ function unescapeExpansionRule(value) {
     || value.length > 4096
     || !/^[\x20-\x7e]+$/.test(value)
   ) {
-    throw genericRequestError();
+    throw genericRequestError('unescape-expansion-rule-1');
   }
   let result = '';
   for (let index = 0; index < value.length; index += 1) {
@@ -923,7 +982,7 @@ function unescapeExpansionRule(value) {
       continue;
     }
     const escaped = value[index + 1];
-    if (!['\\', ',', ';'].includes(escaped)) throw genericRequestError();
+    if (!['\\', ',', ';'].includes(escaped)) throw genericRequestError('unescape-expansion-rule-2');
     result += escaped;
     index += 1;
   }
@@ -1001,13 +1060,13 @@ function validRRuleValue(key, value) {
 }
 
 function validateExpansionRule(content) {
-  if (content.parameters.size !== 0) throw genericRequestError();
+  if (content.parameters.size !== 0) throw genericRequestError('validate-expansion-rule-1');
   const rule = unescapeExpansionRule(content.value);
   const parts = rule.split(';');
   const seen = new Set();
   for (const part of parts) {
     const equals = part.indexOf('=');
-    if (equals < 1 || part.indexOf('=', equals + 1) !== -1) throw genericRequestError();
+    if (equals < 1 || part.indexOf('=', equals + 1) !== -1) throw genericRequestError('validate-expansion-rule-2');
     const key = part.slice(0, equals);
     const value = part.slice(equals + 1);
     if (
@@ -1018,16 +1077,16 @@ function validateExpansionRule(content) {
       || !/^[A-Z0-9,+-]+$/.test(value)
       || !validRRuleValue(key, value)
     ) {
-      throw genericRequestError();
+      throw genericRequestError('validate-expansion-rule-3');
     }
     seen.add(key);
   }
-  if (!seen.has('FREQ')) throw genericRequestError();
-  if (seen.has('COUNT') && seen.has('UNTIL')) throw genericRequestError();
+  if (!seen.has('FREQ')) throw genericRequestError('validate-expansion-rule-4');
+  if (seen.has('COUNT') && seen.has('UNTIL')) throw genericRequestError('validate-expansion-rule-5');
 }
 
 function validateExpansionMasterStart(content) {
-  if (content.parameters.size !== 0) throw genericRequestError();
+  if (content.parameters.size !== 0) throw genericRequestError('validate-expansion-master-start-1');
   const formats = [
     ['yyyyLLdd', /^\d{8}$/],
     ["yyyyLLdd'T'HHmmss", /^\d{8}T\d{6}$/],
@@ -1039,13 +1098,13 @@ function validateExpansionMasterStart(content) {
     if (parsed.isValid && parsed.toFormat(format) === content.value) return;
     break;
   }
-  throw genericRequestError();
+  throw genericRequestError('validate-expansion-master-start-2');
 }
 
 function validateExpansionMetadata(content) {
   if (content.name === 'X-EXPANDED') {
     if (content.parameters.size !== 0 || content.value.toLowerCase() !== 'true') {
-      throw genericRequestError();
+      throw genericRequestError('validate-expansion-metadata-1');
     }
     return;
   }
@@ -1057,7 +1116,7 @@ function validateExpansionMetadata(content) {
     validateExpansionRule(content);
     return;
   }
-  throw genericRequestError();
+  throw genericRequestError('validate-expansion-metadata-2');
 }
 
 function eventToInterval(
@@ -1070,25 +1129,25 @@ function eventToInterval(
   const start = parseEventDate(properties.get('DTSTART'), dateZone);
   const endProperty = properties.get('DTEND');
   const durationProperty = properties.get('DURATION');
-  if (endProperty && durationProperty) throw genericRequestError();
+  if (endProperty && durationProperty) throw genericRequestError('event-to-interval-1');
 
   let end;
   if (endProperty) {
     const parsedEnd = parseEventDate(endProperty, dateZone);
-    if (parsedEnd.kind !== start.kind || parsedEnd.value <= start.value) throw genericRequestError();
+    if (parsedEnd.kind !== start.kind || parsedEnd.value <= start.value) throw genericRequestError('event-to-interval-2');
     end = parsedEnd.value;
   } else if (durationProperty) {
-    if (durationProperty.parameters.size !== 0) throw genericRequestError();
+    if (durationProperty.parameters.size !== 0) throw genericRequestError('event-to-interval-3');
     const duration = parsePositiveDuration(durationProperty.value);
     if (start.kind === 'date') {
-      if (duration.dateDays === null) throw genericRequestError();
+      if (duration.dateDays === null) throw genericRequestError('event-to-interval-4');
       end = start.value.plus({days: duration.dateDays});
     } else {
       end = duration.dateDays === null
         ? start.value.plus({seconds: duration.seconds})
         : start.value.plus({days: duration.dateDays});
     }
-    if (!end.isValid || end <= start.value) throw genericRequestError();
+    if (!end.isValid || end <= start.value) throw genericRequestError('event-to-interval-5');
   } else {
     end = start.kind === 'date' ? start.value.plus({days: 1}) : start.value;
   }
@@ -1101,7 +1160,7 @@ function eventToInterval(
       && /^\d{8}T\d{6}Z$/.test(recurrenceId.value)
       && recurrenceId.parameters.size === 0;
     if (recurrence.kind !== start.kind && !iCloudExpandedAllDayMarker) {
-      throw genericRequestError();
+      throw genericRequestError('event-to-interval-6');
     }
   }
   const status = properties.has('STATUS')
@@ -1146,13 +1205,13 @@ function parseExpandedEventCalendar(
     const content = parseContentLine(line);
     if (content.name === 'BEGIN' || content.name === 'END') {
       if (content.parameters.size !== 0 || content.value !== content.value.trim()) {
-        throw genericRequestError();
+        throw genericRequestError('parse-expanded-event-calendar-1');
       }
       const component = content.value.toUpperCase();
       if (content.name === 'BEGIN') {
         if (component === 'VCALENDAR' && stack.length === 0 && !calendarClosed) {
           calendarCount += 1;
-          if (calendarCount !== 1) throw genericRequestError();
+          if (calendarCount !== 1) throw genericRequestError('parse-expanded-event-calendar-2');
         } else if (component === 'VEVENT' && stack.length === 1 && stack[0] === 'VCALENDAR') {
           eventProperties = new Map();
         } else if (
@@ -1161,13 +1220,13 @@ function parseExpandedEventCalendar(
           || stack[0] !== 'VCALENDAR'
           || stack[1] !== 'VEVENT'
         ) {
-          throw genericRequestError();
+          throw genericRequestError('parse-expanded-event-calendar-3');
         }
         stack.push(component);
       } else {
-        if (stack.at(-1) !== component) throw genericRequestError();
+        if (stack.at(-1) !== component) throw genericRequestError('parse-expanded-event-calendar-4');
         if (component === 'VEVENT') {
-          if (!eventProperties?.has('DTSTART')) throw genericRequestError();
+          if (!eventProperties?.has('DTSTART')) throw genericRequestError('parse-expanded-event-calendar-5');
           const interval = eventToInterval(
             eventProperties,
             requestedStart,
@@ -1176,7 +1235,7 @@ function parseExpandedEventCalendar(
             {occupyTransparentAllDay},
           );
           if (interval) intervals.push(interval);
-          if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
+          if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError('parse-expanded-event-calendar-6');
           eventProperties = null;
         } else if (component === 'VCALENDAR') {
           calendarClosed = true;
@@ -1188,7 +1247,7 @@ function parseExpandedEventCalendar(
 
     if (stack.length === 1 && stack[0] === 'VCALENDAR' && content.name === 'VERSION') {
       if (content.parameters.size !== 0 || content.value !== '2.0' || versionCount !== 0) {
-        throw genericRequestError();
+        throw genericRequestError('parse-expanded-event-calendar-7');
       }
       versionCount += 1;
       continue;
@@ -1198,21 +1257,21 @@ function parseExpandedEventCalendar(
       && stack[0] === 'VCALENDAR'
       && EXPANSION_METADATA_PROPERTIES.has(content.name)
     ) {
-      if (expansionMetadata.has(content.name)) throw genericRequestError();
+      if (expansionMetadata.has(content.name)) throw genericRequestError('parse-expanded-event-calendar-8');
       validateExpansionMetadata(content);
       expansionMetadata.add(content.name);
       continue;
     }
     if (stack.length === 2 && stack[1] === 'VEVENT') {
       if (!EVENT_PROPERTY_NAMES.has(content.name) || eventProperties.has(content.name)) {
-        throw genericRequestError();
+        throw genericRequestError('parse-expanded-event-calendar-9');
       }
       eventProperties.set(content.name, content);
       continue;
     }
     // VALARM was deliberately requested without properties. Any value here,
     // or any non-allowlisted VCALENDAR property, could carry private metadata.
-    throw genericRequestError();
+    throw genericRequestError('parse-expanded-event-calendar-10');
   }
 
   if (
@@ -1224,26 +1283,26 @@ function parseExpandedEventCalendar(
     || (expansionMetadata.size !== 0
       && expansionMetadata.size !== EXPANSION_METADATA_PROPERTIES.size)
   ) {
-    throw genericRequestError();
+    throw genericRequestError('parse-expanded-event-calendar-11');
   }
   return intervals;
 }
 
 function calendarDataText(property) {
-  if (property.children.length !== 0) throw genericRequestError();
+  if (property.children.length !== 0) throw genericRequestError('calendar-data-text-1');
   for (const attribute of property.attributes) {
     if (attribute.uri === 'http://www.w3.org/2000/xmlns/') continue;
     if (attribute.uri || !['content-type', 'version'].includes(attribute.local)) {
-      throw genericRequestError();
+      throw genericRequestError('calendar-data-text-2');
     }
     if (
       (attribute.local === 'content-type' && attribute.value.toLowerCase() !== 'text/calendar')
       || (attribute.local === 'version' && attribute.value !== '2.0')
     ) {
-      throw genericRequestError();
+      throw genericRequestError('calendar-data-text-3');
     }
   }
-  if (!property.text.trim()) throw genericRequestError();
+  if (!property.text.trim()) throw genericRequestError('calendar-data-text-4');
   return property.text;
 }
 
@@ -1263,7 +1322,7 @@ export function parseCalendarQueryMultiStatus(
         (child) => child.uri !== DAV_NAMESPACE || child.local !== 'response',
       )
     ) {
-      throw genericRequestError();
+      throw genericRequestError('parse-calendar-query-multi-status-1');
     }
 
     const intervals = [];
@@ -1274,7 +1333,7 @@ export function parseCalendarQueryMultiStatus(
           (child) => child.uri !== DAV_NAMESPACE || !['href', 'propstat'].includes(child.local),
         )
       ) {
-        throw genericRequestError();
+        throw genericRequestError('parse-calendar-query-multi-status-2');
       }
       const hrefNodes = childElements(response, DAV_NAMESPACE, 'href');
       const propstats = childElements(response, DAV_NAMESPACE, 'propstat');
@@ -1286,7 +1345,7 @@ export function parseCalendarQueryMultiStatus(
         || hrefNodes[0].children.length
         || propstats.length === 0
       ) {
-        throw genericRequestError();
+        throw genericRequestError('parse-calendar-query-multi-status-3');
       }
 
       const calendarData = [];
@@ -1297,7 +1356,7 @@ export function parseCalendarQueryMultiStatus(
             (child) => child.uri !== DAV_NAMESPACE || !['prop', 'status'].includes(child.local),
           )
         ) {
-          throw genericRequestError();
+          throw genericRequestError('parse-calendar-query-multi-status-4');
         }
         const props = childElements(propstat, DAV_NAMESPACE, 'prop');
         const statuses = childElements(propstat, DAV_NAMESPACE, 'status');
@@ -1312,22 +1371,22 @@ export function parseCalendarQueryMultiStatus(
             (property) => property.uri !== CALDAV_NAMESPACE || property.local !== 'calendar-data',
           )
         ) {
-          throw genericRequestError();
+          throw genericRequestError('parse-calendar-query-multi-status-5');
         }
         calendarData.push(...props[0].children);
       }
-      if (calendarData.length !== 1) throw genericRequestError();
+      if (calendarData.length !== 1) throw genericRequestError('parse-calendar-query-multi-status-6');
       intervals.push(...parseExpandedEventCalendar(
         calendarDataText(calendarData[0]),
         windowStart,
         windowEnd,
         {occupyTransparentAllDay},
       ));
-      if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError();
+      if (intervals.length > MAX_BUSY_INTERVALS) throw genericRequestError('parse-calendar-query-multi-status-7');
     }
     return intervals.sort((left, right) => left.start.toMillis() - right.start.toMillis());
-  } catch {
-    throw genericRequestError();
+  } catch (error) {
+    throw genericRequestError(iCloudCalDavFailureStage(error));
   }
 }
 
