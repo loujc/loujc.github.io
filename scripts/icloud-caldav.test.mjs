@@ -447,6 +447,30 @@ END:VCALENDAR\r
   );
 });
 
+test('redundant DTEND and DURATION agree before an expanded event is accepted', () => {
+  const event = (start, end, duration) => [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT',
+    start, end, duration, 'END:VEVENT', 'END:VCALENDAR', '',
+  ].join('\r\n');
+  const parse = (start, end, duration, from = windowStart, to = windowEnd) =>
+    parseCalendarQueryMultiStatus(calendarQueryXml(0, event(start, end, duration)), from, to);
+  const intervals = parse('DTSTART:20260721T010000Z', 'DTEND:20260721T020000Z', 'DURATION:PT1H');
+  assert.equal(intervals.length, 1);
+  assert.equal(intervals[0].end.diff(intervals[0].start, 'minutes').minutes, 60);
+  const allDay = parse('DTSTART;VALUE=DATE:20260721', 'DTEND;VALUE=DATE:20260722', 'DURATION:P1D');
+  assert.equal(allDay.length, 1);
+  const dstStart = DateTime.fromISO('2026-03-08T00:00:00', {zone: 'America/New_York'});
+  const dstEnd = dstStart.plus({days: 1});
+  const dst = parse('DTSTART;TZID=America/New_York:20260308T000000',
+    'DTEND;TZID=America/New_York:20260309T000000', 'DURATION:P1D', dstStart, dstEnd);
+  assert.equal(dst[0].end.diff(dst[0].start, 'hours').hours, 23);
+  for (const duration of ['DURATION:PT2H', 'DURATION:PT0S', 'DURATION:-PT1H', 'DURATION;X-PRIVATE=secret:PT1H']) {
+    assert.throws(() => parse('DTSTART:20260721T010000Z', 'DTEND:20260721T020000Z', duration),
+      /could not be fetched safely/);
+  }
+  assert.throws(() => parse('DTSTART:20260721T010000Z', 'DTEND:20260721T010000Z', 'DURATION:PT1H'));
+});
+
 test('calendar-query parser rejects SUMMARY, UID, alarm values, and all other unrequested data', () => {
   const token = 'private-provider-diagnostic';
   const event = (extra) => `BEGIN:VCALENDAR\r

@@ -1129,26 +1129,32 @@ function eventToInterval(
   const start = parseEventDate(properties.get('DTSTART'), dateZone);
   const endProperty = properties.get('DTEND');
   const durationProperty = properties.get('DURATION');
-  if (endProperty && durationProperty) throw genericRequestError('event-to-interval-1');
-
   let end;
   if (endProperty) {
     const parsedEnd = parseEventDate(endProperty, dateZone);
     if (parsedEnd.kind !== start.kind || parsedEnd.value <= start.value) throw genericRequestError('event-to-interval-2');
     end = parsedEnd.value;
-  } else if (durationProperty) {
+  }
+  if (durationProperty) {
     if (durationProperty.parameters.size !== 0) throw genericRequestError('event-to-interval-3');
     const duration = parsePositiveDuration(durationProperty.value);
+    let durationEnd;
     if (start.kind === 'date') {
       if (duration.dateDays === null) throw genericRequestError('event-to-interval-4');
-      end = start.value.plus({days: duration.dateDays});
+      durationEnd = start.value.plus({days: duration.dateDays});
     } else {
-      end = duration.dateDays === null
+      durationEnd = duration.dateDays === null
         ? start.value.plus({seconds: duration.seconds})
         : start.value.plus({days: duration.dateDays});
     }
-    if (!end.isValid || end <= start.value) throw genericRequestError('event-to-interval-5');
-  } else {
+    if (!durationEnd.isValid || durationEnd <= start.value) throw genericRequestError('event-to-interval-5');
+    // iCloud can return both properties after server-side recurrence expansion.
+    // Accept redundant timing only when both independently validated endpoints agree.
+    if (end && end.toMillis() !== durationEnd.toMillis()) {
+      throw genericRequestError('event-to-interval-1');
+    }
+    end = durationEnd;
+  } else if (!end) {
     end = start.kind === 'date' ? start.value.plus({days: 1}) : start.value;
   }
 
