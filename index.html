@@ -11,7 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
   <script>
     (() => {
       try {
@@ -84,36 +84,63 @@
         </div>
       </div>
       <div class="scene" data-reveal style="--d:.2s">
-        <svg class="chip-halo" viewBox="0 0 440 440" aria-hidden="true">
-          <g fill="none" stroke="currentColor" stroke-width="1.3">
-            <rect x="115" y="130" width="210" height="180" rx="14"/>
-            <rect x="137" y="152" width="166" height="136" rx="9" opacity=".4" stroke-dasharray="4 5"/>
-            <path d="M115 158H92M115 188H92M115 218H92M115 248H92M115 278H92"/>
-            <path d="M325 158h23M325 188h23M325 218h23M325 248h23M325 278h23"/>
-            <path d="M150 130v-23M180 130v-23M210 130v-23M240 130v-23M270 130v-23"/>
-            <path d="M150 310v23M180 310v23M210 310v23M240 310v23M270 310v23"/>
-            <path d="M92 158H60l-14 14v8"/>
-            <path d="M92 248H70l-16-16v-10"/>
-            <path d="M348 188h28l14 14v10"/>
-            <path d="M348 278h22l16-16v-12"/>
-            <path d="M150 107V88l14-14h20"/>
-            <path d="M240 107V70"/>
-            <path d="M180 333v14l14 14h18"/>
-            <path d="M270 333v24"/>
-            <circle cx="46" cy="180" r="3"/>
-            <circle cx="54" cy="222" r="3"/>
-            <circle cx="390" cy="212" r="3"/>
-            <circle cx="386" cy="250" r="3"/>
-            <circle cx="184" cy="74" r="3"/>
-            <circle cx="240" cy="70" r="3"/>
-            <circle cx="212" cy="361" r="3"/>
-            <circle cx="270" cy="357" r="3"/>
+        <svg class="chip-halo" viewBox="0 0 560 560" aria-hidden="true">
+          <g fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="34" y="34" width="492" height="492" rx="30" opacity=".16"/>
+            <g opacity=".45">
+              <circle cx="66" cy="66" r="6"/><circle cx="66" cy="66" r="1.8" class="dot-fill"/>
+              <circle cx="494" cy="66" r="6"/><circle cx="494" cy="66" r="1.8" class="dot-fill"/>
+              <circle cx="66" cy="494" r="6"/><circle cx="66" cy="494" r="1.8" class="dot-fill"/>
+              <circle cx="494" cy="494" r="6"/><circle cx="494" cy="494" r="1.8" class="dot-fill"/>
+            </g>
+            <rect x="62" y="128" width="54" height="54" rx="7" opacity=".6"/>
+            <path d="M116 142h16M116 158h16M116 174h16" opacity=".6"/>
+            <path d="M84 182v14M98 182v14" opacity=".6"/>
+            <path d="M132 158h44l16 16v18"/>
+            <circle cx="192" cy="192" r="3"/>
+            <path d="M98 196v16h18"/>
+            <circle cx="116" cy="212" r="3"/>
+            <path d="M398 92h34"/>
+            <rect x="432" y="84" width="30" height="16" rx="3" opacity=".7"/>
+            <path d="M462 92h37"/>
+            <circle cx="502" cy="92" r="3"/>
+            <path d="M455 132h18"/>
+            <path d="M473 124v16M481 124v16"/>
+            <path d="M481 132h26"/>
+            <circle cx="507" cy="132" r="3"/>
+            <path d="M151 240h-58l-20 20v16"/>
+            <circle cx="73" cy="276" r="3"/>
+            <path d="M151 300h-70"/>
+            <circle cx="75" cy="300" r="3"/>
+            <path d="M96 356h-12"/>
+            <path d="M84 348v16M76 348v16"/>
+            <path d="M76 356h-22"/>
+            <circle cx="54" cy="356" r="3"/>
+            <path d="M409 236h62l22 22v18"/>
+            <circle cx="493" cy="276" r="3"/>
+            <path d="M409 296h48"/>
+            <circle cx="463" cy="296" r="3"/>
+            <path class="signal" d="M409 430h64l24-24h24"/>
+            <circle cx="521" cy="406" r="3"/>
+            <rect x="452" y="452" width="48" height="48" rx="7" opacity=".6"/>
+            <path d="M452 476h-16M466 452v-14M490 452v-14" opacity=".6"/>
+            <circle cx="92" cy="452" r="8"/>
+            <circle cx="92" cy="452" r="2" class="dot-fill"/>
+            <path d="M100 452h44"/>
+            <circle cx="150" cy="452" r="3"/>
           </g>
         </svg>
         <span class="orbit" aria-hidden="true" data-i18n="hero.orbit">AI Agents · EDA · Chip Design</span>
-        <figure class="portrait">
-          <img src="portrait.jpg" alt="Portrait of Jincheng Lou" width="600" height="840">
-        </figure>
+        <div class="portrait-tilt">
+          <svg class="portrait-pins" viewBox="0 0 302 406" aria-hidden="true">
+            <path d="M0 60H22M0 104H22M0 148H22M0 192H22M0 236H22M0 280H22M0 324H22"/>
+            <path d="M280 60h22M280 104h22M280 148h22M280 192h22M280 236h22M280 280h22M280 324h22"/>
+            <circle cx="11" cy="11" r="2.6" class="dot-fill"/>
+          </svg>
+          <figure class="portrait">
+            <img src="portrait.jpg" alt="Portrait of Jincheng Lou" width="600" height="840">
+          </figure>
+        </div>
         <p class="caption" aria-hidden="true"><span>Jincheng Lou · 楼锦程</span><span data-i18n="hero.caption">ChipBagel / Peking University</span></p>
       </div>
       <div class="hero-foot">
@@ -399,6 +426,6 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="script.js?v=2"></script>
+  <script src="script.js?v=3"></script>
 </body>
 </html>
