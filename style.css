@@ -315,19 +315,15 @@ h2 {
   display: grid;
   place-items: center;
 }
-.halo {
+.chip-halo {
   position: absolute;
-  width: 380px; height: 380px;
-  border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
-  border-radius: 50%;
-  rotate: -18deg;
-}
-.halo::after {
-  content: "";
-  position: absolute;
-  inset: -30px;
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
-  border-radius: 50%;
+  inset: 0;
+  margin: auto;
+  width: 440px;
+  height: 440px;
+  color: var(--accent);
+  opacity: .5;
+  rotate: -8deg;
 }
 .orbit {
   position: absolute;
@@ -341,7 +337,7 @@ h2 {
 .portrait {
   margin: 0;
   width: 258px; height: 362px;
-  border-radius: 140px 140px 22px 22px;
+  border-radius: 120px 120px 22px 22px;
   border: 6px solid color-mix(in srgb, #ffffff 78%, transparent);
   overflow: hidden;
   position: relative;
@@ -356,7 +352,7 @@ h2 {
   translate: 0 -8px;
   box-shadow: 0 30px 90px rgba(155, 96, 34, .3);
 }
-.portrait img { width: 100%; height: 100%; object-fit: cover; }
+.portrait img { width: 100%; height: 100%; object-fit: cover; object-position: center top; }
 .portrait::after {
   content: "";
   position: absolute;
@@ -1216,7 +1212,8 @@ h2 {
   .actions { gap: 18px; flex-wrap: wrap; }
   .scene { height: 360px; }
   .portrait { width: 210px; height: 300px; }
-  .halo { width: 300px; height: 300px; }
+  .chip-halo { width: 330px; height: 330px; }
+  .intro br { display: none; }
   .caption { left: 34px; }
   .hero-foot { font-size: 8.5px; }
   .hero-foot a { font-size: 0; }
