@@ -40,6 +40,20 @@
       "avail.bookNote": "Green blocks are open. Email me a candidate slot and I will confirm — details of busy periods stay private.",
       "avail.loc": "Weekdays usually at Peking University, Haidian Campus; weekends uncertain.",
       "avail.cta": "Email to propose a time",
+      "mf.title": "Quick request", "mf.duration": "Duration", "mf.min30": "30 min", "mf.min60": "60 min",
+      "mf.date": "Date", "mf.time": "Candidate time",
+      "mf.namePh": "Your name", "mf.emailPh": "Reply email", "mf.topicPh": "What to discuss? (optional)",
+      "mf.submit": "Open email draft",
+      "mf.note": "Sends a request draft by email — the booking is confirmed by reply.",
+      "mf.empty": "No open slots this week — try another week.",
+      "mf.need": "Please fill in your name and reply email.",
+      mfDate: (d) => {
+        const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][d.getUTCDay()];
+        const mon = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()];
+        return `${wd}, ${mon} ${d.getUTCDate()}`;
+      },
+      mfSubject: (name) => `Meeting request from ${name}`,
+      mfBody: (f) => `Hi Jincheng,\n\nI would like to request a meeting.\n\n  Proposed time: ${f.date} ${f.range} (China Standard Time, UTC+8)\n  Duration: ${f.duration} minutes\n  My email: ${f.email}\n  Topic: ${f.topic || "—"}\n\nThis is a request, not a confirmed booking — please confirm by reply.\n`,
       "work.eyebrow": "Selected Work", "work.title": "Selected Projects",
       "work.note": `Open-source systems for autonomous research,<br>agentic chip design, and AI-native learning tools.`,
       "p.lego.tag": "Agentic EDA",
@@ -116,6 +130,16 @@
       "avail.bookNote": "绿色时段为空闲可约。发邮件提出候选时间，我会尽快确认；占用时段的细节保持私密。",
       "avail.loc": "工作日通常在北京大学海淀校区，周末时间不确定。",
       "avail.cta": "邮件预约时间",
+      "mf.title": "快速预约", "mf.duration": "时长", "mf.min30": "30 分钟", "mf.min60": "60 分钟",
+      "mf.date": "日期", "mf.time": "候选时间",
+      "mf.namePh": "您的姓名", "mf.emailPh": "回复邮箱", "mf.topicPh": "想聊什么？（可选）",
+      "mf.submit": "生成预约邮件",
+      "mf.note": "将生成预约请求邮件草稿，最终以回复确认为准。",
+      "mf.empty": "本周暂无可约时段，试试切换一周。",
+      "mf.need": "请填写姓名和回复邮箱。",
+      mfDate: (d) => `${["周日", "周一", "周二", "周三", "周四", "周五", "周六"][d.getUTCDay()]} · ${d.getUTCMonth() + 1} 月 ${d.getUTCDate()} 日`,
+      mfSubject: (name) => `预约请求：${name}`,
+      mfBody: (f) => `你好 Jincheng：\n\n我想预约一次交流。\n\n  候选时间：${f.date} ${f.range}（中国标准时间 UTC+8）\n  时长：${f.duration} 分钟\n  我的邮箱：${f.email}\n  话题：${f.topic || "—"}\n\n此为预约请求，最终以回复确认为准。\n`,
       "work.eyebrow": "精选工作", "work.title": "精选项目",
       "work.note": `覆盖自主科研、智能体芯片设计<br>与 AI 原生学习工具的开源系统。`,
       "p.lego.tag": "AGENTIC EDA",
@@ -190,6 +214,10 @@
     for (const el of $$("[data-i18n-html]")) {
       const value = I18N[lang][el.dataset.i18nHtml];
       if (typeof value === "string") el.innerHTML = value;
+    }
+    for (const el of $$("[data-i18n-ph]")) {
+      const value = I18N[lang][el.dataset.i18nPh];
+      if (typeof value === "string") el.setAttribute("placeholder", value);
     }
     renderCalendar();
   };
@@ -294,6 +322,14 @@
     const [h, m] = clock.split(":").map(Number);
     return h * 60 + m;
   };
+  const fmtMinutes = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+  const calGuide = document.createElement("i");
+  calGuide.className = "cal-guide";
+  calGuide.hidden = true;
+  const guideTime = document.createElement("b");
+  guideTime.className = "cal-guide-time";
+  calGuide.append(guideTime);
 
   const renderCalendar = () => {
     const grid = $("#cal-grid");
@@ -317,6 +353,8 @@
     const dayStart = clockMinutes(display_hours.start);
     const dayEnd = clockMinutes(display_hours.end === "24:00" ? "24:00" : display_hours.end);
     const span = dayEnd - dayStart;
+    cal.dayStart = dayStart;
+    cal.span = span;
 
     const t = I18N[lang];
     const stale = Date.now() - Date.parse(generated_at) > (stale_after_hours ?? 6) * 3600e3;
@@ -360,7 +398,6 @@
 
     // free = display window minus busy; elapsed time today counts as expired
     const slotMinutes = cal.data.slot_minutes ?? 30;
-    const fmtMinutes = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
     const freeByDay = new Map();
     for (let i = 0; i < 7; i++) {
       const key = addDaysKey(weekStart, i);
@@ -389,6 +426,12 @@
         }
       }
       freeByDay.set(key, marked.filter((f) => f.expired || f.end - f.start >= slotMinutes));
+    }
+    cal.bookable = [];
+    for (let i = 0; i < 7; i++) {
+      const key = addDaysKey(weekStart, i);
+      const slots = (freeByDay.get(key) ?? []).filter((f) => !f.expired);
+      if (slots.length) cal.bookable.push({ key, slots });
     }
 
     grid.replaceChildren();
@@ -455,12 +498,107 @@
       day.append(head, track);
       grid.append(day);
     }
+    grid.append(calGuide);
 
     $("#cal-updated").textContent = t.calUpdated(generated_at);
+    mfPopulate();
   };
   $("#cal-prev").addEventListener("click", () => { cal.weekIndex -= 1; renderCalendar(); });
   $("#cal-next").addEventListener("click", () => { cal.weekIndex += 1; renderCalendar(); });
   loadAvailability().then(renderCalendar);
+
+  // hover guide: dashed line mapping the pointer to the time axis
+  const scrollBox = document.querySelector(".cal-scroll");
+  const hideGuide = () => { calGuide.hidden = true; };
+  scrollBox.addEventListener("mousemove", (event) => {
+    const gridEl = $("#cal-grid");
+    const track = gridEl.querySelector(".cal-track");
+    if (!track || !cal.data) return hideGuide();
+    const trackRect = track.getBoundingClientRect();
+    const gridRect = gridEl.getBoundingClientRect();
+    const y = event.clientY - trackRect.top;
+    if (y < -10 || y > trackRect.height + 10 || event.clientX < gridRect.left || event.clientX > gridRect.right) {
+      return hideGuide();
+    }
+    const raw = cal.dayStart + (Math.min(Math.max(y, 0), trackRect.height) / trackRect.height) * cal.span;
+    const snapped = Math.min(Math.max(Math.round(raw / 30) * 30, cal.dayStart), cal.dayStart + cal.span);
+    calGuide.hidden = false;
+    calGuide.style.top = `${trackRect.top - gridRect.top + ((snapped - cal.dayStart) / cal.span) * trackRect.height}px`;
+    guideTime.textContent = fmtMinutes(snapped);
+  });
+  scrollBox.addEventListener("mouseleave", hideGuide);
+
+  /* ——— quick request form ——— */
+  const mfState = { duration: 30 };
+  const mfDateSel = $("#mf-date");
+  const mfTimeSel = $("#mf-time");
+  const mfSubmit = $("#mf-submit");
+
+  function mfPopulate() {
+    if (!cal.data && !cal.failed) return;
+    const bookable = cal.bookable ?? [];
+    const empty = $("#mf-empty");
+    empty.hidden = bookable.length > 0;
+    const prev = mfDateSel.value;
+    mfDateSel.replaceChildren();
+    for (const day of bookable) {
+      const opt = document.createElement("option");
+      opt.value = day.key;
+      opt.textContent = I18N[lang].mfDate(dateFromKey(day.key));
+      mfDateSel.append(opt);
+    }
+    const keep = bookable.some((d) => d.key === prev) ? prev : bookable[0]?.key ?? "";
+    mfDateSel.value = keep;
+    const disabled = bookable.length === 0;
+    mfDateSel.disabled = mfTimeSel.disabled = mfSubmit.disabled = disabled;
+    mfFillTimes();
+  }
+
+  function mfFillTimes() {
+    const day = (cal.bookable ?? []).find((d) => d.key === mfDateSel.value);
+    mfTimeSel.replaceChildren();
+    if (!day) {
+      mfSubmit.disabled = true;
+      return;
+    }
+    mfSubmit.disabled = false;
+    for (const f of day.slots) {
+      for (let t = Math.ceil(f.start / 30) * 30; t + mfState.duration <= f.end; t += 30) {
+        const opt = document.createElement("option");
+        opt.value = String(t);
+        opt.textContent = `${fmtMinutes(t)} – ${fmtMinutes(t + mfState.duration)}`;
+        mfTimeSel.append(opt);
+      }
+    }
+  }
+
+  $$("#mf-duration button").forEach((btn) => btn.addEventListener("click", () => {
+    mfState.duration = Number(btn.dataset.min);
+    $$("#mf-duration button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+    mfFillTimes();
+  }));
+  mfDateSel.addEventListener("change", mfFillTimes);
+  mfSubmit.addEventListener("click", () => {
+    const name = $("#mf-name").value.trim();
+    const email = $("#mf-email").value.trim();
+    if (!name || !email) {
+      showToast(I18N[lang].mf.need);
+      return;
+    }
+    const key = mfDateSel.value;
+    const start = Number(mfTimeSel.value);
+    if (!key || Number.isNaN(start)) return;
+    const t = I18N[lang];
+    const subject = t.mfSubject(name);
+    const body = t.mfBody({
+      date: key,
+      range: `${fmtMinutes(start)}–${fmtMinutes(start + mfState.duration)}`,
+      duration: mfState.duration,
+      email,
+      topic: $("#mf-topic").value.trim(),
+    });
+    location.href = `mailto:jinchenglou@stu.pku.edu.cn?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  });
 
   /* ——— header / reveal / motion ——— */
   const head = $(".site-head");

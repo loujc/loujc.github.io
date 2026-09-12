@@ -125,11 +125,35 @@
         </div>
         <aside class="cal-aside" data-reveal style="--d:.1s">
           <h3 data-i18n="avail.book">Propose a time</h3>
-          <p data-i18n="avail.bookNote">Blank blocks are likely open. Email me a candidate slot and I will confirm — details of busy periods stay private.</p>
-          <p class="cal-loc" data-i18n="avail.loc">Weekdays usually at Peking University, Haidian Campus; weekends uncertain.</p>
+          <p data-i18n="avail.bookNote">Green blocks are open. Email me a candidate slot and I will confirm — details of busy periods stay private.</p>
           <div class="cal-actions">
             <a class="solid" href="mailto:jinchenglou@stu.pku.edu.cn?subject=Meeting%20request"><span data-i18n="avail.cta">Email to propose a time</span>&nbsp;<span aria-hidden="true">↗</span></a>
           </div>
+          <div class="meet-form">
+            <p class="mf-title" data-i18n="mf.title">Quick request</p>
+            <div class="mf-row">
+              <span class="mf-label" data-i18n="mf.duration">Duration</span>
+              <div class="mf-seg" id="mf-duration" role="group" aria-label="Duration">
+                <button type="button" data-min="30" aria-pressed="true" data-i18n="mf.min30">30 min</button>
+                <button type="button" data-min="60" aria-pressed="false" data-i18n="mf.min60">60 min</button>
+              </div>
+            </div>
+            <div class="mf-row">
+              <label class="mf-label" for="mf-date" data-i18n="mf.date">Date</label>
+              <select id="mf-date"></select>
+            </div>
+            <div class="mf-row">
+              <label class="mf-label" for="mf-time" data-i18n="mf.time">Candidate time</label>
+              <select id="mf-time"></select>
+            </div>
+            <input class="mf-input" id="mf-name" type="text" autocomplete="name" data-i18n-ph="mf.namePh" placeholder="Your name">
+            <input class="mf-input" id="mf-email" type="email" autocomplete="email" data-i18n-ph="mf.emailPh" placeholder="Reply email">
+            <input class="mf-input" id="mf-topic" type="text" data-i18n-ph="mf.topicPh" placeholder="What to discuss? (optional)">
+            <button class="solid mf-submit" id="mf-submit" type="button"><span data-i18n="mf.submit">Open email draft</span>&nbsp;<span aria-hidden="true">↗</span></button>
+            <p class="mf-note" data-i18n="mf.note">Sends a request draft by email — confirmed by reply.</p>
+            <p class="mf-empty" id="mf-empty" hidden data-i18n="mf.empty">No open slots this week — try another.</p>
+          </div>
+          <p class="cal-loc" data-i18n="avail.loc">Weekdays usually at Peking University, Haidian Campus; weekends uncertain.</p>
         </aside>
       </div>
     </section>
