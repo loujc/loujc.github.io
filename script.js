@@ -35,11 +35,11 @@
       "avail.note": `All times in China Standard Time (UTC+8).<br>Only occupied periods are published — details stay private.`,
       "avail.fail": "Availability is temporarily unavailable — please email me directly.",
       "avail.stale": "May be outdated — confirm by email",
-      "avail.busy": "Occupied",
+      "avail.busy": "Occupied", "avail.free": "Open",
       "avail.book": "Propose a time",
-      "avail.bookNote": "Blank blocks are likely open. Email me a candidate slot and I will confirm — details of busy periods stay private.",
+      "avail.bookNote": "Green blocks are open. Email me a candidate slot and I will confirm — details of busy periods stay private.",
       "avail.loc": "Weekdays usually at Peking University, Haidian Campus; weekends uncertain.",
-      "avail.cta": "Email to propose a time", "avail.full": "Open full scheduler",
+      "avail.cta": "Email to propose a time",
       "work.eyebrow": "Selected Work", "work.title": "Selected Projects",
       "work.note": `Open-source systems for autonomous research,<br>agentic chip design, and AI-native learning tools.`,
       "p.lego.tag": "Agentic EDA",
@@ -111,11 +111,11 @@
       "avail.note": `时间统一按中国标准时间（UTC+8）显示。<br>仅公开占用时段，日程细节保持私密。`,
       "avail.fail": "日程暂时无法加载，请直接邮件联系我。",
       "avail.stale": "数据可能已过期，请邮件确认",
-      "avail.busy": "占用",
+      "avail.busy": "占用", "avail.free": "空闲可约",
       "avail.book": "预约时间",
-      "avail.bookNote": "空白时段大概率有空。发邮件提出候选时间，我会尽快确认；占用时段的细节保持私密。",
+      "avail.bookNote": "绿色时段为空闲可约。发邮件提出候选时间，我会尽快确认；占用时段的细节保持私密。",
       "avail.loc": "工作日通常在北京大学海淀校区，周末时间不确定。",
-      "avail.cta": "邮件预约时间", "avail.full": "打开完整日程",
+      "avail.cta": "邮件预约时间",
       "work.eyebrow": "精选工作", "work.title": "精选项目",
       "work.note": `覆盖自主科研、智能体芯片设计<br>与 AI 原生学习工具的开源系统。`,
       "p.lego.tag": "AGENTIC EDA",
@@ -342,7 +342,7 @@
     $("#cal-prev").disabled = cal.weekIndex <= 0;
     $("#cal-next").disabled = cal.weekIndex >= totalWeeks - 1;
 
-    const blocksByDay = new Map();
+    const busyByDay = new Map();
     for (const interval of busy) {
       const start = shanghaiParts(new Date(interval.start));
       const end = shanghaiParts(new Date(interval.end));
@@ -353,12 +353,63 @@
         else continue;
       }
       if (start.key < weekStart || start.key > weekEnd) continue;
-      const list = blocksByDay.get(start.key) ?? [];
+      const list = busyByDay.get(start.key) ?? [];
       list.push({ start: start.minutes, end: endMinutes });
-      blocksByDay.set(start.key, list);
+      busyByDay.set(start.key, list);
+    }
+
+    // free = display window minus busy; elapsed time today counts as expired
+    const slotMinutes = cal.data.slot_minutes ?? 30;
+    const fmtMinutes = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+    const freeByDay = new Map();
+    for (let i = 0; i < 7; i++) {
+      const key = addDaysKey(weekStart, i);
+      const busyList = (busyByDay.get(key) ?? []).slice().sort((a, b) => a.start - b.start);
+      const raw = [];
+      let cursor = dayStart;
+      for (const b of busyList) {
+        if (cursor < b.start) raw.push({ start: cursor, end: Math.min(b.start, dayEnd) });
+        cursor = Math.max(cursor, b.end);
+      }
+      if (cursor < dayEnd) raw.push({ start: cursor, end: dayEnd });
+
+      const marked = [];
+      for (const f of raw) {
+        if (key < nowSH.key) {
+          marked.push({ ...f, expired: true });
+        } else if (key === nowSH.key && f.start < nowSH.minutes) {
+          if (f.end <= nowSH.minutes) {
+            marked.push({ ...f, expired: true });
+          } else {
+            marked.push({ start: f.start, end: nowSH.minutes, expired: true });
+            marked.push({ start: nowSH.minutes, end: f.end, expired: false });
+          }
+        } else {
+          marked.push({ ...f, expired: false });
+        }
+      }
+      freeByDay.set(key, marked.filter((f) => f.expired || f.end - f.start >= slotMinutes));
     }
 
     grid.replaceChildren();
+
+    // time axis
+    const axis = document.createElement("div");
+    axis.className = "cal-axis";
+    axis.setAttribute("aria-hidden", "true");
+    const axisHead = document.createElement("div");
+    axisHead.className = "cal-day-head";
+    const axisTrack = document.createElement("div");
+    axisTrack.className = "cal-axis-track";
+    for (let h = Math.ceil(dayStart / 60); h * 60 <= dayEnd; h += 2) {
+      const label = document.createElement("span");
+      label.textContent = `${String(h).padStart(2, "0")}:00`;
+      label.style.top = `${((h * 60 - dayStart) / span) * 100}%`;
+      axisTrack.append(label);
+    }
+    axis.append(axisHead, axisTrack);
+    grid.append(axis);
+
     for (let i = 0; i < 7; i++) {
       const key = addDaysKey(weekStart, i);
       const date = dateFromKey(key);
@@ -380,11 +431,24 @@
 
       const track = document.createElement("div");
       track.className = "cal-track";
-      for (const block of blocksByDay.get(key) ?? []) {
+      const place = (start, end) => {
         const el = document.createElement("i");
         el.className = "cal-block";
-        el.style.top = `${((Math.max(block.start, dayStart) - dayStart) / span) * 100}%`;
-        el.style.height = `${Math.max(((block.end - block.start) / span) * 100, 1)}%`;
+        el.style.top = `${((Math.max(start, dayStart) - dayStart) / span) * 100}%`;
+        el.style.height = `${Math.max(((end - start) / span) * 100, 1)}%`;
+        return el;
+      };
+      for (const b of busyByDay.get(key) ?? []) track.append(place(b.start, b.end));
+      for (const f of freeByDay.get(key) ?? []) {
+        const el = place(f.start, f.end);
+        el.classList.add("free");
+        if (f.expired) el.classList.add("expired");
+        else if (f.end - f.start >= 60) {
+          const label = document.createElement("b");
+          label.className = "cal-slot";
+          label.textContent = `${fmtMinutes(f.start)}–${fmtMinutes(f.end)}`;
+          el.append(label);
+        }
         track.append(el);
       }
 
