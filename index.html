@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
   <script>
     (() => {
@@ -43,6 +44,7 @@
         <a href="#about" data-i18n="nav.about">About</a>
         <a href="#research" data-i18n="nav.research">Publications</a>
         <a href="#work" data-i18n="nav.work">Projects</a>
+        <a href="#places" data-i18n="nav.places">Travels</a>
         <a href="#contact" data-i18n="nav.contact">Contact</a>
       </nav>
       <div class="head-actions">
@@ -164,8 +166,8 @@
         <h2 data-i18n="about.title">About me</h2>
       </div>
       <div class="about-right">
-        <p class="lead" data-reveal data-i18n-html="about.lead">Jincheng Lou is the Founder &amp; CEO of ChipBagel, a serial entrepreneur in AI agents with experience spanning EDA and chip design.</p>
-        <p class="bio" data-reveal data-i18n="about.bio1">He is a Ph.D. candidate at Peking University's School of Integrated Circuits, advised by Prof. Yibo Lin. He serves on the School's Innovation and Entrepreneurship Committee and as Deputy Secretary of its Youth League Committee. He is also a Northeastern University alumni mentor and previously served as Vice President of the Peking University Innovation Society.</p>
+        <p class="lead" data-reveal data-i18n-html="about.lead">Jincheng Lou is the Founder &amp; CEO of ChipBagel, a serial entrepreneur in AI agents with a background spanning EDA, chip design, chip-level applications (robotics and autonomous driving), and model training.</p>
+        <p class="bio" data-reveal data-i18n="about.bio1">He is a Ph.D. candidate at Peking University's School of Integrated Circuits, advised by Prof. Yibo Lin. He serves on the School's Innovation and Entrepreneurship Committee and formerly served as Deputy Secretary of its Youth League Committee. He is also a Northeastern University alumni mentor and previously served as Vice President of the Peking University Innovation Society.</p>
         <p class="bio" data-reveal data-i18n="about.bio2">He has authored or co-authored papers with Best Paper Nominations at ICCAD and ISEDA. His industry experience includes NPU algorithm design and optimization at a unicorn AI-chip company, and participation in multiple 22nm to 28nm tapeouts. Before ChipBagel, he founded the angel-funded agent-hardware company Takway.AI, which received international media coverage at CES; his earlier robotics work was deployed in the main library at Shanghai Jiao Tong University.</p>
         <ol class="xp" data-reveal>
           <li><span class="when">2026 — <span data-i18n="xp.now">Now</span></span><div><strong data-i18n="xp1.org">ChipBagel · Founder &amp; CEO</strong><small data-i18n="xp1.note">Building at the intersection of AI agents, EDA, and chip design.</small></div></li>
@@ -311,9 +313,34 @@
       </div>
     </section>
 
+    <section id="places" class="wrap section">
+      <div class="sec-head" data-reveal>
+        <div>
+          <p class="eyebrow">06 · <span data-i18n="map.eyebrow">Footprints</span></p>
+          <h2 data-i18n="map.title">Where I've been</h2>
+        </div>
+        <div class="sec-side">
+          <div class="map-views" role="group" aria-label="Map view">
+            <button type="button" id="map-view-world" aria-pressed="true" data-i18n="map.viewWorld">World</button>
+            <button type="button" id="map-view-china" aria-pressed="false" data-i18n="map.viewChina">China</button>
+          </div>
+          <p class="sec-note" data-i18n-html="map.note">10 countries &amp; regions, 50+ cities across China.<br>Hometown Shanghai · Based in Beijing.</p>
+        </div>
+      </div>
+      <div class="map-card" data-reveal>
+        <p class="map-fallback" id="map-fallback" hidden data-i18n="map.fallback">The map needs an internet connection to load.</p>
+        <div id="map"></div>
+        <div class="map-legend">
+          <span><i class="lg-home" aria-hidden="true"></i><span data-i18n="map.legendHome">Hometown · Shanghai</span></span>
+          <span><i class="lg-now" aria-hidden="true"></i><span data-i18n="map.legendNow">Based in Beijing</span></span>
+          <span><i class="lg-visited" aria-hidden="true"></i><span data-i18n="map.legendVisited">Visited</span></span>
+        </div>
+      </div>
+    </section>
+
     <section id="contact" class="wrap section contact">
       <div class="contact-copy" data-reveal>
-        <p class="eyebrow">06 · <span data-i18n="contact.eyebrow">Contact</span></p>
+        <p class="eyebrow">07 · <span data-i18n="contact.eyebrow">Contact</span></p>
         <h2 data-i18n-html="contact.title">Let's build<br>what's next.</h2>
         <p class="bio" data-i18n="contact.note">Public availability is shown in China Standard Time — only occupied periods are published. On weekdays I am usually at Peking University's Haidian Campus.</p>
         <a class="bigmail" href="mailto:jinchenglou@stu.pku.edu.cn">jinchenglou@stu.pku.edu.cn&nbsp;<span aria-hidden="true">↗</span></a>
@@ -341,6 +368,7 @@
   </footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

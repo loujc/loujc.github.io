@@ -9,11 +9,17 @@
   /* ——— theme ——— */
   const metaTheme = $('meta[name="theme-color"]');
   const THEME_BG = { light: "#fbf6ef", dark: "#17120d" };
+  let mapTiles = null;
+  const TILE_URLS = {
+    light: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    dark: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+  };
   const storedTheme = localStorage.getItem("theme");
   const applyTheme = (theme) => {
     root.dataset.theme = theme;
     localStorage.setItem("theme", theme);
     if (metaTheme) metaTheme.setAttribute("content", THEME_BG[theme]);
+    if (mapTiles) mapTiles.setUrl(TILE_URLS[theme]);
   };
   applyTheme(storedTheme ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
   $("#theme-toggle").addEventListener("click", () => {
@@ -23,7 +29,7 @@
   /* ——— i18n ——— */
   const I18N = {
     en: {
-      "nav.avail": "Availability", "nav.work": "Projects", "nav.research": "Publications", "nav.about": "About", "nav.contact": "Contact",
+      "nav.avail": "Availability", "nav.work": "Projects", "nav.research": "Publications", "nav.about": "About", "nav.places": "Travels", "nav.contact": "Contact",
       "hero.eyebrow": "ChipBagel · Peking University",
       "hero.title": `Jincheng Lou<span class="zh" lang="zh-Hans">楼锦程</span>`,
       "hero.intro": `Founder &amp; CEO of <strong>ChipBagel</strong>, building at the intersection of AI agents and chip design. Ph.D. candidate in Integrated Circuit Science and Engineering at Peking University, advised by Prof. Yibo Lin.`,
@@ -79,8 +85,8 @@
       "pub.quartet": "A 22nm compute-in-memory AI accelerator with heterogeneous tensor engines and off-chip-less dataflow.",
       "badge.bpn": "Best Paper Nomination",
       "about.eyebrow": "Background", "about.title": "About me",
-      "about.lead": `Jincheng Lou is the Founder &amp; CEO of ChipBagel, a serial entrepreneur in AI agents with experience spanning EDA and chip design.`,
-      "about.bio1": "He is a Ph.D. candidate at Peking University's School of Integrated Circuits, advised by Prof. Yibo Lin. He serves on the School's Innovation and Entrepreneurship Committee and as Deputy Secretary of its Youth League Committee. He is also a Northeastern University alumni mentor and previously served as Vice President of the Peking University Innovation Society.",
+      "about.lead": `Jincheng Lou is the Founder &amp; CEO of ChipBagel, a serial entrepreneur in AI agents with a background spanning EDA, chip design, chip-level applications (robotics and autonomous driving), and model training.`,
+      "about.bio1": "He is a Ph.D. candidate at Peking University's School of Integrated Circuits, advised by Prof. Yibo Lin. He serves on the School's Innovation and Entrepreneurship Committee and formerly served as Deputy Secretary of its Youth League Committee. He is also a Northeastern University alumni mentor and previously served as Vice President of the Peking University Innovation Society.",
       "about.bio2": "He has authored or co-authored papers with Best Paper Nominations at ICCAD and ISEDA. His industry experience includes NPU algorithm design and optimization at a unicorn AI-chip company, and participation in multiple 22nm to 28nm tapeouts. Before ChipBagel, he founded the angel-funded agent-hardware company Takway.AI, which received international media coverage at CES; his earlier robotics work was deployed in the main library at Shanghai Jiao Tong University.",
       "xp.now": "Now",
       "xp1.org": "ChipBagel · Founder & CEO", "xp1.note": "Building at the intersection of AI agents, EDA, and chip design.",
@@ -95,6 +101,11 @@
       "contact.xhs": `Xiaohongshu<em>@楼锦程</em>`,
       "contact.wechat": `WeChat<em>Nikolas_loujc</em>`, "contact.copy": "Copy", "contact.cv": "PDF · English",
       "foot.email": "Email ↗", "foot.top": "Back to top ↑",
+      "map.eyebrow": "Footprints", "map.title": "Where I've been",
+      "map.note": `10 countries &amp; regions, 50+ cities across China.<br>Hometown Shanghai · Based in Beijing.`,
+      "map.viewWorld": "World", "map.viewChina": "China",
+      "map.legendHome": "Hometown · Shanghai", "map.legendNow": "Based in Beijing", "map.legendVisited": "Visited",
+      "map.fallback": "The map needs an internet connection to load.",
       title: "Jincheng Lou · 楼锦程 — ChipBagel Founder & CEO",
       calDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
       calToday: "Today",
@@ -111,7 +122,7 @@
       toastTheme: null, toastLang: null,
     },
     zh: {
-      "nav.avail": "空闲时间", "nav.work": "项目", "nav.research": "论文", "nav.about": "关于", "nav.contact": "联系",
+      "nav.avail": "空闲时间", "nav.work": "项目", "nav.research": "论文", "nav.about": "关于", "nav.places": "足迹", "nav.contact": "联系",
       "hero.eyebrow": "ChipBagel · 北京大学",
       "hero.title": `楼锦程<span class="en-sub">JINCHENG LOU</span>`,
       "hero.intro": `<strong>ChipBagel 创始人兼 CEO</strong>，聚焦 AI Agent 与芯片设计的交叉方向。北京大学集成电路学院博士生，师从林亦波教授。`,
@@ -163,8 +174,8 @@
       "pub.quartet": "22nm 数字存内计算 AI 加速器，异构张量引擎与无片外数据流。",
       "badge.bpn": "最佳论文提名",
       "about.eyebrow": "背景", "about.title": "关于我",
-      "about.lead": `楼锦程，ChipBagel 创始人兼 CEO，Agent 领域连续创业者，拥有 EDA 与芯片设计经验。`,
-      "about.bio1": "北京大学集成电路学院博士生，师从林亦波教授；现任学院双创委员、团委副书记，同时担任东北大学校友导师，曾任北京大学创新学社副会长。",
+      "about.lead": `楼锦程，ChipBagel 创始人兼 CEO，Agent 领域连续创业者，拥有 EDA、芯片设计、芯片上层应用（机器人/无人驾驶）与模型训练的融合背景。`,
+      "about.bio1": "北京大学集成电路学院博士生，师从林亦波教授；现任学院双创委员，曾任团委副书记，同时担任东北大学校友导师，此前曾任北京大学创新学社副会长。",
       "about.bio2": "已发表多篇领域顶级会议论文，获 ICCAD 与 ISEDA 最佳论文提名奖。曾在独角兽 AI 芯片公司负责 NPU 算法设计与优化，多次参与 22nm 至 28nm 工艺流片。曾创办天使轮 Agent 硬件公司 Takway.AI，在 CES 获多国头部媒体报道；此前参与研发的机器人已落地上海交通大学闵行校区图书馆主馆。",
       "xp.now": "至今",
       "xp1.org": "ChipBagel · 创始人兼 CEO", "xp1.note": "聚焦 AI Agent、EDA 与芯片设计的交叉方向。",
@@ -179,6 +190,11 @@
       "contact.xhs": `小红书<em>@楼锦程</em>`,
       "contact.wechat": `微信<em>Nikolas_loujc</em>`, "contact.copy": "复制", "contact.cv": "PDF · 英文",
       "foot.email": "邮箱 ↗", "foot.top": "回到顶部 ↑",
+      "map.eyebrow": "足迹", "map.title": "去过的地方",
+      "map.note": `到访 10 个国家与地区、全国 50 余城。<br>家乡上海 · 现居北京。`,
+      "map.viewWorld": "全球", "map.viewChina": "中国",
+      "map.legendHome": "家乡 · 上海", "map.legendNow": "现居 · 北京", "map.legendVisited": "到访城市",
+      "map.fallback": "地图需要联网加载。",
       title: "楼锦程 · Jincheng Lou — ChipBagel 创始人兼 CEO",
       calDays: ["周一", "周二", "周三", "周四", "周五", "周六", "周日"],
       calToday: "今天",
@@ -252,6 +268,77 @@
   };
   $("#wechat-btn").addEventListener("click", copyWechat);
   $("#wechat-btn-2").addEventListener("click", copyWechat);
+
+  /* ——— places map ——— */
+  const MAP_INTL = [
+    { n: "汉诺威 · Hannover", lat: 52.376, lon: 9.732 },
+    { n: "法兰克福 · Frankfurt", lat: 50.111, lon: 8.682 },
+    { n: "巴黎 · Paris", lat: 48.857, lon: 2.352 },
+    { n: "阿姆斯特丹 · Amsterdam", lat: 52.368, lon: 4.904 },
+    { n: "卢森堡 · Luxembourg", lat: 49.612, lon: 6.132 },
+    { n: "布鲁塞尔 · Brussels", lat: 50.850, lon: 4.352 },
+    { n: "新加坡 · Singapore", lat: 1.352, lon: 103.820 },
+    { n: "首尔 · Seoul", lat: 37.567, lon: 126.978 },
+    { n: "香港 · Hong Kong", lat: 22.319, lon: 114.169 },
+    { n: "澳门 · Macau", lat: 22.199, lon: 113.544 },
+  ];
+  const MAP_CN = [
+    { n: "上海", lat: 31.230, lon: 121.474, tag: "home" },
+    { n: "北京", lat: 39.904, lon: 116.407, tag: "now" },
+    { n: "海口", lat: 20.044, lon: 110.200 }, { n: "三亚", lat: 18.253, lon: 109.512 }, { n: "陵水", lat: 18.503, lon: 110.031 },
+    { n: "广州", lat: 23.129, lon: 113.264 }, { n: "汕头", lat: 23.354, lon: 116.682 }, { n: "佛山", lat: 23.022, lon: 113.122 }, { n: "深圳", lat: 22.543, lon: 114.058 },
+    { n: "厦门", lat: 24.480, lon: 118.089 }, { n: "泉州", lat: 24.874, lon: 118.676 }, { n: "莆田", lat: 25.454, lon: 119.008 }, { n: "福州", lat: 26.074, lon: 119.297 },
+    { n: "金华", lat: 29.100, lon: 119.650 }, { n: "宁波", lat: 29.868, lon: 121.544 }, { n: "舟山", lat: 29.985, lon: 122.107 }, { n: "杭州", lat: 30.274, lon: 120.155 }, { n: "嘉兴", lat: 30.752, lon: 120.750 },
+    { n: "黄山", lat: 29.715, lon: 118.338 },
+    { n: "南京", lat: 32.060, lon: 118.797 }, { n: "无锡", lat: 31.491, lon: 120.312 }, { n: "苏州", lat: 31.299, lon: 120.585 }, { n: "泰州", lat: 32.455, lon: 119.923 }, { n: "扬州", lat: 32.395, lon: 119.413 }, { n: "镇江", lat: 32.188, lon: 119.426 }, { n: "连云港", lat: 34.597, lon: 119.222 },
+    { n: "日照", lat: 35.416, lon: 119.527 }, { n: "青岛", lat: 36.067, lon: 120.383 }, { n: "济南", lat: 36.651, lon: 117.120 }, { n: "泰安", lat: 36.190, lon: 117.088 },
+    { n: "天津", lat: 39.343, lon: 117.362 },
+    { n: "保定", lat: 38.874, lon: 115.465 }, { n: "廊坊", lat: 39.538, lon: 116.704 }, { n: "雄安", lat: 38.990, lon: 115.860 }, { n: "秦皇岛", lat: 39.935, lon: 119.598 },
+    { n: "沈阳", lat: 41.806, lon: 123.432 }, { n: "大连", lat: 38.914, lon: 121.615 }, { n: "丹东", lat: 40.001, lon: 124.354 },
+    { n: "吉林", lat: 43.838, lon: 126.550 }, { n: "白山", lat: 41.946, lon: 126.415 },
+    { n: "哈尔滨", lat: 45.804, lon: 126.534 }, { n: "佳木斯", lat: 46.800, lon: 130.318 }, { n: "鹤岗", lat: 47.350, lon: 130.298 }, { n: "延边", lat: 42.905, lon: 129.509 },
+    { n: "大理", lat: 25.607, lon: 100.268 },
+    { n: "成都", lat: 30.573, lon: 104.067 },
+    { n: "重庆", lat: 29.563, lon: 106.552 },
+    { n: "兰州", lat: 36.061, lon: 103.834 }, { n: "张掖", lat: 38.926, lon: 100.450 }, { n: "嘉峪关", lat: 39.772, lon: 98.277 }, { n: "酒泉", lat: 39.732, lon: 98.494 }, { n: "敦煌", lat: 40.142, lon: 94.662 },
+    { n: "西宁", lat: 36.617, lon: 101.778 }, { n: "冷湖", lat: 38.750, lon: 93.373 },
+    { n: "西安", lat: 34.342, lon: 108.940 },
+    { n: "太原", lat: 37.871, lon: 112.549 },
+    { n: "长沙", lat: 28.228, lon: 112.939 },
+  ];
+  if (window.L) {
+    const mapObj = L.map("map", { worldCopyJump: true });
+    mapTiles = L.tileLayer(TILE_URLS[root.dataset.theme], {
+      maxZoom: 16,
+      attribution: 'Tiles &copy; Esri — Esri, HERE, Garmin, FAO, NOAA, USGS | &copy; OpenStreetMap contributors',
+    }).addTo(mapObj);
+    const addMarker = (p, kind) => {
+      const style = kind === "home"
+        ? { radius: 8, color: "#1f1a14", weight: 2.5, fillColor: "#fbf6ef", fillOpacity: 1 }
+        : kind === "now"
+          ? { radius: 8, color: "#ffffff", weight: 2, fillColor: "#4d7a55", fillOpacity: 1 }
+          : { radius: 5, color: "#ffffff", weight: 1.5, fillColor: "#b96e2c", fillOpacity: .95 };
+      return L.circleMarker([p.lat, p.lon], style)
+        .addTo(mapObj)
+        .bindTooltip(p.n, { direction: "top", offset: [0, -4] });
+    };
+    const allPts = MAP_INTL.map((p) => addMarker(p, "visited").getLatLng());
+    for (const p of MAP_CN) allPts.push(addMarker(p, p.tag ?? "visited").getLatLng());
+    const boundsAll = L.latLngBounds(allPts);
+    const boundsCN = L.latLngBounds(MAP_CN.map((p) => [p.lat, p.lon]));
+    mapObj.fitBounds(boundsAll.pad(0.12));
+    const setView = (which) => {
+      $("#map-view-world").setAttribute("aria-pressed", String(which === "world"));
+      $("#map-view-china").setAttribute("aria-pressed", String(which === "china"));
+      mapObj.flyToBounds(which === "world" ? boundsAll.pad(0.12) : boundsCN.pad(0.18), { duration: 1.1 });
+    };
+    $("#map-view-world").addEventListener("click", () => setView("world"));
+    $("#map-view-china").addEventListener("click", () => setView("china"));
+    setTimeout(() => mapObj.invalidateSize(), 700);
+    addEventListener("resize", () => mapObj.invalidateSize());
+  } else {
+    $("#map-fallback")?.removeAttribute("hidden");
+  }
 
   /* ——— availability calendar ——— */
   const LIVE_URL = "https://loujc.github.io/availability/busy.json";
