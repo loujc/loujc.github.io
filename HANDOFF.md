@@ -1,7 +1,7 @@
 # HANDOFF — loujc.github.io 个人主页 · 交接文档
 
 > 写给接下来接手这个项目的 AI agent / 开发者：读完这一页即可直接开工，不必重新摸索。
-> 最近一次更新：2026-09-13（背景 SVG 重排 + 居中修复，commit `bff4aea`）。
+> 最近一次更新：2026-09-13（背景 SVG 重排居中 + 移除引脚线 + 板框下移）。
 
 ## 0. 一句话现状
 
@@ -49,7 +49,7 @@
 - 主题：`<html data-theme>` + localStorage + head 内 pre-paint 脚本防闪烁；Leaflet 地图瓦片随主题 `setUrl`（Esri World Light/Dark Gray Canvas；CARTO 现在要 API key，别换回去）。
 - 资源版本：`style.css?v=N`、`script.js?v=N`（当前 css `v=4`，js `v=3`，以 index.html 实际为准）。**改了 css/js 必须递增对应 N**，否则用户浏览器吃缓存。
 - `body { overflow-x: clip }`（不是 hidden）——论文年份列的 sticky 依赖它，别改回。
-- 头像区结构：`.scene`（定位容器）> `.chip-halo`（PCB 背景 SVG，内联）+ `.orbit`（右侧竖排徽标）+ `.portrait-tilt`（芯片封装照：`.portrait-pins` 引脚 SVG + `.portrait` 白边圆角照片）+ `.caption`（左下署名）。
+- 头像区结构：`.scene`（定位容器）> `.chip-halo`（PCB 背景 SVG，内联）+ `.orbit`（右侧竖排徽标）+ `.portrait-tilt`（`.portrait` 白边圆角照片；曾有的 `.portrait-pins` 引脚装饰已按用户要求移除）+ `.caption`（左下署名）。
 
 ## 5. 头像 PCB 背景的坐标系（改 SVG 前必读）
 
@@ -71,7 +71,7 @@
 - 板块顺序：Hero(01) → 本周空闲(02) → 关于我(03) → 论文(04) → 精选项目(05) → 足迹地图(06) → slogan 带 → 联系(07)。
 - 日历：不要任何"打开完整日程"二级链接；空闲格直接可见、纵轴标时间、随日历拉伸（`.cal-scroll` 是 flex:1 那条链）；悬停有虚线实时对应左轴时间；下方简易预约表单（mailto）。
 - 文案已纠正：公司是 **SAGE / 飒智**（不是 Sazhi/思知）；slogan「心若诚，自成传奇。」；"曾任团委副书记"是过去式；"关于我"单行标题、honors 细节整体删除。
-- Hero：主按钮是"本周空闲时间"（强调），次按钮"精选项目"；简介两行（ChipBagel 创始人兼 CEO / 北大博士生师从林亦波）；头像框是芯片封装造型（用户点名要的，别改回拱形）。
+- Hero：主按钮是"本周空闲时间"（强调），次按钮"精选项目"；简介两行（ChipBagel 创始人兼 CEO / 北大博士生师从林亦波）；头像区：白边圆角照片 + PCB 背景——拱形框、照片两侧引脚线都是试过后被用户否掉/移除的形态，别加回来。
 
 ## 7. 已知坑（都踩过）
 
