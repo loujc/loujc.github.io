@@ -1,14 +1,14 @@
-# Homepage redesign — branch `glm53flash`
+# Homepage — branch `glm53flash`
 
-A static, single-page redesign of [loujc.github.io](https://loujc.github.io) in the ChipBagel brand palette (cream `#FBF6EF`, ink `#171717`, bagel-caramel accent `#B96E2C` — extracted from the BP deck). All profile text, publication metadata, and the portrait come from the live site's content (`data/authors/me.yaml`, `content/en|zh/…`), so nothing is invented.
+The static, single-page homepage of [loujc.github.io](https://loujc.github.io), deployed by the repository's GitHub Actions pipeline (see `main:.github/workflows/build.yml`): the `availability` job keeps generating the anonymized `busy.json` from private calendar sources, and the build job assembles this branch with the fresh `busy.json` and deploys it to GitHub Pages. Visual language: the ChipBagel brand palette (cream `#FBF6EF`, ink `#171717`, bagel-caramel accent `#B96E2C`). All profile text, publication metadata, and the portrait come from the site's content (`data/authors/me.yaml`, `content/en|zh/…`), so nothing is invented.
 
 ## Branch map
 
 | Branch | Contents |
 | --- | --- |
-| `main` | Current live Hugo site (HugoBlox academic CV) — untouched |
+| `main` | Pipeline & content sources: availability scripts, workflows, Hugo content (no longer built as a site) |
 | `astra` | "Design study 01" — the earlier local demo, preserved verbatim |
-| `glm53flash` | This branch: a full static redesign (no Hugo) |
+| `glm53flash` | This branch: the static site that is deployed |
 
 ## Features
 
