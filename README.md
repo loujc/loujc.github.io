@@ -1,46 +1,27 @@
-# Jincheng Lou - Academic Homepage
+# Homepage redesign — branch `glm53flash`
 
-Personal academic homepage for [Jincheng Lou](https://github.com/loujc), built
-with the [HugoBlox Academic CV](https://github.com/HugoBlox/theme-academic-cv)
-template and prepared for deployment with GitHub Pages.
+A static, single-page redesign of [loujc.github.io](https://loujc.github.io), previewing a new visual direction: paper-cream canvas, deep-green ink, editorial typography, and restrained motion. All profile text, publication metadata, and the portrait are taken from the live site's content (`data/authors/me.yaml`, `content/en/…`), so nothing here is invented.
 
-## Local development
+## Branch map
 
-The project requires Hugo Extended 0.164.0 and pnpm 10.14.0.
+| Branch | Contents |
+| --- | --- |
+| `main` | Current live Hugo site (HugoBlox academic CV) — untouched |
+| `astra` | "Design study 01" — the earlier local demo, preserved verbatim |
+| `glm53flash` | This branch: a full static redesign (no Hugo) |
 
-```bash
-pnpm install
-pnpm dev
+## Preview locally
+
+```sh
+cd /Users/jclou/loujc.github.io   # with glm53flash checked out
+python3 -m http.server 4173 --bind 127.0.0.1
+# open http://127.0.0.1:4173/
 ```
 
-Build the production site with:
+No build step, no external runtime dependencies (fonts load from Google Fonts with system fallbacks). `.nojekyll` is included so the branch can be served directly by GitHub Pages if adopted later.
 
-```bash
-pnpm build
-```
+## Notes
 
-## Privacy-preserving availability
-
-The public availability calendar is refreshed by GitHub Actions from iCloud
-CalDAV and an anonymous IDEA calendar snapshot created locally with EventKit.
-The Mac is needed only when that infrequently changing snapshot is refreshed;
-it does not need to be online for website builds. iCloud is queried with a
-privacy-minimal projection, while the IDEA snapshot is a fixed-length
-occupied/free bitmap. Both sources meet at one final anonymization boundary.
-Titles, locations, notes, attendees, organizers, event identifiers,
-credentials, and calendar names are never written to the site or repository.
-
-See [`docs/calendar-server-sync.md`](docs/calendar-server-sync.md) for the
-server-side sync model, secret setup, failure behavior, and privacy boundary.
-
-## Content
-
-- English content: `content/en/`
-- Chinese content: `content/zh/`
-- English author data: `data/authors/me.yaml`
-- Chinese author data: `data/zh/authors/me.yaml`
-- Local preview defaults to English at `/` and Chinese at `/zh/`
-
-The site source is MIT licensed through the upstream template. Publication
-metadata, abstracts, the portrait, and the CV remain the property of their
-respective authors and rights holders.
+- The availability section links to the live site's calendar instead of embedding an illustrative mock-up.
+- English-first, matching the live site's default language; the Chinese name (楼锦程) is woven into the typography.
+- CV file is copied from `main:static/uploads/cv.pdf` so the link works in this branch too.
