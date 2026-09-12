@@ -87,7 +87,7 @@
       "xp2.org": "Peking University · Ph.D. Candidate", "xp2.note": "Integrated Circuit Science and Engineering · Advisor: Prof. Yibo Lin · Focus: Agentic EDA.",
       "xp3.org": "Takway.AI · Co-founder & CEO", "xp3.note": "LLM-powered interactive hardware. Led hardware, product, fundraising, and recruiting; secured angel investment.",
       "xp4.org": "Peking University · M.Eng.", "xp4.note": "Integrated Circuit Engineering · Advisors: Prof. Yufei Ma and Prof. Le Ye · Hardware-friendly AI algorithms and co-design.",
-      "xp5.org": "Shanghai Sazhi Intelligent Technology · Robotics Intern", "xp5.note": "Built Gazebo simulation and ROS 1 interfaces for deployed service robots; independently designed a controller board.",
+      "xp5.org": "Shanghai SAGE Intelligent Technology · Robotics Intern", "xp5.note": "Built Gazebo simulation and ROS 1 interfaces for deployed service robots; independently designed a controller board.",
       "xp6.org": "Northeastern University · B.Eng.", "xp6.note": "Automation (A+) · GPA 3.685/5.0, ranked 1/131 · Recommended for postgraduate admission (top 5%).",
       "contact.eyebrow": "Contact", "contact.title": `Let's build<br>what's next.`,
       "contact.note": "Public availability is shown in China Standard Time — only occupied periods are published. On weekdays I am usually at Peking University's Haidian Campus.",
@@ -171,7 +171,7 @@
       "xp2.org": "北京大学 · 博士研究生", "xp2.note": "集成电路科学与工程 · 师从林亦波教授 · 研究方向：Agentic EDA。",
       "xp3.org": "Takway.AI · 联合创始人兼 CEO", "xp3.note": "LLM+硬件交互产品。负责硬件、产品、融资与招募，获得天使轮投资。",
       "xp4.org": "北京大学 · 硕士", "xp4.note": "集成电路工程 · 师从马玉飞、叶乐教授 · 硬件友好 AI 算法与软硬件协同。",
-      "xp5.org": "上海思知智能科技 · 机器人实习生", "xp5.note": "搭建 Gazebo 仿真与 ROS 1 接口，独立设计控制器板。",
+      "xp5.org": "上海飒智智能科技 · 机器人实习生", "xp5.note": "搭建 Gazebo 仿真与 ROS 1 接口，独立设计控制器板。",
       "xp6.org": "东北大学 · 本科", "xp6.note": "自动化（A+）· GPA 3.685/5.0，专业排名 1/131 · 推荐免试研究生（前 5%）。",
       "contact.eyebrow": "联系", "contact.title": `一起做点<br>新东西。`,
       "contact.note": "公开时间按中国标准时间显示，仅展示占用时段。工作日通常在北京大学海淀校区。",
@@ -440,14 +440,6 @@
     axisHead.className = "cal-day-head";
     const axisTrack = document.createElement("div");
     axisTrack.className = "cal-axis-track";
-    for (let h = Math.ceil(dayStart / 60); h * 60 <= dayEnd; h += 2) {
-      const label = document.createElement("span");
-      label.textContent = `${String(h).padStart(2, "0")}:00`;
-      label.dataset.minutes = String(h * 60);
-      label.style.top = `${((h * 60 - dayStart) / span) * 100}%`;
-      if (h * 60 === dayEnd) label.style.transform = "translateY(-100%)";
-      axisTrack.append(label);
-    }
     axis.append(axisHead, axisTrack);
     grid.append(axis);
 
@@ -495,6 +487,17 @@
 
       day.append(head, track);
       grid.append(day);
+    }
+
+    // axis ticks: every hour when the stretched track has room, every two hours when tight
+    const stepH = axisTrack.clientHeight >= 460 ? 1 : 2;
+    for (let h = Math.ceil(dayStart / 60); h * 60 <= dayEnd; h += stepH) {
+      const label = document.createElement("span");
+      label.textContent = `${String(h).padStart(2, "0")}:00`;
+      label.dataset.minutes = String(h * 60);
+      label.style.top = `${((h * 60 - dayStart) / span) * 100}%`;
+      if (h * 60 === dayEnd) label.style.transform = "translateY(-100%)";
+      axisTrack.append(label);
     }
     grid.append(calGuide);
 
