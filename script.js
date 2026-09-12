@@ -78,9 +78,7 @@
       "pub.gta": "GPU-accelerated track assignment with lightweight lookup table for conflict detection.",
       "pub.quartet": "A 22nm compute-in-memory AI accelerator with heterogeneous tensor engines and off-chip-less dataflow.",
       "badge.bpn": "Best Paper Nomination",
-      "about.eyebrow": "Background", "about.title": `About &amp;<br>Experience`,
-      "about.honorsTitle": "Honors &amp; awards",
-      "about.honors": "National runner-up of the Fuwei Cup; Enterprise Special Award and National Second Prize in the EDA Elite Challenge; National First Prize in the National College Intelligent Car Competition; First Prize in the Peking University Challenge Cup — among more than 30 national, provincial, and municipal awards.",
+      "about.eyebrow": "Background", "about.title": "About me",
       "about.lead": `Jincheng Lou is the Founder &amp; CEO of ChipBagel, a serial entrepreneur in AI agents with experience spanning EDA and chip design.`,
       "about.bio1": "He is a Ph.D. candidate at Peking University's School of Integrated Circuits, advised by Prof. Yibo Lin. He serves on the School's Innovation and Entrepreneurship Committee and as Deputy Secretary of its Youth League Committee. He is also a Northeastern University alumni mentor and previously served as Vice President of the Peking University Innovation Society.",
       "about.bio2": "He has authored or co-authored papers with Best Paper Nominations at ICCAD and ISEDA. His industry experience includes NPU algorithm design and optimization at a unicorn AI-chip company, and participation in multiple 22nm to 28nm tapeouts. Before ChipBagel, he founded the angel-funded agent-hardware company Takway.AI, which received international media coverage at CES; his earlier robotics work was deployed in the main library at Shanghai Jiao Tong University.",
@@ -164,9 +162,7 @@
       "pub.gta": "GPU 加速的布线轨道分配，轻量查表实现冲突检测。",
       "pub.quartet": "22nm 数字存内计算 AI 加速器，异构张量引擎与无片外数据流。",
       "badge.bpn": "最佳论文提名",
-      "about.eyebrow": "背景", "about.title": `关于与<br>经历`,
-      "about.honorsTitle": "荣誉与奖项",
-      "about.honors": "“复微杯”全国第二名；EDA 精英挑战赛企业特别奖、全国二等奖；全国大学生智能汽车竞赛全国一等奖；北京大学挑战杯一等奖——等三十余项国家、省、市级奖项。",
+      "about.eyebrow": "背景", "about.title": "关于我",
       "about.lead": `楼锦程，ChipBagel 创始人兼 CEO，Agent 领域连续创业者，拥有 EDA 与芯片设计经验。`,
       "about.bio1": "北京大学集成电路学院博士生，师从林亦波教授；现任学院双创委员、团委副书记，同时担任东北大学校友导师，曾任北京大学创新学社副会长。",
       "about.bio2": "已发表多篇领域顶级会议论文，获 ICCAD 与 ISEDA 最佳论文提名奖。曾在独角兽 AI 芯片公司负责 NPU 算法设计与优化，多次参与 22nm 至 28nm 工艺流片。曾创办天使轮 Agent 硬件公司 Takway.AI，在 CES 获多国头部媒体报道；此前参与研发的机器人已落地上海交通大学闵行校区图书馆主馆。",
@@ -447,7 +443,9 @@
     for (let h = Math.ceil(dayStart / 60); h * 60 <= dayEnd; h += 2) {
       const label = document.createElement("span");
       label.textContent = `${String(h).padStart(2, "0")}:00`;
+      label.dataset.minutes = String(h * 60);
       label.style.top = `${((h * 60 - dayStart) / span) * 100}%`;
+      if (h * 60 === dayEnd) label.style.transform = "translateY(-100%)";
       axisTrack.append(label);
     }
     axis.append(axisHead, axisTrack);
@@ -509,7 +507,17 @@
 
   // hover guide: dashed line mapping the pointer to the time axis
   const scrollBox = document.querySelector(".cal-scroll");
-  const hideGuide = () => { calGuide.hidden = true; };
+  let hotLabel = null;
+  const clearHot = () => {
+    if (hotLabel) {
+      hotLabel.classList.remove("is-hot");
+      hotLabel = null;
+    }
+  };
+  const hideGuide = () => {
+    calGuide.hidden = true;
+    clearHot();
+  };
   scrollBox.addEventListener("mousemove", (event) => {
     const gridEl = $("#cal-grid");
     const track = gridEl.querySelector(".cal-track");
@@ -525,6 +533,20 @@
     calGuide.hidden = false;
     calGuide.style.top = `${trackRect.top - gridRect.top + ((snapped - cal.dayStart) / cal.span) * trackRect.height}px`;
     guideTime.textContent = fmtMinutes(snapped);
+    let best = null;
+    let bestDist = Infinity;
+    for (const label of gridEl.querySelectorAll(".cal-axis-track span")) {
+      const dist = Math.abs(Number(label.dataset.minutes) - snapped);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = label;
+      }
+    }
+    if (hotLabel !== best) {
+      clearHot();
+      best?.classList.add("is-hot");
+      hotLabel = best;
+    }
   });
   scrollBox.addEventListener("mouseleave", hideGuide);
 

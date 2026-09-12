@@ -408,9 +408,10 @@ h2 {
   display: grid;
   grid-template-columns: 1fr 300px;
   gap: 36px;
-  align-items: start;
 }
 .cal-card {
+  display: flex;
+  flex-direction: column;
   padding: 24px 26px 20px;
   background: var(--elev);
   border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
@@ -457,16 +458,25 @@ h2 {
 }
 .cal-badge.warn { color: #a3540e; background: color-mix(in srgb, #d98218 18%, transparent); }
 :root[data-theme="dark"] .cal-badge.warn { color: #f0b264; }
-.cal-scroll { overflow-x: auto; scrollbar-width: thin; }
+.cal-scroll { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .cal-grid {
   position: relative;
+  flex: 1;
   display: grid;
   grid-template-columns: 48px repeat(7, 1fr);
   gap: 8px;
-  min-width: 720px;
+  min-width: 700px;
 }
-.cal-axis { min-width: 0; }
-.cal-axis-track { position: relative; height: 380px; }
+.cal-axis {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.cal-axis-track {
+  position: relative;
+  flex: 1;
+  min-height: 380px;
+}
 .cal-axis-track span {
   position: absolute;
   right: 10px;
@@ -475,11 +485,17 @@ h2 {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   letter-spacing: .02em;
+  transition: color .15s, opacity .15s;
+}
+.cal-axis-track span.is-hot {
+  color: var(--accent-strong);
+  font-weight: 700;
+  opacity: 1;
 }
 .cal-guide {
   position: absolute;
   left: 0; right: 0;
-  border-top: 1px dashed color-mix(in srgb, var(--accent) 75%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--accent) 85%, transparent);
   pointer-events: none;
   z-index: 6;
 }
@@ -500,12 +516,17 @@ h2 {
   letter-spacing: .04em;
   white-space: nowrap;
 }
-.cal-day { min-width: 0; }
+.cal-day {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
 .cal-day-head {
   display: flex;
   align-items: baseline;
   gap: 6px;
-  padding: 2px 2px 8px;
+  height: 30px;
+  padding: 2px 2px 0;
 }
 .cal-dow {
   font-size: 9.5px;
@@ -527,7 +548,8 @@ h2 {
 }
 .cal-track {
   position: relative;
-  height: 380px;
+  flex: 1;
+  min-height: 380px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background:
@@ -917,18 +939,6 @@ h2 {
 }
 .about-left { position: sticky; top: calc(var(--head-h) + 44px); align-self: start; }
 .about-left h2 { margin-top: 18px; }
-.honors {
-  margin-top: 30px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line);
-}
-.honors summary {
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent-strong);
-}
-.honors p { margin-top: 14px; font-size: 13px; color: var(--muted); }
 .lead {
   font-size: 21px;
   line-height: 1.6;
