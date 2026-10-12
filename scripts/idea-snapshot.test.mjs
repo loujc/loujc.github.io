@@ -233,7 +233,8 @@ test('parser rejects inputs larger than 8 KiB before exposing their contents', (
 });
 
 test('stdin validator streams a valid snapshot and fails closed without echoing invalid input', () => {
-  const snapshot = makeSnapshot();
+  // The subprocess uses the real clock, unlike the fixed-clock parser tests.
+  const snapshot = makeSnapshot({capturedAt: DateTime.utc().minus({hours: 1})});
   const valid = spawnSync(
     process.execPath,
     [validatorPath, '--validate-stdin', '--config', repositoryConfigPath],
@@ -242,6 +243,16 @@ test('stdin validator streams a valid snapshot and fails closed without echoing 
   assert.equal(valid.status, 0);
   assert.equal(valid.stdout, snapshot);
   assert.equal(valid.stderr, '');
+
+  const expiredSnapshot = makeSnapshot({capturedAt: DateTime.utc().minus({days: 91})});
+  const expired = spawnSync(
+    process.execPath,
+    [validatorPath, '--validate-stdin', '--config', repositoryConfigPath],
+    {input: expiredSnapshot, encoding: 'utf8'},
+  );
+  assert.notEqual(expired.status, 0);
+  assert.equal(expired.stdout, '');
+  assert.match(expired.stderr, /validation failed at capture-time/);
 
   const privateMarker = 'stdin-private-marker-never-echo';
   const invalid = spawnSync(
