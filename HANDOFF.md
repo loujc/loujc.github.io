@@ -5,7 +5,7 @@
 
 ## 0. 一句话现状
 
-`/Users/jclou/loujc.github.io` 是楼锦程的个人主页仓库。线上站点 <https://loujc.github.io> = 静态单页（分支 `glm53flash`）+ GitHub Actions 可用日历流水线（分支 `main`）。v2 改版以 PR（分支 `homepage-v2` → `glm53flash`）提交，合并后按 §2 触发部署；PR 里有 4 个待用户确认的决定（见 §6）。
+`/Users/jclou/loujc.github.io` 是楼锦程的个人主页仓库。线上站点 <https://loujc.github.io> = 静态单页（分支 `glm53flash`）+ GitHub Actions 可用日历流水线（分支 `main`）。v2 改版经 PR [#2](https://github.com/loujc/loujc.github.io/pull/2)（`homepage-v2` → `glm53flash`）由用户确认后合并，2026-10-20 部署上线；处于"等待用户下一步反馈"状态。
 
 ## 1. 仓库与分支
 
@@ -93,7 +93,7 @@
 - Hero：主按钮是"本周空闲时间"（强调），次按钮"精选项目"；简介两行（ChipBagel 创始人兼 CEO / 北大博士生师从林亦波）；头像区：白边圆角照片 + PCB 背景——拱形框、照片两侧引脚线都是试过后被用户否掉/移除的形态，别加回来。
 - 用户的工作方式：改版类需求先在独立 demo（`demo/`，不进部署白名单、不提交）里做并说明思路，确认后再走 PR。
 - 精选项目：LEGO 大卡 + 三张小卡（EDA Paper Writing / ARIS / UnFold），小卡在 ≤920px 变 2 列（首张通栏）、≤620px 单列。
-- v2 PR 中**待用户确认**的 4 个决定：① ARIS 链接上游 `wanshuiyin/Auto-claude-code-research-in-sleep` 并标「贡献者」（原链接是 1 star 的 fork；用户在上游 contributor 列表里）；② 删掉侧栏与表单重复的大「邮件预约时间」按钮；③ 预约提前量 2 小时；④ 点阵地图替换 Leaflet。用户若否决某项，按 PR 评论回改。
+- v2 中**用户已确认（2026-10-20）**的 4 个决定，别回退：① ARIS 链接上游 `wanshuiyin/Auto-claude-code-research-in-sleep` 并标「贡献者」（原链接是 1 star 的 fork；用户在上游 contributor 列表里）；② 侧栏不再有与表单重复的大「邮件预约时间」按钮；③ 预约提前量 2 小时；④ 足迹用点阵地图（不再用 Leaflet）。
 
 ## 7. 已知坑（都踩过）
 
