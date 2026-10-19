@@ -32,7 +32,7 @@
   const I18N = {
     en: {
       "nav.avail": "Availability", "nav.work": "Projects", "nav.research": "Publications", "nav.about": "About", "nav.places": "Travels", "nav.contact": "Contact",
-      "nav.menu": "Menu", "sheet.wechat": "Copy WeChat ID",
+      "nav.menu": "Menu", "sheet.wechat": "Copy WeChat ID", "nav.news": "News",
       "hero.eyebrow": "ChipBagel · Peking University",
       "hero.title": `Jincheng Lou<span class="zh" lang="zh-Hans">楼锦程</span>`,
       "hero.intro": `<strong>Founder &amp; CEO of ChipBagel</strong> — Silicon Intelligence Infra.<br>Ph.D. candidate in Integrated Circuit Science and Engineering at Peking University, advised by Prof. Yibo Lin.`,
@@ -97,6 +97,22 @@
       "p.epw.lede": "An evidence-grounded writing skill for EDA papers.",
       "p.epw.meta": "Turns methods, results, and notes into a challenge → insight → method → evidence argument — for Codex and other SKILL.md assistants.",
       "p.role.author": "Author", "p.role.contrib": "Contributor",
+      "news.eyebrow": "News", "news.title": "Recent news",
+      "news.note": `Papers, open source, and ChipBagel —<br>newest first.`,
+      "news.k.paper": "Paper", "news.k.award": "Award", "news.k.service": "Service", "news.k.venture": "Venture", "news.k.open": "Open source",
+      "news.more": "Earlier news",
+      "news.n1": `Invited to serve as a reviewer for <abbr title="IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems">IEEE TCAD</abbr>.`,
+      "news.n2": "Invited to pitch at the first session of “创业现场” (Startup Live).",
+      "news.n3": `Our <a href="#pub-lego">LEGO</a> special-session proposal was accepted at ASP-DAC 2027 (Tokyo, January 2027).`,
+      "news.n4": `Released <a href="https://github.com/loujc/eda-paper-writing" target="_blank" rel="noopener">EDA Paper Writing</a> v1.0, an evidence-grounded writing skill for EDA papers.`,
+      "news.n5": "ChipBagel was incorporated in Beijing as 芯果万相（北京）科技有限公司.",
+      "news.n6": `<a href="#pub-gogotb">GoGoTB</a> preprint on arXiv — agentic RTL verification with specification-grounded coverage closure.`,
+      "news.n7": `<a href="#pub-lego2">LEGO 2.0</a> and <a href="#pub-vineplace">VinePlace</a> accepted to ICCAD 2026 (San Jose, November).`,
+      "news.n8": `<a href="#pub-lego">LEGO</a> received a Best Paper Nomination at ISEDA 2026 (Singapore).`,
+      "news.n9": `<a href="#pub-diagramnet">DiagramNet</a> preprint on arXiv — the first multimodal dataset and recognition framework for system-level diagrams.`,
+      "news.n10": `<a href="#pub-lego">LEGO</a> and <a href="#pub-powercube">PowerCube</a> accepted to ISEDA 2026 (Singapore, May).`,
+      "news.n11": `<a href="#pub-gta">GTA</a> received a Best Paper Nomination at ICCAD 2025 (Munich).`,
+      "news.n12": `<a href="#pub-gta">GTA</a> accepted to ICCAD 2025.`,
       "res.eyebrow": "Research", "res.title": "Publications",
       "res.note": `Agentic EDA, multimodal circuit intelligence, physical design,<br>and hardware-efficient AI — 8 papers, Best Paper Nominations at ICCAD &amp; ISEDA.`,
       "res.f.all": "All", "res.f.agentic": "Agentic EDA", "res.f.physical": "Physical Design", "res.f.multimodal": "Multimodal", "res.f.hardware": "AI Hardware",
@@ -122,6 +138,7 @@
       "xp2.org": "Peking University · Ph.D. Candidate", "xp2.note": "Integrated Circuit Science and Engineering · Advisor: Prof. Yibo Lin · Focus: Agentic EDA.",
       "xp3.org": "Takway.AI · Co-founder & CEO", "xp3.note": "LLM-powered interactive hardware. Led hardware, product, fundraising, and recruiting; secured angel investment.",
       "xp4.org": "Peking University · M.Eng.", "xp4.note": "Integrated Circuit Engineering · Advisors: Prof. Yufei Ma and Prof. Le Ye · Hardware-friendly AI algorithms and co-design.",
+      "xp7.org": `<abbr title="Advanced Institute of Information Technology, Peking University">PKU AIIT</abbr> / NanoCore · Algorithm Research Intern`, "xp7.note": "Hardware-friendly algorithms (structured pruning, quantization) and hardware accelerator design.",
       "xp5.org": "Shanghai SAGE Intelligent Technology · Robotics Intern", "xp5.note": "Built Gazebo simulation and ROS 1 interfaces for deployed service robots; independently designed a controller board.",
       "xp6.org": "Northeastern University · B.Eng.", "xp6.note": "Automation (A+) · GPA 3.685/5.0, ranked 1/131 · Recommended for postgraduate admission (top 5%).",
       "contact.eyebrow": "Contact", "contact.title": `Let's build<br>what's next.`,
@@ -161,7 +178,7 @@
     },
     zh: {
       "nav.avail": "空闲时间", "nav.work": "项目", "nav.research": "论文", "nav.about": "关于", "nav.places": "足迹", "nav.contact": "联系",
-      "nav.menu": "菜单", "sheet.wechat": "复制微信号",
+      "nav.menu": "菜单", "sheet.wechat": "复制微信号", "nav.news": "动态",
       "hero.eyebrow": "ChipBagel · 北京大学",
       "hero.title": `楼锦程<span class="en-sub">JINCHENG LOU</span>`,
       "hero.intro": `<strong>ChipBagel 创始人兼 CEO</strong>，Silicon Intelligence Infra。<br>北京大学集成电路学院博士生，师从林亦波教授。`,
@@ -226,6 +243,22 @@
       "p.epw.lede": "面向 EDA 论文、以证据为锚的写作 skill。",
       "p.epw.meta": "把方法、结果与笔记组织成 challenge → insight → method → evidence 的论证；适用于 Codex 等支持 SKILL.md 的助手。",
       "p.role.author": "作者", "p.role.contrib": "贡献者",
+      "news.eyebrow": "动态", "news.title": "最近动态",
+      "news.note": `论文、开源与 ChipBagel 的最新进展，<br>按时间倒序。`,
+      "news.k.paper": "论文", "news.k.award": "荣誉", "news.k.service": "学术服务", "news.k.venture": "创业", "news.k.open": "开源",
+      "news.more": "更早动态",
+      "news.n1": `受邀担任 <abbr title="IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems">IEEE TCAD</abbr> 审稿人。`,
+      "news.n2": "受邀参加「创业现场」第一期路演。",
+      "news.n3": `<a href="#pub-lego">LEGO</a> 专题提案入选 ASP-DAC 2027 Special Session（2027 年 1 月 · 东京）。`,
+      "news.n4": `发布 <a href="https://github.com/loujc/eda-paper-writing" target="_blank" rel="noopener">EDA Paper Writing</a> v1.0：面向 EDA 论文、以证据为锚的写作 skill。`,
+      "news.n5": "ChipBagel（芯果万相（北京）科技有限公司）正式注册成立。",
+      "news.n6": `<a href="#pub-gogotb">GoGoTB</a> 预印本发布于 arXiv：基于规范锚定的智能体式 RTL 验证与覆盖率收敛。`,
+      "news.n7": `<a href="#pub-lego2">LEGO 2.0</a> 与 <a href="#pub-vineplace">VinePlace</a> 被 ICCAD 2026 接收（11 月 · 圣何塞）。`,
+      "news.n8": `<a href="#pub-lego">LEGO</a> 获 ISEDA 2026 最佳论文提名（新加坡）。`,
+      "news.n9": `<a href="#pub-diagramnet">DiagramNet</a> 预印本发布于 arXiv：首个面向系统级框图的多模态数据集与识别框架。`,
+      "news.n10": `<a href="#pub-lego">LEGO</a> 与 <a href="#pub-powercube">PowerCube</a> 被 ISEDA 2026 接收（5 月 · 新加坡）。`,
+      "news.n11": `<a href="#pub-gta">GTA</a> 获 ICCAD 2025 最佳论文提名（慕尼黑）。`,
+      "news.n12": `<a href="#pub-gta">GTA</a> 被 ICCAD 2025 接收。`,
       "res.eyebrow": "科研", "res.title": "论文",
       "res.note": `Agentic EDA、多模态电路理解、物理设计与硬件高效 AI ——<br>8 篇论文，获 ICCAD 与 ISEDA 最佳论文提名。`,
       "res.f.all": "全部", "res.f.agentic": "Agentic EDA", "res.f.physical": "物理设计", "res.f.multimodal": "多模态", "res.f.hardware": "AI 芯片",
@@ -251,6 +284,7 @@
       "xp2.org": "北京大学 · 博士研究生", "xp2.note": "集成电路科学与工程 · 师从林亦波教授 · 研究方向：Agentic EDA。",
       "xp3.org": "Takway.AI · 联合创始人兼 CEO", "xp3.note": "LLM+硬件交互产品。负责硬件、产品、融资与招募，获得天使轮投资。",
       "xp4.org": "北京大学 · 硕士", "xp4.note": "集成电路工程 · 师从马玉飞、叶乐教授 · 硬件友好 AI 算法与软硬件协同。",
+      "xp7.org": "北京大学信息技术高等研究院 / 微纳核芯 · 算法实习研究员", "xp7.note": "算法硬件友好化（结构化剪枝、量化等）与硬件加速器设计。",
       "xp5.org": "上海飒智智能科技 · 机器人实习生", "xp5.note": "搭建 Gazebo 仿真与 ROS 1 接口，独立设计控制器板。",
       "xp6.org": "东北大学 · 本科", "xp6.note": "自动化（A+）· GPA 3.685/5.0，专业排名 1/131 · 推荐免试研究生（前 5%）。",
       "contact.eyebrow": "联系", "contact.title": `一起做点<br>新东西。`,
@@ -380,7 +414,7 @@
       menuBtn.focus();
     }
   });
-  matchMedia("(min-width: 921px)").addEventListener("change", (event) => {
+  matchMedia("(min-width: 1101px)").addEventListener("change", (event) => {
     if (event.matches) setSheet(false);
   });
 
@@ -1194,6 +1228,19 @@
     const text = BIB[btn.dataset.bib];
     showToast((await copyText(text)) ? t().toastBib : text.split("\n")[0]);
   }));
+
+  /* ——— news: fold older items, mark the last two weeks ——— */
+  const newsMore = $("#news-more");
+  if (newsMore) newsMore.querySelector("b").textContent = String($$(".news-item[data-older]").length);
+  newsMore?.addEventListener("click", () => {
+    const open = newsMore.getAttribute("aria-expanded") !== "true";
+    newsMore.setAttribute("aria-expanded", String(open));
+    $$(".news-item[data-older]").forEach((item) => (item.hidden = !open));
+  });
+  for (const time of $$(".news-item time[datetime]")) {
+    const day = Date.parse(`${time.dateTime}T00:00:00+08:00`);
+    if (time.dateTime.length === 10 && Date.now() - day < 14 * 864e5) time.parentElement.classList.add("is-fresh");
+  }
 
   /* ——— projects: role + GitHub stars (baked fallback, refreshed when in view) ——— */
   const fmtStars = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(n));

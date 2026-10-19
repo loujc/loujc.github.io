@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Manrope:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
   <script>
     (() => {
       document.documentElement.classList.add("js");
@@ -74,6 +74,7 @@
       <nav class="head-nav" aria-label="Primary">
         <a href="#availability" data-i18n="nav.avail">Availability</a>
         <a href="#about" data-i18n="nav.about">About</a>
+        <a href="#news" data-i18n="nav.news">News</a>
         <a href="#research" data-i18n="nav.research">Publications</a>
         <a href="#work" data-i18n="nav.work">Projects</a>
         <a href="#places" data-i18n="nav.places">Travels</a>
@@ -97,10 +98,11 @@
       <nav class="sheet-nav" aria-label="Sections">
         <a href="#availability"><span>02</span><b data-i18n="nav.avail">Availability</b></a>
         <a href="#about"><span>03</span><b data-i18n="nav.about">About</b></a>
-        <a href="#research"><span>04</span><b data-i18n="nav.research">Publications</b></a>
-        <a href="#work"><span>05</span><b data-i18n="nav.work">Projects</b></a>
-        <a href="#places"><span>06</span><b data-i18n="nav.places">Travels</b></a>
-        <a href="#contact"><span>07</span><b data-i18n="nav.contact">Contact</b></a>
+        <a href="#news"><span>04</span><b data-i18n="nav.news">News</b></a>
+        <a href="#research"><span>05</span><b data-i18n="nav.research">Publications</b></a>
+        <a href="#work"><span>06</span><b data-i18n="nav.work">Projects</b></a>
+        <a href="#places"><span>07</span><b data-i18n="nav.places">Travels</b></a>
+        <a href="#contact"><span>08</span><b data-i18n="nav.contact">Contact</b></a>
       </nav>
       <div class="sheet-actions">
         <a class="solid" href="mailto:jinchenglou@stu.pku.edu.cn">Email</a>
@@ -303,6 +305,7 @@
             <ol class="xp">
               <li class="is-now"><span class="when">2026 — <span data-i18n="xp.now">Now</span></span><strong data-i18n="xp1.org">ChipBagel · Founder &amp; CEO</strong><small data-i18n="xp1.note">Building at the intersection of AI agents, EDA, and chip design.</small></li>
               <li><span class="when">2023 — 2024</span><strong data-i18n="xp3.org">Takway.AI · Co-founder &amp; CEO</strong><small data-i18n="xp3.note">LLM-powered interactive hardware. Led hardware, product, fundraising, and recruiting; secured angel investment.</small></li>
+              <li><span class="when">2021 — 2023</span><strong data-i18n-html="xp7.org"><abbr title="Advanced Institute of Information Technology, Peking University">PKU AIIT</abbr> / NanoCore · Algorithm Research Intern</strong><small data-i18n="xp7.note">Hardware-friendly algorithms (structured pruning, quantization) and hardware accelerator design.</small></li>
               <li><span class="when">2020 — 2021</span><strong data-i18n="xp5.org">Shanghai SAGE Intelligent Technology · Robotics Intern</strong><small data-i18n="xp5.note">Built Gazebo simulation and ROS 1 interfaces for deployed service robots; independently designed a controller board.</small></li>
             </ol>
           </div>
@@ -318,10 +321,83 @@
       </div>
     </section>
 
+    <section id="news" class="wrap section news">
+      <div class="sec-head" data-reveal>
+        <div>
+          <p class="eyebrow">04 · <span data-i18n="news.eyebrow">News</span></p>
+          <h2 data-i18n="news.title">Recent news</h2>
+        </div>
+        <p class="sec-note" data-i18n-html="news.note">Papers, open source, and ChipBagel —<br>newest first.</p>
+      </div>
+      <ol class="news-list" data-reveal>
+        <li class="news-item" data-kind="service">
+          <time datetime="2026-10-20">2026.10.20</time>
+          <span class="news-kind" data-i18n="news.k.service">Service</span>
+          <p data-i18n-html="news.n1">Invited to serve as a reviewer for <abbr title="IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems">IEEE TCAD</abbr>.</p>
+        </li>
+        <li class="news-item" data-kind="venture">
+          <time datetime="2026-10-16">2026.10.16</time>
+          <span class="news-kind" data-i18n="news.k.venture">Venture</span>
+          <p data-i18n-html="news.n2">Invited to pitch at the first session of “创业现场” (Startup Live).</p>
+        </li>
+        <li class="news-item" data-kind="paper">
+          <time datetime="2026-10-07">2026.10.07</time>
+          <span class="news-kind" data-i18n="news.k.paper">Paper</span>
+          <p data-i18n-html="news.n3">Our <a href="#pub-lego">LEGO</a> special-session proposal was accepted at ASP-DAC 2027 (Tokyo, January 2027).</p>
+        </li>
+        <li class="news-item" data-kind="open">
+          <time datetime="2026-09-16">2026.09.16</time>
+          <span class="news-kind" data-i18n="news.k.open">Open source</span>
+          <p data-i18n-html="news.n4">Released <a href="https://github.com/loujc/eda-paper-writing" target="_blank" rel="noopener">EDA Paper Writing</a> v1.0, an evidence-grounded writing skill for EDA papers.</p>
+        </li>
+        <li class="news-item" data-kind="venture">
+          <time datetime="2026-09-08">2026.09.08</time>
+          <span class="news-kind" data-i18n="news.k.venture">Venture</span>
+          <p data-i18n-html="news.n5">ChipBagel was incorporated in Beijing as 芯果万相（北京）科技有限公司.</p>
+        </li>
+        <li class="news-item" data-kind="paper">
+          <time datetime="2026-07-28">2026.07.28</time>
+          <span class="news-kind" data-i18n="news.k.paper">Paper</span>
+          <p data-i18n-html="news.n6"><a href="#pub-gogotb">GoGoTB</a> preprint on arXiv — agentic RTL verification with specification-grounded coverage closure.</p>
+        </li>
+        <li class="news-item" data-kind="paper">
+          <time datetime="2026-07-11">2026.07.11</time>
+          <span class="news-kind" data-i18n="news.k.paper">Paper</span>
+          <p data-i18n-html="news.n7"><a href="#pub-lego2">LEGO 2.0</a> and <a href="#pub-vineplace">VinePlace</a> accepted to ICCAD 2026 (San Jose, November).</p>
+        </li>
+        <li class="news-item" data-kind="award" data-older hidden>
+          <time datetime="2026-05">2026.05</time>
+          <span class="news-kind" data-i18n="news.k.award">Award</span>
+          <p data-i18n-html="news.n8"><a href="#pub-lego">LEGO</a> received a Best Paper Nomination at ISEDA 2026 (Singapore).</p>
+        </li>
+        <li class="news-item" data-kind="paper" data-older hidden>
+          <time datetime="2026-05-02">2026.05.02</time>
+          <span class="news-kind" data-i18n="news.k.paper">Paper</span>
+          <p data-i18n-html="news.n9"><a href="#pub-diagramnet">DiagramNet</a> preprint on arXiv — the first multimodal dataset and recognition framework for system-level diagrams.</p>
+        </li>
+        <li class="news-item" data-kind="paper" data-older hidden>
+          <time datetime="2026-03-25">2026.03.25</time>
+          <span class="news-kind" data-i18n="news.k.paper">Paper</span>
+          <p data-i18n-html="news.n10"><a href="#pub-lego">LEGO</a> and <a href="#pub-powercube">PowerCube</a> accepted to ISEDA 2026 (Singapore, May).</p>
+        </li>
+        <li class="news-item" data-kind="award" data-older hidden>
+          <time datetime="2025-10">2025.10</time>
+          <span class="news-kind" data-i18n="news.k.award">Award</span>
+          <p data-i18n-html="news.n11"><a href="#pub-gta">GTA</a> received a Best Paper Nomination at ICCAD 2025 (Munich).</p>
+        </li>
+        <li class="news-item" data-kind="paper" data-older hidden>
+          <time datetime="2025-06">2025.06</time>
+          <span class="news-kind" data-i18n="news.k.paper">Paper</span>
+          <p data-i18n-html="news.n12"><a href="#pub-gta">GTA</a> accepted to ICCAD 2025.</p>
+        </li>
+      </ol>
+      <button class="news-more" id="news-more" type="button" aria-expanded="false" data-reveal><span data-i18n="news.more">Earlier news</span><b>5</b><i aria-hidden="true"></i></button>
+    </section>
+
     <section id="research" class="wrap section">
       <div class="sec-head" data-reveal>
         <div>
-          <p class="eyebrow">04 · <span data-i18n="res.eyebrow">Research</span></p>
+          <p class="eyebrow">05 · <span data-i18n="res.eyebrow">Research</span></p>
           <h2 data-i18n="res.title">Publications</h2>
         </div>
         <p class="sec-note" data-i18n-html="res.note">Agentic EDA, multimodal circuit intelligence, physical design,<br>and hardware-efficient AI — 8 papers, Best Paper Nominations at ICCAD &amp; ISEDA.</p>
@@ -450,7 +526,7 @@
     <section id="work" class="wrap section">
       <div class="sec-head" data-reveal>
         <div>
-          <p class="eyebrow">05 · <span data-i18n="work.eyebrow">Selected Work</span></p>
+          <p class="eyebrow">06 · <span data-i18n="work.eyebrow">Selected Work</span></p>
           <h2 data-i18n="work.title">Selected Projects</h2>
         </div>
         <p class="sec-note" data-i18n-html="work.note">Open-source systems for agentic chip design, research writing,<br>autonomous research, and AI-native learning.</p>
@@ -503,7 +579,7 @@
     <section id="places" class="wrap section">
       <div class="sec-head" data-reveal>
         <div>
-          <p class="eyebrow">06 · <span data-i18n="map.eyebrow">Footprints</span></p>
+          <p class="eyebrow">07 · <span data-i18n="map.eyebrow">Footprints</span></p>
           <h2 data-i18n="map.title">Where I've been</h2>
         </div>
         <div class="sec-side">
@@ -539,7 +615,7 @@
 
     <section id="contact" class="wrap section contact">
       <div class="contact-copy" data-reveal>
-        <p class="eyebrow">07 · <span data-i18n="contact.eyebrow">Contact</span></p>
+        <p class="eyebrow">08 · <span data-i18n="contact.eyebrow">Contact</span></p>
         <h2 data-i18n-html="contact.title">Let's build<br>what's next.</h2>
         <p class="bio" data-i18n="contact.note">Public availability is shown in China Standard Time — only occupied periods are published. On weekdays I am usually at Peking University's Haidian Campus.</p>
         <div class="mail-row">
@@ -570,6 +646,6 @@
   </footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="script.js?v=4" defer></script>
+  <script src="script.js?v=5" defer></script>
 </body>
 </html>
