@@ -6,20 +6,49 @@
   <title>Jincheng Lou · 楼锦程 — ChipBagel Founder &amp; CEO</title>
   <meta name="description" content="Jincheng Lou is the Founder & CEO of ChipBagel and a Ph.D. candidate in Integrated Circuit Science and Engineering at Peking University. Research: agentic EDA, LLMs for chip design, multimodal circuit intelligence.">
   <meta name="theme-color" content="#fbf6ef">
+  <link rel="canonical" href="https://loujc.github.io/">
+  <!-- link previews (WeChat / Slack / X / LinkedIn) -->
+  <meta property="og:type" content="profile">
+  <meta property="og:url" content="https://loujc.github.io/">
+  <meta property="og:title" content="Jincheng Lou · 楼锦程 — ChipBagel Founder &amp; CEO">
+  <meta property="og:description" content="Founder &amp; CEO of ChipBagel · Ph.D. candidate at Peking University. Agentic EDA, LLMs for chip design, multimodal circuit intelligence.">
+  <meta property="og:image" content="https://loujc.github.io/portrait.jpg">
+  <meta name="twitter:card" content="summary">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='10' fill='%23b96e2c'/%3E%3C/svg%3E">
+  <!-- fonts load without blocking first paint: if Google Fonts is slow or unreachable, system fonts render immediately -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Manrope:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="style.css?v=6">
   <script>
     (() => {
+      document.documentElement.classList.add("js");
       try {
         const theme = localStorage.getItem("theme")
           ?? (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
         document.documentElement.dataset.theme = theme;
       } catch {}
     })();
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "Jincheng Lou",
+    "alternateName": "楼锦程",
+    "url": "https://loujc.github.io/",
+    "image": "https://loujc.github.io/portrait.jpg",
+    "email": "mailto:jinchenglou@stu.pku.edu.cn",
+    "jobTitle": "Founder & CEO",
+    "worksFor": { "@type": "Organization", "name": "ChipBagel" },
+    "affiliation": { "@type": "CollegeOrUniversity", "name": "Peking University", "url": "https://ic.pku.edu.cn/" },
+    "alumniOf": [
+      { "@type": "CollegeOrUniversity", "name": "Peking University" },
+      { "@type": "CollegeOrUniversity", "name": "Northeastern University (China)", "url": "https://www.neu.edu.cn/" }
+    ],
+    "knowsAbout": ["Agentic EDA", "Large Circuit Models", "Multimodal Circuit Intelligence", "Chip Design"],
+    "sameAs": ["https://github.com/loujc", "https://www.xiaohongshu.com/user/profile/5d0633be00000000120358b6"]
+  }
   </script>
 </head>
 <body>
@@ -31,6 +60,9 @@
       <symbol id="i-mail" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M3.5 5.5h17a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1v-11a1 1 0 0 1 1-1z"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="m3.5 6.5 8.5 6.5 8.5-6.5"/></symbol>
       <symbol id="i-sun" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 4V2.5M12 21.5V20M4 12H2.5M21.5 12H20M6.4 6.4 5.34 5.34M18.66 18.66 17.6 17.6M6.4 17.6l-1.06 1.06M18.66 5.34 17.6 6.4"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
       <symbol id="i-moon" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11z"/></symbol>
+      <symbol id="i-menu" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M4 8h16M4 16h16"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="m6 6 12 12M18 6 6 18"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" d="M15.5 5.5v-.5a2 2 0 0 0-2-2H6.5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h.5"/></symbol>
     </defs>
   </svg>
 
@@ -54,7 +86,26 @@
         </button>
         <button class="tool tool-lang" id="lang-toggle" type="button" aria-label="Switch language">中文</button>
         <a class="ghost" href="uploads/cv.pdf">CV&nbsp;<span aria-hidden="true">↗</span></a>
+        <a class="solid head-mail" href="mailto:jinchenglou@stu.pku.edu.cn">Email</a>
+        <button class="tool menu-btn" id="menu-toggle" type="button" aria-expanded="false" aria-controls="sheet" data-i18n-aria="nav.menu" aria-label="Menu">
+          <svg class="ic-menu" width="18" height="18" aria-hidden="true"><use href="#i-menu"/></svg>
+          <svg class="ic-close" width="18" height="18" aria-hidden="true"><use href="#i-close"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="sheet" id="sheet" hidden>
+      <nav class="sheet-nav" aria-label="Sections">
+        <a href="#availability"><span>02</span><b data-i18n="nav.avail">Availability</b></a>
+        <a href="#about"><span>03</span><b data-i18n="nav.about">About</b></a>
+        <a href="#research"><span>04</span><b data-i18n="nav.research">Publications</b></a>
+        <a href="#work"><span>05</span><b data-i18n="nav.work">Projects</b></a>
+        <a href="#places"><span>06</span><b data-i18n="nav.places">Travels</b></a>
+        <a href="#contact"><span>07</span><b data-i18n="nav.contact">Contact</b></a>
+      </nav>
+      <div class="sheet-actions">
         <a class="solid" href="mailto:jinchenglou@stu.pku.edu.cn">Email</a>
+        <a class="ghost" href="uploads/cv.pdf">CV&nbsp;<span aria-hidden="true">↗</span></a>
+        <button class="ghost" type="button" data-copy-wechat><svg width="16" height="16" aria-hidden="true"><use href="#i-wechat"/></svg><span data-i18n="sheet.wechat">Copy WeChat ID</span></button>
       </div>
     </div>
   </header>
@@ -78,7 +129,7 @@
         <div class="social-row" data-reveal style="--d:.3s">
           <a class="soc" href="https://github.com/loujc" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub"><svg width="19" height="19" aria-hidden="true"><use href="#i-github"/></svg></a>
           <a class="soc" href="https://www.xiaohongshu.com/user/profile/5d0633be00000000120358b6" target="_blank" rel="noopener" aria-label="Xiaohongshu" title="Xiaohongshu"><svg width="19" height="19" aria-hidden="true"><use href="#i-xhs"/></svg></a>
-          <button class="soc" type="button" id="wechat-btn" aria-label="Copy WeChat ID" title="WeChat · Nikolas_loujc"><svg width="19" height="19" aria-hidden="true"><use href="#i-wechat"/></svg></button>
+          <button class="soc" type="button" data-copy-wechat aria-label="Copy WeChat ID" title="WeChat · Nikolas_loujc"><svg width="19" height="19" aria-hidden="true"><use href="#i-wechat"/></svg></button>
           <a class="soc" href="mailto:jinchenglou@stu.pku.edu.cn" aria-label="Email" title="Email"><svg width="19" height="19" aria-hidden="true"><use href="#i-mail"/></svg></a>
           <a class="soc-cv" href="uploads/cv.pdf" data-i18n="hero.cv">Download CV ↗</a>
         </div>
@@ -138,14 +189,15 @@
         <span class="orbit" aria-hidden="true" data-i18n="hero.orbit">AI Agents · EDA · Chip Design</span>
         <div class="portrait-tilt">
           <figure class="portrait">
-            <img src="portrait.jpg" alt="Portrait of Jincheng Lou" width="600" height="840">
+            <img src="portrait.jpg" alt="Portrait of Jincheng Lou" width="600" height="840" fetchpriority="high">
           </figure>
         </div>
         <p class="caption" aria-hidden="true"><span>Jincheng Lou · 楼锦程</span><span data-i18n="hero.caption">ChipBagel / Peking University</span></p>
       </div>
       <div class="hero-foot">
-        <span data-i18n="hero.foot1">AI Agents × Chip Design × Open Source</span>
-        <a href="#availability" data-i18n-html="hero.foot2">Scroll — this week's openings&nbsp;↓</a>
+        <span class="hero-foot-static" id="hero-static" data-i18n="hero.foot1">AI Agents × Chip Design × Open Source</span>
+        <a class="hero-live" id="hero-live" href="#availability" hidden><i class="pulse" aria-hidden="true"></i><span id="hero-live-text"></span></a>
+        <a class="hero-scroll" href="#availability" data-i18n-html="hero.foot2">Scroll — this week's openings&nbsp;↓</a>
       </div>
     </section>
 
@@ -162,7 +214,7 @@
           <p class="cal-fail" id="cal-fail" hidden data-i18n="avail.fail">Availability is temporarily unavailable — please email me directly.</p>
           <div class="cal-toolbar" id="cal-toolbar">
             <button class="cal-nav" id="cal-prev" type="button" aria-label="Previous week">←</button>
-            <p class="cal-week" id="cal-week-label">—</p>
+            <p class="cal-week"><span class="cal-week-tag" id="cal-week-tag"></span><span id="cal-week-label">—</span></p>
             <button class="cal-nav" id="cal-next" type="button" aria-label="Next week">→</button>
             <span class="cal-badges">
               <em class="cal-badge" id="cal-source" hidden></em>
@@ -172,19 +224,26 @@
           <div class="cal-scroll">
             <div class="cal-grid" id="cal-grid"></div>
           </div>
+          <div class="cal-list" id="cal-list"></div>
           <div class="cal-foot">
-            <span class="cal-legends"><span class="cal-legend"><i class="lg-busy" aria-hidden="true"></i><span data-i18n="avail.busy">Occupied</span></span><span class="cal-legend"><i class="lg-free" aria-hidden="true"></i><span data-i18n="avail.free">Open</span></span></span>
+            <span class="cal-legends">
+              <span class="cal-legend"><i class="lg-busy" aria-hidden="true"></i><span data-i18n="avail.busy">Occupied</span></span>
+              <span class="cal-legend"><i class="lg-free" aria-hidden="true"></i><span data-i18n="avail.free">Open</span></span>
+              <span class="cal-legend"><i class="lg-pick" aria-hidden="true"></i><span data-i18n="avail.pick">Your pick</span></span>
+            </span>
             <span class="cal-updated" id="cal-updated"></span>
           </div>
         </div>
         <aside class="cal-aside" data-reveal style="--d:.1s">
           <h3 data-i18n="avail.book">Propose a time</h3>
-          <p data-i18n="avail.bookNote">Green blocks are open. Email me a candidate slot and I will confirm — details of busy periods stay private.</p>
-          <div class="cal-actions">
-            <a class="solid" href="mailto:jinchenglou@stu.pku.edu.cn?subject=Meeting%20request"><span data-i18n="avail.cta">Email to propose a time</span>&nbsp;<span aria-hidden="true">↗</span></a>
-          </div>
-          <div class="meet-form">
-            <p class="mf-title" data-i18n="mf.title">Quick request</p>
+          <p class="aside-note" data-i18n="avail.bookNote">Click a green block to pick a start time, or choose below. I'll confirm by email — busy details stay private.</p>
+          <form class="meet-form" id="meet-form" novalidate>
+            <div class="pick" id="pick" aria-live="polite">
+              <span class="pick-label" data-i18n="mf.picked">Selected slot</span>
+              <strong class="pick-day" id="pick-day">—</strong>
+              <span class="pick-time" id="pick-time"></span>
+              <span class="pick-local" id="pick-local" hidden></span>
+            </div>
             <div class="mf-row">
               <span class="mf-label" data-i18n="mf.duration">Duration</span>
               <div class="mf-seg" id="mf-duration" role="group" aria-label="Duration">
@@ -192,21 +251,32 @@
                 <button type="button" data-min="60" aria-pressed="false" data-i18n="mf.min60">60 min</button>
               </div>
             </div>
-            <div class="mf-row">
-              <label class="mf-label" for="mf-date" data-i18n="mf.date">Date</label>
-              <select id="mf-date"></select>
+            <div class="mf-pair">
+              <div class="mf-row">
+                <label class="mf-label" for="mf-date" data-i18n="mf.date">Date</label>
+                <select id="mf-date"></select>
+              </div>
+              <div class="mf-row">
+                <label class="mf-label" for="mf-time" data-i18n="mf.time">Start</label>
+                <select id="mf-time"></select>
+              </div>
             </div>
-            <div class="mf-row">
-              <label class="mf-label" for="mf-time" data-i18n="mf.time">Candidate time</label>
-              <select id="mf-time"></select>
+            <div class="mf-field">
+              <input class="mf-input" id="mf-name" type="text" autocomplete="name" data-i18n-ph="mf.namePh" placeholder="Your name" aria-describedby="mf-name-err">
+              <small class="mf-err" id="mf-name-err" hidden data-i18n="mf.errName">Please add your name.</small>
             </div>
-            <input class="mf-input" id="mf-name" type="text" autocomplete="name" data-i18n-ph="mf.namePh" placeholder="Your name">
-            <input class="mf-input" id="mf-email" type="email" autocomplete="email" data-i18n-ph="mf.emailPh" placeholder="Reply email">
+            <div class="mf-field">
+              <input class="mf-input" id="mf-email" type="email" autocomplete="email" data-i18n-ph="mf.emailPh" placeholder="Reply email" aria-describedby="mf-email-err">
+              <small class="mf-err" id="mf-email-err" hidden data-i18n="mf.errEmail">Please add a valid reply email.</small>
+            </div>
             <input class="mf-input" id="mf-topic" type="text" data-i18n-ph="mf.topicPh" placeholder="What to discuss? (optional)">
-            <button class="solid mf-submit" id="mf-submit" type="button"><span data-i18n="mf.submit">Open email draft</span>&nbsp;<span aria-hidden="true">↗</span></button>
-            <p class="mf-note" data-i18n="mf.note">Sends a request draft by email — confirmed by reply.</p>
-            <p class="mf-empty" id="mf-empty" hidden data-i18n="mf.empty">No open slots this week — try another.</p>
-          </div>
+            <div class="mf-buttons">
+              <button class="solid mf-submit" id="mf-submit" type="submit"><span data-i18n="mf.submit">Open email draft</span>&nbsp;<span aria-hidden="true">↗</span></button>
+              <button class="ghost mf-copy" id="mf-copy" type="button"><svg width="15" height="15" aria-hidden="true"><use href="#i-copy"/></svg><span data-i18n="mf.copy">Copy request</span></button>
+            </div>
+            <p class="mf-note" data-i18n="mf.note">This drafts a request, not a booking — I'll confirm by reply. No mail app? Use "Copy request" and send it any way you like.</p>
+            <p class="mf-empty" id="mf-empty" hidden data-i18n="mf.empty">No open slots this week — try another week.</p>
+          </form>
           <p class="cal-loc" data-i18n="avail.loc">Weekdays usually at Peking University, Haidian Campus; weekends uncertain.</p>
         </aside>
       </div>
@@ -216,19 +286,35 @@
       <div class="about-left" data-reveal>
         <p class="eyebrow">03 · <span data-i18n="about.eyebrow">Background</span></p>
         <h2 data-i18n="about.title">About me</h2>
+        <ul class="facts">
+          <li><b>8</b><span data-i18n="fact.papers">Papers</span><small>ICCAD · ISEDA · CICC</small></li>
+          <li><b>2</b><span data-i18n="fact.bpn">Best Paper Nominations</span><small>ICCAD ’25 · ISEDA ’26</small></li>
+          <li><b>22–28<i>nm</i></b><span data-i18n="fact.tapeout">Multiple tapeouts</span><small data-i18n="fact.tapeoutSub">Unicorn AI-chip company</small></li>
+          <li><b>2</b><span data-i18n="fact.ventures">Ventures founded</span><small>Takway.AI · ChipBagel</small></li>
+        </ul>
       </div>
       <div class="about-right">
         <p class="lead" data-reveal data-i18n-html="about.lead">Jincheng Lou is the Founder &amp; CEO of ChipBagel, a serial entrepreneur in AI agents with a background spanning EDA, chip design, chip-level applications (robotics and autonomous driving), and model training.</p>
         <p class="bio" data-reveal data-i18n="about.bio1">He is a Ph.D. candidate at Peking University's School of Integrated Circuits, advised by Prof. Yibo Lin. He serves on the School's Innovation and Entrepreneurship Committee and formerly served as Deputy Secretary of its Youth League Committee. He is also a Northeastern University alumni mentor and previously served as Vice President of the Peking University Innovation Society.</p>
         <p class="bio" data-reveal data-i18n="about.bio2">He has authored or co-authored papers with Best Paper Nominations at ICCAD and ISEDA. His industry experience includes NPU algorithm design and optimization at a unicorn AI-chip company, and participation in multiple 22nm to 28nm tapeouts. Before ChipBagel, he founded the angel-funded agent-hardware company Takway.AI, which received international media coverage at CES; his earlier robotics work was deployed in the main library at Shanghai Jiao Tong University.</p>
-        <ol class="xp" data-reveal>
-          <li><span class="when">2026 — <span data-i18n="xp.now">Now</span></span><div><strong data-i18n="xp1.org">ChipBagel · Founder &amp; CEO</strong><small data-i18n="xp1.note">Building at the intersection of AI agents, EDA, and chip design.</small></div></li>
-          <li><span class="when">2024 — <span data-i18n="xp.now">Now</span></span><div><strong data-i18n="xp2.org">Peking University · Ph.D. Candidate</strong><small data-i18n="xp2.note">Integrated Circuit Science and Engineering · Advisor: Prof. Yibo Lin · Focus: Agentic EDA.</small></div></li>
-          <li><span class="when">2023 — 2024</span><div><strong data-i18n="xp3.org">Takway.AI · Co-founder &amp; CEO</strong><small data-i18n="xp3.note">LLM-powered interactive hardware. Led hardware, product, fundraising, and recruiting; secured angel investment.</small></div></li>
-          <li><span class="when">2021 — 2024</span><div><strong data-i18n="xp4.org">Peking University · M.Eng.</strong><small data-i18n="xp4.note">Integrated Circuit Engineering · Advisors: Prof. Yufei Ma and Prof. Le Ye · Hardware-friendly AI algorithms and co-design.</small></div></li>
-          <li><span class="when">2020 — 2021</span><div><strong data-i18n="xp5.org">Shanghai SAGE Intelligent Technology · Robotics Intern</strong><small data-i18n="xp5.note">Built Gazebo simulation and ROS 1 interfaces for deployed service robots; independently designed a controller board.</small></div></li>
-          <li><span class="when">2017 — 2021</span><div><strong data-i18n="xp6.org">Northeastern University · B.Eng.</strong><small data-i18n="xp6.note">Automation (A+) · GPA 3.685/5.0, ranked 1/131 · Recommended for postgraduate admission (top 5%).</small></div></li>
-        </ol>
+        <div class="xp-cols" data-reveal>
+          <div class="xp-col">
+            <p class="xp-head" data-i18n="xp.work">Ventures &amp; Work</p>
+            <ol class="xp">
+              <li class="is-now"><span class="when">2026 — <span data-i18n="xp.now">Now</span></span><strong data-i18n="xp1.org">ChipBagel · Founder &amp; CEO</strong><small data-i18n="xp1.note">Building at the intersection of AI agents, EDA, and chip design.</small></li>
+              <li><span class="when">2023 — 2024</span><strong data-i18n="xp3.org">Takway.AI · Co-founder &amp; CEO</strong><small data-i18n="xp3.note">LLM-powered interactive hardware. Led hardware, product, fundraising, and recruiting; secured angel investment.</small></li>
+              <li><span class="when">2020 — 2021</span><strong data-i18n="xp5.org">Shanghai SAGE Intelligent Technology · Robotics Intern</strong><small data-i18n="xp5.note">Built Gazebo simulation and ROS 1 interfaces for deployed service robots; independently designed a controller board.</small></li>
+            </ol>
+          </div>
+          <div class="xp-col">
+            <p class="xp-head" data-i18n="xp.edu">Education</p>
+            <ol class="xp">
+              <li class="is-now"><span class="when">2024 — <span data-i18n="xp.now">Now</span></span><strong data-i18n="xp2.org">Peking University · Ph.D. Candidate</strong><small data-i18n="xp2.note">Integrated Circuit Science and Engineering · Advisor: Prof. Yibo Lin · Focus: Agentic EDA.</small></li>
+              <li><span class="when">2021 — 2024</span><strong data-i18n="xp4.org">Peking University · M.Eng.</strong><small data-i18n="xp4.note">Integrated Circuit Engineering · Advisors: Prof. Yufei Ma and Prof. Le Ye · Hardware-friendly AI algorithms and co-design.</small></li>
+              <li><span class="when">2017 — 2021</span><strong data-i18n="xp6.org">Northeastern University · B.Eng.</strong><small data-i18n="xp6.note">Automation (A+) · GPA 3.685/5.0, ranked 1/131 · Recommended for postgraduate admission (top 5%).</small></li>
+            </ol>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -240,84 +326,122 @@
         </div>
         <p class="sec-note" data-i18n-html="res.note">Agentic EDA, multimodal circuit intelligence, physical design,<br>and hardware-efficient AI — 8 papers, Best Paper Nominations at ICCAD &amp; ISEDA.</p>
       </div>
+      <div class="pub-filters" role="group" aria-label="Filter by topic" data-reveal>
+        <button type="button" data-topic="all" aria-pressed="true"><span data-i18n="res.f.all">All</span><i>8</i></button>
+        <button type="button" data-topic="agentic" aria-pressed="false"><span data-i18n="res.f.agentic">Agentic EDA</span><i>3</i></button>
+        <button type="button" data-topic="physical" aria-pressed="false"><span data-i18n="res.f.physical">Physical Design</span><i>3</i></button>
+        <button type="button" data-topic="multimodal" aria-pressed="false"><span data-i18n="res.f.multimodal">Multimodal</span><i>1</i></button>
+        <button type="button" data-topic="hardware" aria-pressed="false"><span data-i18n="res.f.hardware">AI Hardware</span><i>1</i></button>
+      </div>
       <div class="pub-groups">
         <div class="pgroup" data-reveal>
           <span class="pyear" aria-hidden="true">2026</span>
           <div class="plist">
-            <a class="pub" href="https://arxiv.org/abs/2607.26181" target="_blank" rel="noopener">
-              <span class="pub-main">
-                <span class="ptag"><em class="venue v-pre">arXiv · Preprint</em></span>
-                <strong>GoGoTB</strong>
-                <span class="pdesc" data-i18n="pub.gogotb">Agentic RTL verification with specification-grounded coverage closure.</span>
-              </span>
-              <span class="go" aria-hidden="true">↗</span>
-            </a>
-            <a class="pub" href="https://arxiv.org/abs/2605.01338" target="_blank" rel="noopener">
-              <span class="pub-main">
-                <span class="ptag"><em class="venue v-pre">arXiv · Preprint</em></span>
-                <strong>DiagramNet</strong>
-                <span class="pdesc" data-i18n="pub.diagramnet">An end-to-end recognition framework and dataset for non-standard system-level diagrams.</span>
-              </span>
-              <span class="go" aria-hidden="true">↗</span>
-            </a>
-            <a class="pub" href="https://loujc.github.io/publications/lego-2/" target="_blank" rel="noopener">
-              <span class="pub-main">
-                <span class="ptag"><em class="venue">ICCAD</em></span>
-                <strong>LEGO 2.0</strong>
-                <span class="pdesc" data-i18n="pub.lego2">A unified agentic platform for digital chip design and optimization.</span>
-              </span>
-              <span class="go" aria-hidden="true">↗</span>
-            </a>
-            <a class="pub" href="https://loujc.github.io/publications/lego/" target="_blank" rel="noopener">
-              <span class="pub-main">
-                <span class="ptag"><em class="venue">ISEDA</em><em class="bn">★ <span data-i18n="badge.bpn">Best Paper Nomination</span></em></span>
-                <strong>LEGO</strong>
-                <span class="pdesc" data-i18n="pub.lego">An LLM skill-based front-end design generation platform.</span>
-              </span>
-              <span class="go" aria-hidden="true">↗</span>
-            </a>
-            <a class="pub" href="https://loujc.github.io/publications/vineplace/" target="_blank" rel="noopener">
-              <span class="pub-main">
-                <span class="ptag"><em class="venue">ICCAD</em></span>
-                <strong>VinePlace</strong>
-                <span class="pdesc" data-i18n="pub.vineplace">Compact analog and mixed-signal placement via core-centered vine representation.</span>
-              </span>
-              <span class="go" aria-hidden="true">↗</span>
-            </a>
-            <a class="pub" href="https://loujc.github.io/publications/powercube/" target="_blank" rel="noopener">
-              <span class="pub-main">
-                <span class="ptag"><em class="venue">ISEDA</em></span>
-                <strong>PowerCube</strong>
-                <span class="pdesc" data-i18n="pub.powercube">A formula-in-the-loop framework for cross-stage power map prediction.</span>
-              </span>
-              <span class="go" aria-hidden="true">↗</span>
-            </a>
+            <article class="pub" data-topic="agentic" id="pub-gogotb">
+              <p class="ptag"><em class="venue v-pre">arXiv 2026</em></p>
+              <h3 class="ptitle"><b>GoGoTB</b>: Agentic RTL Verification with Specification-Grounded Coverage Closure</h3>
+              <p class="pdesc" data-i18n="pub.gogotb">Agentic RTL verification with specification-grounded coverage closure.</p>
+              <p class="authors">Xin Xin, <b class="me">Jincheng Lou</b>, Junhui Li, Jinglin Yan, Panda Xiao, Di Wu, Haixiao Li, Weicong Lu, Weijian Fan, Xinyu Qu, Yuxiang Zhao, Min Yu, Zhixiong Di, Yibo Lin</p>
+              <div class="pacts">
+                <button type="button" class="pact" data-abs aria-expanded="false" aria-controls="abs-gogotb"><span data-i18n="pub.abs">Abstract</span><i aria-hidden="true">+</i></button>
+                <button type="button" class="pact" data-bib="gogotb">BibTeX</button>
+                <a class="pact" href="https://arxiv.org/abs/2607.26181" target="_blank" rel="noopener">arXiv ↗</a>
+                <a class="pact" href="https://arxiv.org/pdf/2607.26181" target="_blank" rel="noopener">PDF ↗</a>
+              </div>
+              <div class="pabs" id="abs-gogotb" hidden><p>Functional verification dominates integrated circuit (IC) front-end engineering effort, and a single missed bug that escapes to silicon can trigger a costly respin. Recent large language models (LLMs) offer new opportunities to automate this process, yet existing LLM-based approaches generate each component through independent single-turn calls with no shared context, leaving interface mismatches undetected and reported coverage disconnected from specification requirements. To address these challenges, we present GoGoTB, an agentic framework that achieves end-to-end verification closure through three subsystems: an agentic execution control layer, an evolvable knowledge system, and specification-grounded coverage closure. The execution control layer separates deterministic enforcement from LLM reasoning at every tool and stage boundary. The knowledge system dispatches methodology and design-specific expertise on demand. The coverage framework anchors every bin to a named specification behavior so that each residual gap has a diagnosable root cause and a targeted remedy. Tested on 8 register transfer level (RTL) designs without any human intervention, GoGoTB achieves 100% environment generation success and averages 98.4% line, 97.2% branch, 97.0% toggle, and 83.2% functional coverage. No prior work successfully generates a complete verification environment or achieves meaningful coverage on the same benchmarks.</p></div>
+            </article>
+            <article class="pub" data-topic="multimodal" id="pub-diagramnet">
+              <p class="ptag"><em class="venue v-pre">arXiv 2026</em></p>
+              <h3 class="ptitle"><b>DiagramNet</b>: An End-to-End Recognition Framework and Dataset for Non-Standard System-Level Diagrams</h3>
+              <p class="pdesc" data-i18n="pub.diagramnet">An end-to-end recognition framework and dataset for non-standard system-level diagrams.</p>
+              <p class="authors"><b class="me">Jincheng Lou</b>, Ruohan Xu, Jiapeng Li, Junyin Pi, Runzhe Tao, Weijian Fan, Xiao Tan, Guojie Luo, Yibo Lin</p>
+              <div class="pacts">
+                <button type="button" class="pact" data-abs aria-expanded="false" aria-controls="abs-diagramnet"><span data-i18n="pub.abs">Abstract</span><i aria-hidden="true">+</i></button>
+                <button type="button" class="pact" data-bib="diagramnet">BibTeX</button>
+                <a class="pact" href="https://arxiv.org/abs/2605.01338" target="_blank" rel="noopener">arXiv ↗</a>
+                <a class="pact" href="https://arxiv.org/pdf/2605.01338" target="_blank" rel="noopener">PDF ↗</a>
+              </div>
+              <div class="pabs" id="abs-diagramnet" hidden><p>System-level diagrams encode the architectural blueprint of chip design, specifying module functions, dataflows, and interface protocols. However, non-standardized symbols and the scarcity of structured training data hinder existing multimodal large language models (MLLMs) from recognizing these diagrams. To address this gap, we introduce DiagramNet, the first multimodal dataset for system-level diagrams, comprising 10,977 connection annotations and 15,515 chain-of-thought QA pairs across four tasks: Listing, Localization, Connection, and Circuit QA. Building on this dataset, we propose a progressive training pipeline together with a decoupled multi-agent workflow that decomposes complex visual reasoning into Perception, Reasoning, and Knowledge stages. On the DiagramNet benchmark, integrating our 3B-parameter model with the proposed workflow surpasses the 2025 EDA Elite Challenge winner and outperforms GPT-5, Claude-Sonnet-4, and Gemini-2.5-Pro by over 2x in end-to-end evaluation. Notably, the workflow generalizes beyond our model, boosting Task 1 performance by 128.7x for Gemini-2.5-Pro and 12.4x for GPT-5. Furthermore, with only 60 images for detector adaptation, the method transfers effectively to AMSBench, achieving zero-shot connectivity reasoning on par with GPT-5 and Claude-Sonnet-4 while surpassing the AMS state-of-the-art method Netlistify.</p></div>
+            </article>
+            <article class="pub" data-topic="agentic" id="pub-lego2">
+              <p class="ptag"><em class="venue">ICCAD 2026</em></p>
+              <h3 class="ptitle"><b>LEGO 2.0</b>: A Unified Agentic Platform for Digital Chip Design and Optimization</h3>
+              <p class="pdesc" data-i18n="pub.lego2">A unified agentic platform for digital chip design and optimization.</p>
+              <p class="authors"><b class="me">Jincheng Lou</b>, Ruohan Xu, Jiecheng Ma, Boyang Wu, Yuhao Ji, Chunyuan Zhao, Xinyu Qu, Yuxiang Zhao, Runzhe Tao, Bei Yu, Zhixiong Di, Yibo Lin</p>
+              <div class="pacts">
+                <button type="button" class="pact" data-abs aria-expanded="false" aria-controls="abs-lego2"><span data-i18n="pub.abs">Abstract</span><i aria-hidden="true">+</i></button>
+                <button type="button" class="pact" data-bib="lego2">BibTeX</button>
+              </div>
+              <div class="pabs" id="abs-lego2" hidden><p>Existing LLM agents address isolated EDA tasks through project-specific workflows, limiting method transfer and cross-case experience reuse. LEGO 2.0 coordinates reusable circuit skills through a stage-structured agent team and an Agent State Gateway, automatically builds skills from open-source projects, and organizes cross-case memory with a three-layer Agent Memory System. It also packages back-end parameter search as a governed tuning skill that separates agent direction selection from validation and tool execution. On 262 CVDP front-end RTL tasks, LEGO 2.0 achieves 201 passes (76.7%) with 58.9% fewer tokens than MAGE; memory-assisted recovery raises the combined pass rate to 93.5%. On three commercial ARM IP designs, it improves placement WNS by up to 18.2% and TNS by up to 26.6%, with full-flow Innovus gains reaching 57.9% in WNS and 86.5% in TNS.</p></div>
+            </article>
+            <article class="pub" data-topic="agentic" id="pub-lego">
+              <p class="ptag"><em class="venue">ISEDA 2026</em><em class="bn">★ <span data-i18n="badge.bpn">Best Paper Nomination</span></em></p>
+              <h3 class="ptitle"><b>LEGO</b>: An LLM Skill-Based Front-End Design Generation Platform</h3>
+              <p class="pdesc" data-i18n="pub.lego">An LLM skill-based front-end design generation platform.</p>
+              <p class="authors"><b class="me">Jincheng Lou</b>, Ruohan Xu, Jiecheng Ma, Runzhe Tao, Xinyu Qu, Yibo Lin</p>
+              <div class="pacts">
+                <button type="button" class="pact" data-abs aria-expanded="false" aria-controls="abs-lego"><span data-i18n="pub.abs">Abstract</span><i aria-hidden="true">+</i></button>
+                <button type="button" class="pact" data-bib="lego">BibTeX</button>
+                <a class="pact" href="https://github.com/loujc/LEGO-An-LLM-Skill-Based-Front-End-Design-Generation-Platform" target="_blank" rel="noopener"><span data-i18n="pub.code">Code</span> ↗</a>
+              </div>
+              <div class="pabs" id="abs-lego" hidden><p>Existing LLM-based EDA agents are often isolated, task-specific systems, leading to repeated engineering effort and limited reuse of successful design and debugging strategies. LEGO is a unified skill-based platform that decomposes the digital front-end flow into six steps and represents agent capabilities as standardized, composable circuit skills. The platform extracts 42 executable skills from 11 representative open-source projects. On a hard subset of 41 VerilogEval v2 problems, individual skills improve Pass@1 from 0 to 0.805 over the base coding-agent setup.</p></div>
+            </article>
+            <article class="pub" data-topic="physical" id="pub-vineplace">
+              <p class="ptag"><em class="venue">ICCAD 2026</em></p>
+              <h3 class="ptitle"><b>VinePlace</b>: Compact Analog and Mixed-Signal Placement via Core-Centered Vine Representation</h3>
+              <p class="pdesc" data-i18n="pub.vineplace">Compact analog and mixed-signal placement via core-centered vine representation.</p>
+              <p class="authors">Weijian Fan, Zhiyuan Zhao, Jinpeng Wang, Haoyi Zhang, <b class="me">Jincheng Lou</b>, Runsheng Wang, Xiyuan Tang, Yibo Lin</p>
+              <div class="pacts">
+                <button type="button" class="pact" data-abs aria-expanded="false" aria-controls="abs-vineplace"><span data-i18n="pub.abs">Abstract</span><i aria-hidden="true">+</i></button>
+                <button type="button" class="pact" data-bib="vineplace">BibTeX</button>
+              </div>
+              <div class="pabs" id="abs-vineplace" hidden><p>Existing analog and mixed-signal placement methods often lack explicit organization around performance-sensitive modules and leave excessive whitespace. VinePlace introduces a core-centered vine representation and hierarchical extensions for diverse AMS structures, together with geometry-level refinement and hierarchical packing for compact legal placement. Across five benchmarks ranging from a 17-device two-stage OTA to a 1,623-device SAR ADC, VinePlace reduces area by 1.03-1.52x and HPWL by 1.07-1.71x over the best-performing baselines while preserving competitive post-layout performance. The large SAR ADC results further demonstrate scalability in an automated flow.</p></div>
+            </article>
+            <article class="pub" data-topic="physical" id="pub-powercube">
+              <p class="ptag"><em class="venue">ISEDA 2026</em></p>
+              <h3 class="ptitle"><b>PowerCube</b>: A Formula-in-the-Loop Framework for Cross-Stage Power Map Prediction</h3>
+              <p class="pdesc" data-i18n="pub.powercube">A formula-in-the-loop framework for cross-stage power map prediction.</p>
+              <p class="authors">Yuxiang Zhao, Jing Mai, Zishu Li, Haoyi Zhang, <b class="me">Jincheng Lou</b>, Qing He, Runsheng Wang, Yibo Lin</p>
+              <div class="pacts">
+                <button type="button" class="pact" data-abs aria-expanded="false" aria-controls="abs-powercube"><span data-i18n="pub.abs">Abstract</span><i aria-hidden="true">+</i></button>
+                <button type="button" class="pact" data-bib="powercube">BibTeX</button>
+              </div>
+              <div class="pabs" id="abs-powercube" hidden><p>PowerCube is a cross-stage prediction framework for fine-grained 2D power maps. Its formula-in-the-loop architecture decouples transient physical-parameter inference from deterministic power computation, combining a spatial-signal network, a differentiable lookup-table engine, analytical equations, and layout-scale context. Evaluated with ASAP7 across eight designs, PowerCube supports layouts up to 1.5 million cells, provides a 414x average runtime speedup over commercial flows, improves average R-squared by 26.44%, and reduces normalized mean absolute error by 28.72% over the evaluated baselines.</p></div>
+            </article>
           </div>
         </div>
         <div class="pgroup" data-reveal>
           <span class="pyear" aria-hidden="true">2025</span>
           <div class="plist">
-            <a class="pub" href="https://loujc.github.io/publications/gta/" target="_blank" rel="noopener">
-              <span class="pub-main">
-                <span class="ptag"><em class="venue">ICCAD</em><em class="bn">★ <span data-i18n="badge.bpn">Best Paper Nomination</span></em></span>
-                <strong>GTA</strong>
-                <span class="pdesc" data-i18n="pub.gta">GPU-accelerated track assignment with lightweight lookup table for conflict detection.</span>
-              </span>
-              <span class="go" aria-hidden="true">↗</span>
-            </a>
+            <article class="pub" data-topic="physical" id="pub-gta">
+              <p class="ptag"><em class="venue">ICCAD 2025</em><em class="bn">★ <span data-i18n="badge.bpn">Best Paper Nomination</span></em></p>
+              <h3 class="ptitle"><b>GTA</b>: GPU-Accelerated Track Assignment with Lightweight Lookup Table for Conflict Detection</h3>
+              <p class="pdesc" data-i18n="pub.gta">GPU-accelerated track assignment with lightweight lookup table for conflict detection.</p>
+              <p class="authors">Chunyuan Zhao, Jiarui Wang, Xun Jiang, <b class="me">Jincheng Lou</b>, Yibo Lin</p>
+              <div class="pacts">
+                <button type="button" class="pact" data-abs aria-expanded="false" aria-controls="abs-gta"><span data-i18n="pub.abs">Abstract</span><i aria-hidden="true">+</i></button>
+                <button type="button" class="pact" data-bib="gta">BibTeX</button>
+                <a class="pact" href="https://doi.org/10.1109/ICCAD66269.2025.11240694" target="_blank" rel="noopener">DOI ↗</a>
+              </div>
+              <div class="pabs" id="abs-gta" hidden><p>GTA is a GPU-accelerated, design-rule-aware track-assignment framework for bridging global and detailed routing. A lightweight lookup table enables efficient conflict detection while preserving routing quality. Compared with TritonRoute-WXL in the reported experiments, GTA achieves a 20x runtime speedup and reduces peak CPU memory by 25% while maintaining competitive detailed-routing quality.</p></div>
+            </article>
           </div>
         </div>
         <div class="pgroup" data-reveal>
           <span class="pyear" aria-hidden="true">2024</span>
           <div class="plist">
-            <a class="pub" href="https://loujc.github.io/publications/quartet/" target="_blank" rel="noopener">
-              <span class="pub-main">
-                <span class="ptag"><em class="venue">CICC</em></span>
-                <strong>Quartet</strong>
-                <span class="pdesc" data-i18n="pub.quartet">A 22nm compute-in-memory AI accelerator with heterogeneous tensor engines and off-chip-less dataflow.</span>
-              </span>
-              <span class="go" aria-hidden="true">↗</span>
-            </a>
+            <article class="pub" data-topic="hardware" id="pub-quartet">
+              <p class="ptag"><em class="venue">CICC 2024</em></p>
+              <h3 class="ptitle"><b>Quartet</b>: A 22nm 0.09mJ/Inference Digital Compute-in-Memory Versatile AI Accelerator with Heterogeneous Tensor Engines and Off-Chip-Less Dataflow</h3>
+              <p class="pdesc" data-i18n="pub.quartet">A 22nm compute-in-memory AI accelerator with heterogeneous tensor engines and off-chip-less dataflow.</p>
+              <p class="authors">Yikan Qiu, Yufei Ma, Meng Wu, Yifan Jia, Xinyu Qu, Zecheng Zhou, <b class="me">Jincheng Lou</b>, Tianyu Jia, Le Ye, Ru Huang</p>
+              <div class="pacts">
+                <button type="button" class="pact" data-abs aria-expanded="false" aria-controls="abs-quartet"><span data-i18n="pub.abs">Abstract</span><i aria-hidden="true">+</i></button>
+                <button type="button" class="pact" data-bib="quartet">BibTeX</button>
+                <a class="pact" href="https://doi.org/10.1109/CICC60959.2024.10529063" target="_blank" rel="noopener">DOI ↗</a>
+              </div>
+              <div class="pabs" id="abs-quartet" hidden><p>Quartet is a 22 nm digital compute-in-memory accelerator designed for diverse AI workloads. Four heterogeneous tensor engines can execute in parallel or as a pipeline, supporting static and dynamic matrix multiplication with different sparsity patterns and data formats. An off-chip-less dataflow reduces intermediate data movement across Transformers, graph convolutional networks, vision GNNs, and CNNs.</p></div>
+            </article>
           </div>
         </div>
       </div>
@@ -329,7 +453,7 @@
           <p class="eyebrow">05 · <span data-i18n="work.eyebrow">Selected Work</span></p>
           <h2 data-i18n="work.title">Selected Projects</h2>
         </div>
-        <p class="sec-note" data-i18n-html="work.note">Open-source systems for autonomous research,<br>agentic chip design, and AI-native learning tools.</p>
+        <p class="sec-note" data-i18n-html="work.note">Open-source systems for agentic chip design, research writing,<br>autonomous research, and AI-native learning.</p>
       </div>
       <a class="card feature" data-reveal href="https://github.com/loujc/LEGO-An-LLM-Skill-Based-Front-End-Design-Generation-Platform" target="_blank" rel="noopener">
         <div class="card-copy">
@@ -337,6 +461,7 @@
           <h3>LEGO&nbsp;<span aria-hidden="true">↗</span></h3>
           <p class="lede" data-i18n="p.lego.lede">An LLM skill-based platform for front-end chip design generation.</p>
           <p class="meta" data-i18n="p.lego.meta">42 executable, composable circuit skills extracted from 11 open-source EDA projects.</p>
+          <p class="proj-meta"><span class="role" data-i18n="p.role.author">Author</span><span class="stars" data-repo="loujc/LEGO-An-LLM-Skill-Based-Front-End-Design-Generation-Platform" data-fallback="30"></span><span data-i18n="p.lego.badge">ISEDA ’26 Best Paper Nomination</span></p>
           <span class="more"><span data-i18n="p.lego.more">Explore the platform</span>&nbsp;<b aria-hidden="true">↗</b></span>
         </div>
         <div class="art art-chip" aria-hidden="true">
@@ -347,20 +472,30 @@
           <b class="note n3" data-i18n="p.lego.n3">RTL design</b>
         </div>
       </a>
-      <div class="grid2">
-        <a class="card small tint-a" data-reveal style="--d:.08s" href="https://github.com/loujc/Auto-claude-code-research-in-sleep" target="_blank" rel="noopener">
+      <div class="grid3">
+        <a class="card small tint-c" data-reveal style="--d:.06s" href="https://github.com/loujc/eda-paper-writing" target="_blank" rel="noopener">
+          <div class="card-top"><p class="tag" data-i18n="p.epw.tag">Research Writing</p><span class="arr" aria-hidden="true">↗</span></div>
+          <div class="art art-paper" aria-hidden="true"><i class="page"><i></i><i></i><i class="mark"></i><i></i><i></i></i><span class="note-pill">insight</span></div>
+          <h3>EDA Paper Writing</h3>
+          <p data-i18n="p.epw.lede">An evidence-grounded writing skill for EDA papers.</p>
+          <p class="meta" data-i18n="p.epw.meta">Turns methods, results, and notes into a challenge → insight → method → evidence argument — for Codex and other SKILL.md assistants.</p>
+          <p class="proj-meta"><span class="role" data-i18n="p.role.author">Author</span><span class="stars" data-repo="loujc/eda-paper-writing" data-fallback="43"></span><span>CC BY 4.0</span></p>
+        </a>
+        <a class="card small tint-a" data-reveal style="--d:.12s" href="https://github.com/wanshuiyin/Auto-claude-code-research-in-sleep" target="_blank" rel="noopener">
           <div class="card-top"><p class="tag" data-i18n="p.aris.tag">Autonomous Research</p><span class="arr" aria-hidden="true">↗</span></div>
           <div class="art art-rings" aria-hidden="true"><i></i><i></i><i></i><span class="float-tag">idea</span><span class="float-tag">experiment</span><span class="float-tag">discover</span></div>
           <h3>ARIS</h3>
           <p data-i18n="p.aris.lede">Autonomous ML research with cross-model review.</p>
           <p class="meta" data-i18n="p.aris.meta">A lightweight, Markdown-only system covering idea discovery, experiments, and paper writing.</p>
+          <p class="proj-meta"><span class="role" data-i18n="p.role.contrib">Contributor</span><span class="stars" data-repo="wanshuiyin/Auto-claude-code-research-in-sleep" data-fallback="17661"></span></p>
         </a>
-        <a class="card small tint-b" data-reveal style="--d:.16s" href="https://github.com/loujc/UnFold" target="_blank" rel="noopener">
+        <a class="card small tint-b" data-reveal style="--d:.18s" href="https://github.com/loujc/UnFold" target="_blank" rel="noopener">
           <div class="card-top"><p class="tag" data-i18n="p.unfold.tag">AI-Native Learning</p><span class="arr" aria-hidden="true">↗</span></div>
           <div class="art art-sheets" aria-hidden="true"><i class="s1"></i><i class="s2"></i><i class="s3"><span>▶</span><i></i><i></i><i></i></i></div>
           <h3>UnFold</h3>
           <p data-i18n="p.unfold.lede">AI-powered video annotation and learning.</p>
           <p class="meta" data-i18n="p.unfold.meta">Transcripts, chapters, summaries, keywords, quotes, and contextual knowledge cards.</p>
+          <p class="proj-meta"><span class="role" data-i18n="p.role.author">Author</span><span>TypeScript</span></p>
         </a>
       </div>
     </section>
@@ -375,18 +510,25 @@
           <div class="map-views" role="group" aria-label="Map view">
             <button type="button" id="map-view-world" aria-pressed="true" data-i18n="map.viewWorld">World</button>
             <button type="button" id="map-view-china" aria-pressed="false" data-i18n="map.viewChina">China</button>
+            <button type="button" id="map-view-europe" aria-pressed="false" data-i18n="map.viewEurope">Europe</button>
           </div>
           <p class="sec-note" data-i18n-html="map.note">10 countries &amp; regions, 50+ cities across China.<br>Hometown Shanghai · Based in Beijing.</p>
         </div>
       </div>
       <div class="map-card" data-reveal>
-        <p class="map-fallback" id="map-fallback" hidden data-i18n="map.fallback">The map needs an internet connection to load.</p>
-        <div id="map"></div>
+        <div class="dotmap" id="dotmap">
+          <canvas id="dotmap-canvas" role="img" aria-label="Map of places visited" data-i18n-aria="map.aria"></canvas>
+          <i class="map-pulse" id="map-pulse" aria-hidden="true" hidden></i>
+          <div class="map-labels is-hidden" id="map-labels" aria-hidden="true"></div>
+          <p class="map-tip" id="map-tip" role="status" hidden></p>
+        </div>
         <div class="map-legend">
           <span><i class="lg-home" aria-hidden="true"></i><span data-i18n="map.legendHome">Hometown · Shanghai</span></span>
           <span><i class="lg-now" aria-hidden="true"></i><span data-i18n="map.legendNow">Based in Beijing</span></span>
           <span><i class="lg-visited" aria-hidden="true"></i><span data-i18n="map.legendVisited">Visited</span></span>
+          <button class="map-list-toggle" id="map-list-toggle" type="button" aria-expanded="false" aria-controls="map-list"><span data-i18n="map.all">All places</span><b>69</b><i aria-hidden="true"></i></button>
         </div>
+        <div class="map-list" id="map-list" hidden></div>
       </div>
     </section>
 
@@ -400,14 +542,17 @@
         <p class="eyebrow">07 · <span data-i18n="contact.eyebrow">Contact</span></p>
         <h2 data-i18n-html="contact.title">Let's build<br>what's next.</h2>
         <p class="bio" data-i18n="contact.note">Public availability is shown in China Standard Time — only occupied periods are published. On weekdays I am usually at Peking University's Haidian Campus.</p>
-        <a class="bigmail" href="mailto:jinchenglou@stu.pku.edu.cn">jinchenglou@stu.pku.edu.cn&nbsp;<span aria-hidden="true">↗</span></a>
+        <div class="mail-row">
+          <a class="bigmail" href="mailto:jinchenglou@stu.pku.edu.cn">jinchenglou@stu.pku.edu.cn&nbsp;<span aria-hidden="true">↗</span></a>
+          <button class="copy-chip" type="button" data-copy-mail><svg width="14" height="14" aria-hidden="true"><use href="#i-copy"/></svg><span data-i18n="contact.copy">Copy</span></button>
+        </div>
       </div>
       <div class="elsewhere" data-reveal style="--d:.1s">
         <p class="else-head" data-i18n="contact.elsewhere">Elsewhere</p>
         <div class="else-grid">
           <a class="else-item" href="https://github.com/loujc" target="_blank" rel="noopener"><svg width="20" height="20" aria-hidden="true"><use href="#i-github"/></svg><span>GitHub<em>loujc</em></span><b aria-hidden="true">↗</b></a>
           <a class="else-item" href="https://www.xiaohongshu.com/user/profile/5d0633be00000000120358b6" target="_blank" rel="noopener"><svg width="20" height="20" aria-hidden="true"><use href="#i-xhs"/></svg><span data-i18n-html="contact.xhs">Xiaohongshu<em>@楼锦程</em></span><b aria-hidden="true">↗</b></a>
-          <button class="else-item" type="button" id="wechat-btn-2"><svg width="20" height="20" aria-hidden="true"><use href="#i-wechat"/></svg><span data-i18n-html="contact.wechat">WeChat<em>Nikolas_loujc</em></span><b aria-hidden="true" data-i18n="contact.copy">Copy</b></button>
+          <button class="else-item" type="button" data-copy-wechat><svg width="20" height="20" aria-hidden="true"><use href="#i-wechat"/></svg><span data-i18n-html="contact.wechat">WeChat<em>Nikolas_loujc</em></span><b aria-hidden="true" data-i18n="contact.copy">Copy</b></button>
           <a class="else-item" href="uploads/cv.pdf"><svg width="20" height="20" aria-hidden="true"><use href="#i-mail"/></svg><span>CV<em data-i18n="contact.cv">PDF · English</em></span><b aria-hidden="true">↗</b></a>
         </div>
       </div>
@@ -425,7 +570,6 @@
   </footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="script.js?v=3"></script>
+  <script src="script.js?v=4" defer></script>
 </body>
 </html>
