@@ -14,10 +14,10 @@
 | 分支 | 内容 | 备注 |
 |---|---|---|
 | `main` | GitHub Actions 流水线（`.github/workflows/`）+ Hugo 内容源（`data/`、`config/`） | 默认分支；**push 会触发部署** |
-| `glm53flash` | 部署用的静态单页站点（index.html / style.css / script.js / portrait.jpg / uploads/cv.pdf / availability-snapshot.json）+ 不部署的 `tools/gen-land-mask.mjs`、本文档 | **日常工作分支**；单独 push 不一定触发部署 |
+| `glm53flash` | 部署用的静态单页站点（index.html / style.css / script.js / portrait.jpg / uploads/cv.pdf / availability-snapshot.json）+ 不部署的 `tools/`（`gen-land-mask.mjs`、`add-news.mjs`）、`.claude/skills/add-news`（`.agents/skills/` 下有同名链接供 Codex 用）、本文档 | **日常工作分支**；单独 push 不一定触发部署 |
 | `astra` | 旧 homepage-design-demo 设计稿（orphan 分支，仅 5 个文件） | 只读存档，不要动 |
 
-注意：`main` 上的 `data/authors/me.yaml` / `data/zh/authors/me.yaml` 是经历/简介的"源头"，改经历时 Hugo 内容与 glm53flash 页面两边要同步。
+注意：`main` 上的 `data/authors/me.yaml` / `data/zh/authors/me.yaml` 是经历/简介的"源头"，改经历时 Hugo 内容与 glm53flash 页面两边要同步（例：2021–2023 北京大学信息技术高等研究院 / 微纳核芯 算法实习研究员）。
 
 ## 2. 如何部署（有坑，必读）
 
@@ -56,7 +56,8 @@
 - 全局 `[hidden] { display: none !important }`——组件里用 `hidden` 属性切换显隐即可。
 - `body { overflow-x: clip }`（不是 hidden）——论文年份列的 sticky 依赖它，别改回。`.hero` 也有 `overflow-x: clip`：手机上 PCB 背景比屏幕宽，不能让它把整页撑宽。
 - 网格里放可横向滚动的内容时用 `minmax(0, 1fr)`，别用 `1fr`（最小宽度=内容宽度，旧版手机日历把卡片撑到 734px 就是它）。
-- 导航：桌面 scroll-spy 高亮当前板块（`aria-current`）；≤920px 显示菜单按钮 + 抽屉（`#sheet`）。
+- 导航：桌面 scroll-spy 高亮当前板块（`aria-current`）；≤1100px 收进菜单按钮 + 抽屉（`#sheet`）——英文 7 个链接 + 4 个按钮约需 1080px，再加导航项前先量宽度。
+- 动态（`#news`）：**加新闻用 `add-news` skill（Claude Code 里 `/add-news`；底层是 `node tools/add-news.mjs --date … --kind … --en … --zh …`）**。结构：静态 `<ol class="news-list">`，每条 `<li class="news-item" data-kind="paper|award|service|venture|open">` = `<time datetime>` + 类别 + `<p data-i18n-html="news.nX">`。**加新闻**：在列表最前面插一条（用新的 key，如 `news.n13`），并在 `I18N.en/zh` 各加一条；只保留最近约 7 条可见，更早的加 `data-older hidden` 折进「更早动态」（数字由 JS 自动计数）。14 天内的条目自动高亮；论文名链接到 `#pub-*` 锚点。日期只精确到月的写 `datetime="2026-05"`。
 - 论文：静态 HTML（利于 SEO），每篇 `data-topic` 用于筛选；摘要在 `.pabs[hidden]` 里，BibTeX 在 `script.js` 的 `BIB`（来源 `main:content/en/publications/*/cite.bib`，两篇 arXiv 生成 `@misc`）。没有公开链接的论文只给摘要 + BibTeX，**不要再链回 `/publications/*` 旧 Hugo 页面（已 404）**。
 - 项目卡片：`.stars[data-repo]` 先显示 `data-fallback` 的数字，进入视口才请求 GitHub API（缓存 12h，<20 不显示）。
 - 头像区结构：`.scene`（定位容器）> `.chip-halo`（PCB 背景 SVG，内联）+ `.orbit`（右侧竖排徽标）+ `.portrait-tilt`（`.portrait` 白边圆角照片；曾有的 `.portrait-pins` 引脚装饰已按用户要求移除）+ `.caption`（左下署名）。手机场景高度 400px，保证署名不压照片底边。
@@ -87,7 +88,7 @@
 ## 6. 设计规范与用户偏好（用户明确说过的话，别回退）
 
 - 品牌色 = ChipBagel BP：奶油底 `#FBF6EF`、墨 `#171717`、焦糖强调 `#B96E2C`/`#D98218`、沙 `#F0CEA2`（见 style.css tokens；暗色在 `:root[data-theme="dark"]`）。
-- 板块顺序：Hero(01) → 本周空闲(02) → 关于我(03) → 论文(04) → 精选项目(05) → 足迹地图(06) → slogan 带 → 联系(07)。
+- 板块顺序：Hero(01) → 本周空闲(02) → 关于我(03) → 动态 News(04) → 论文(05) → 精选项目(06) → 足迹地图(07) → slogan 带 → 联系(08)。
 - 日历：不要任何"打开完整日程"二级链接；空闲格直接可见、纵轴标时间、随日历拉伸（`.cal-scroll` 是 flex:1 那条链）；悬停有虚线实时对应左轴时间；下方简易预约表单（mailto）。
 - 文案已纠正：公司是 **SAGE / 飒智**（不是 Sazhi/思知）；slogan「心若诚，自成传奇。」；"曾任团委副书记"是过去式；"关于我"单行标题、honors 细节整体删除。
 - Hero：主按钮是"本周空闲时间"（强调），次按钮"精选项目"；简介两行（ChipBagel 创始人兼 CEO / 北大博士生师从林亦波）；头像区：白边圆角照片 + PCB 背景——拱形框、照片两侧引脚线都是试过后被用户否掉/移除的形态，别加回来。

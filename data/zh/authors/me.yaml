@@ -79,6 +79,13 @@ experience:
     summary: |
       导师为马宇飞研究员、叶乐，研究方向为 AI 算法硬件友好化与软硬件协同设计。
     icon: hero/academic-cap
+  - role: 算法实习研究员
+    org: 北京大学信息技术高等研究院 / 微纳核芯
+    start: 2021-01-01  # 仅确认年份（2021–2023）
+    end: 2023-12-31
+    summary: |
+      算法硬件友好化（结构化剪枝、量化等）与硬件加速器设计。
+    icon: hero/briefcase
   - role: 机器人实习生
     org: 上海飒智智能科技有限公司
     start: 2020-12-01

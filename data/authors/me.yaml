@@ -89,8 +89,15 @@ experience:
     summary: |
       Advised by Prof. Yufei Ma and Prof. Le Ye. Researched hardware-friendly AI algorithms and hardware/software co-design.
     icon: hero/academic-cap
+  - role: Algorithm Research Intern
+    org: Advanced Institute of Information Technology, Peking University / NanoCore
+    start: 2021-01-01  # only the years (2021–2023) are confirmed
+    end: 2023-12-31
+    summary: |
+      Hardware-friendly algorithms (structured pruning, quantization) and hardware accelerator design.
+    icon: hero/briefcase
   - role: Robotics Intern
-    org: Shanghai Sazhi Intelligent Technology
+    org: Shanghai SAGE Intelligent Technology
     start: 2020-12-01
     end: 2021-02-28
     summary: |
