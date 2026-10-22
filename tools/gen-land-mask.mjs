@@ -6,6 +6,7 @@
 //   npm i --no-save world-atlas@2 topojson-client@3
 //   node tools/gen-land-mask.mjs world    # → window.LAND_MASK   (Europe–East Asia, 0.5°)
 //   node tools/gen-land-mask.mjs europe   # → window.LAND_DETAIL (Europe detail, 0.125°)
+//   node tools/gen-land-mask.mjs globe    # → window.LAND_GLOBE  (whole world, 1°, visitors view)
 // then replace the matching line at the end of script.js with the output.
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -20,6 +21,10 @@ const PRESETS = {
     name: "LAND_DETAIL", list: true, step: 0.125, x0: -14, x1: 30, yTop: 77.25, yBot: 40.875,
     comment: "// Europe detail layer for the footprint map (0.125° lattice): Natural Earth 1:50m land (public domain) on a",
   },
+  globe: {
+    name: "LAND_GLOBE", list: false, step: 1, x0: -180, x1: 180, yTop: 140, yBot: -76,
+    comment: "// Whole-world layer for the visitors view (1° lattice): Natural Earth 1:50m land (public domain) on a",
+  },
 };
 const preset = PRESETS[process.argv[2]];
 if (!preset) {
@@ -30,15 +35,37 @@ if (!preset) {
 const require = createRequire(import.meta.url);
 const topo = JSON.parse(readFileSync(require.resolve("world-atlas/land-50m.json"), "utf8"));
 const land = feature(topo, topo.objects.land);
+// rings that cross the antimeridian (Chukotka) jump from 180 to -180; unwrap them into one continuous
+// longitude range, otherwise the jump edge marks a whole latitude band as land in a planar test
+const unwrap = (ring) => {
+  let offset = 0;
+  return ring.map(([x, y], i) => {
+    if (i) {
+      const dx = x - ring[i - 1][0];
+      if (dx < -180) offset += 360;
+      else if (dx > 180) offset -= 360;
+    }
+    return [x + offset, y];
+  });
+};
 const polys = [];
 for (const f of land.features ?? [land]) {
   const g = f.geometry;
-  for (const rings of g.type === "Polygon" ? [g.coordinates] : g.coordinates) {
+  for (const raw of g.type === "Polygon" ? [g.coordinates] : g.coordinates) {
+    const [outer, ...holes] = raw.map(unwrap);
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const [x, y] of rings[0]) {
+    for (const [x, y] of outer) {
       minX = Math.min(minX, x); maxX = Math.max(maxX, x);
       minY = Math.min(minY, y); maxY = Math.max(maxY, y);
     }
+    if (maxY < -59) continue; // Antarctica: a polar ring, and south of every lattice anyway
+    // Eurasia's ring starts in Chukotka, so unwrapping moves the whole continent by -360°; its hole (the
+    // Caspian) has to move into the same copy, or the planar test fills the Caspian in as land
+    const mid = (minX + maxX) / 2;
+    const rings = [outer, ...holes.map((ring) => {
+      const shift = 360 * Math.round((mid - ring[0][0]) / 360);
+      return shift ? ring.map(([x, y]) => [x + shift, y]) : ring;
+    })];
     polys.push({ rings, minX, minY, maxX, maxY });
   }
 }
@@ -52,10 +79,13 @@ const inRing = (ring, x, y) => {
 };
 const isLand = (lon, lat) => {
   for (const p of polys) {
-    if (lon < p.minX || lon > p.maxX || lat < p.minY || lat > p.maxY) continue;
-    let inside = false;
-    for (const ring of p.rings) if (inRing(ring, lon, lat)) inside = !inside;
-    if (inside) return true;
+    if (lat < p.minY || lat > p.maxY) continue;
+    for (const x of [lon, lon + 360, lon - 360]) { // an unwrapped ring may sit past ±180
+      if (x < p.minX || x > p.maxX) continue;
+      let inside = false;
+      for (const ring of p.rings) if (inRing(ring, x, lat)) inside = !inside;
+      if (inside) return true;
+    }
   }
   return false;
 };

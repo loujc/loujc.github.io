@@ -152,6 +152,16 @@
       "map.viewWorld": "World", "map.viewChina": "China", "map.viewEurope": "Europe",
       "map.legendHome": "Hometown · Shanghai", "map.legendNow": "Based in Beijing", "map.legendVisited": "Visited",
       "map.all": "All places", "map.europe": "Europe", "map.china": "China",
+      "map.viewVisitors": "Visitors", "map.legendVisitors": "Visitor cities · larger = more visits",
+      "vis.title": "Visitors", "vis.unit": "visits",
+      "vis.note": "Anonymous: city-level totals only — no IPs, no cookies.", "vis.demo": "Sample data · local preview",
+      visScope: (countries, cities) => `from ${cities} cities in ${countries} countries & regions`,
+      visRecent: (city, when) => `Latest: ${city} · ${when}`,
+      visTip: (city, n) => `${city} · ${n} visits`,
+      footStats: (visits, countries) => `${visits} visits · ${countries} countries & regions`,
+      "like.aria": "Like this page", "like.note": "Like this page? Tap the heart.",
+      likeThanks: (n, cap) => `Thank you — ${n} of ${cap} today`,
+      likeCapped: (cap) => `That's ${cap} for today — see you tomorrow ♥`,
       mapCluster: (name, n) => `${name} · ${n} cities`,
       "map.home": "hometown", "map.now": "based here",
       "map.aria": "Dot map of places visited: 10 countries and regions, and more than 50 cities in China",
@@ -298,6 +308,16 @@
       "map.viewWorld": "全球", "map.viewChina": "中国", "map.viewEurope": "欧洲",
       "map.legendHome": "家乡 · 上海", "map.legendNow": "现居 · 北京", "map.legendVisited": "到访城市",
       "map.all": "全部城市", "map.europe": "欧洲", "map.china": "中国",
+      "map.viewVisitors": "访客", "map.legendVisitors": "访客城市 · 圆点越大访问越多",
+      "vis.title": "访客足迹", "vis.unit": "次来访",
+      "vis.note": "匿名统计：只记录城市级汇总，不存 IP，不用 cookie。", "vis.demo": "演示数据 · 本地预览",
+      visScope: (countries, cities) => `来自 ${countries} 个国家和地区的 ${cities} 座城市`,
+      visRecent: (city, when) => `最近一位：${city} · ${when}`,
+      visTip: (city, n) => `${city} · ${n} 次来访`,
+      footStats: (visits, countries) => `${visits} 次来访 · ${countries} 个国家和地区`,
+      "like.aria": "为这个主页点赞", "like.note": "喜欢这个主页？点一下 ♥",
+      likeThanks: (n, cap) => `谢谢！今天已点 ${n} / ${cap}`,
+      likeCapped: (cap) => `今天的 ${cap} 下点满啦，明天再来 ♥`,
       mapCluster: (name, n) => `${name} · ${n} 城`,
       "map.home": "家乡", "map.now": "现居",
       "map.aria": "足迹点阵地图：到访 10 个国家与地区、全国 50 余座城市",
@@ -352,6 +372,7 @@
     }
     renderCalendar();
     dotMap?.refresh();
+    renderStats();
   };
   langBtn.addEventListener("click", () => applyLang(lang === "en" ? "zh" : "en"));
 
@@ -1366,7 +1387,9 @@
     const labelBox = $("#map-labels");
     const listEl = $("#map-list");
     const listBtn = $("#map-list-toggle");
-    const viewBtns = { world: $("#map-view-world"), china: $("#map-view-china"), europe: $("#map-view-europe") };
+    const viewBtns = { world: $("#map-view-world"), china: $("#map-view-china"), europe: $("#map-view-europe"), visitors: $("#map-view-visitors") };
+    const card = box.closest(".map-card");
+    const pulseV = $("#map-pulse-visitor");
     const RAD = Math.PI / 180;
     const TAU = Math.PI * 2;
     const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2)) / RAD;
@@ -1374,6 +1397,8 @@
       world: { x0: -12, x1: 148, y0: mercY(-5), y1: mercY(61) },
       china: { x0: 73, x1: 135.5, y0: mercY(16.8), y1: mercY(54.4) },
       europe: { x0: -3, x1: 16, y0: mercY(46.2), y1: mercY(55) },
+      // the whole world, drawn from a separate 1° land layer
+      visitors: { x0: -180, x1: 180, y0: mercY(-50), y1: mercY(72), layer: "globe" },
     };
     const places = PLACES.map((p) => ({ ...p, kind: p.kind ?? "visited", area: p.area ?? "china", x: p.lon, y: mercY(p.lat) }));
     const idx = (en) => places.findIndex((p) => p.en === en);
@@ -1401,48 +1426,63 @@
     let proj = null, colors = null;
     let sweep = 1, animating = false, hover = -1, raf = 0;
     let labels = [];
+    // visitors view: anonymous visitor cities from the stats API, faded in over the 1° world layer
+    let visitors = [], recentVisitor = null, hoverV = -1, globeMix = 0, globe = null;
+    let chosen = false; // a view was picked (or the visitors default applied): never switch views on our own after that
 
     // land lattice → typed arrays; rank = the coarsest sub-lattice (step × 1 … 8) a dot also belongs to
-    const decode = (m) => {
+    const decode = (m, kind) => {
       const bin = atob(m.bits);
       const isSet = (k) => (bin.charCodeAt(k >> 3) >> (k & 7)) & 1;
       const bounds = { x0: m.x0, x1: m.x0 + (m.cols - 1) * m.step, y0: m.yTop - (m.rows - 1) * m.step, y1: m.yTop };
-      const near = places.filter((p) => p.x > bounds.x0 - 25 && p.x < bounds.x1 + 25 && p.y > bounds.y0 - 25 && p.y < bounds.y1 + 25);
       let count = 0;
       for (let k = 0; k < m.cols * m.rows; k++) count += isSet(k);
       const L = {
-        step: m.step, bounds, count,
+        kind, step: m.step, bounds, count,
         xs: new Float32Array(count), ys: new Float32Array(count),
         rank: new Uint8Array(count), heat: new Float32Array(count), fade: new Float32Array(count),
       };
       for (let j = 0, n = 0; j < m.rows; j++) {
         for (let i = 0; i < m.cols; i++) {
           if (!isSet(j * m.cols + i)) continue;
-          const x = m.x0 + i * m.step;
-          const y = m.yTop - j * m.step;
-          L.xs[n] = x;
-          L.ys[n] = y;
+          L.xs[n] = m.x0 + i * m.step;
+          L.ys[n] = m.yTop - j * m.step;
           let r = 0;
           while (r < 3 && i % (2 << r) === 0 && j % (2 << r) === 0) r++;
-          L.rank[n] = r;
-          // halftone heat grows with every nearby city; land far from any visit recedes
-          let miss = 1;
-          let nearest = Infinity;
-          for (const p of near) {
-            const dx = x - p.x, dy = y - p.y;
-            const d2 = dx * dx + dy * dy;
-            if (d2 < nearest) nearest = d2;
-            if (d2 < 16) miss *= 1 - 0.75 * Math.exp(-d2 / 2.4);
-          }
-          L.heat[n] = 1 - miss;
-          L.fade[n++] = 0.45 + 0.55 * Math.exp(-nearest / 520);
+          L.rank[n++] = r;
         }
       }
       return L;
     };
+    // halftone heat grows with every nearby source (weight w); land far from all of them recedes
+    const shade = (L, sources, { sigma2 = 2.4, reach = 16, far = 520, floor = 0.45 } = {}) => {
+      const b = L.bounds;
+      const near = sources.filter((p) => p.x > b.x0 - 25 && p.x < b.x1 + 25 && p.y > b.y0 - 25 && p.y < b.y1 + 25);
+      for (let n = 0; n < L.count; n++) {
+        const x = L.xs[n], y = L.ys[n];
+        let miss = 1;
+        let nearest = Infinity;
+        for (const p of near) {
+          const dx = x - p.x, dy = y - p.y;
+          const d2 = dx * dx + dy * dy;
+          if (d2 < nearest) nearest = d2;
+          if (d2 < reach) miss *= 1 - 0.75 * (p.w ?? 1) * Math.exp(-d2 / sigma2);
+        }
+        L.heat[n] = 1 - miss;
+        L.fade[n] = far ? floor + (1 - floor) * Math.exp(-nearest / far) : floor;
+      }
+      return L;
+    };
+    const shadeGlobe = () => globe && shade(globe, visitors, { sigma2: 12, reach: 81, far: 0, floor: 1 });
+    const ensureGlobe = () => {
+      if (globe || !window.LAND_GLOBE) return;
+      globe = decode(window.LAND_GLOBE, "globe");
+      shadeGlobe();
+      lattices.push(globe);
+    };
     let details = [];
     const build = () => {
-      lattices.push(decode(window.LAND_MASK));
+      lattices.push(shade(decode(window.LAND_MASK, "base"), places));
       details = (window.LAND_DETAIL ?? []).map((m) => ({ m, L: null }));
     };
     const inside = (b, x, y) => x >= b.x0 && x <= b.x1 && y >= b.y0 && y <= b.y1;
@@ -1486,6 +1526,12 @@
     const inView = (p) => p.x >= proj.ux0 && p.x <= proj.ux1 && p.y >= proj.uy0 && p.y <= proj.uy1;
     const nameOf = (p) => (lang === "zh" ? p.zh : p.en);
     const markerR = (p, big) => (p.kind === "visited" ? (big ? 4.6 : 3.1) : big ? 6.2 : 4.8);
+    const visitorR = (v, big) => 2.6 + 3.2 * v.w + (big ? 1.6 : 0);
+    const fmtCount = (n) => new Intl.NumberFormat(lang === "zh" ? "zh-CN" : "en-US").format(n);
+    const visitorName = (v) => (lang === "zh" ? v.zh : v.en);
+    const visitorLabels = () => visitors.slice(0, 3).map((v, i) => ({
+      geo: [v.x, v.lat], visitor: i, text: () => `${visitorName(v)} · ${fmtCount(v.visits)}`, anchors: ["right", "left", "up", "down"],
+    }));
 
     /* labels: measured once per view/language, placed greedily so they never cover a marker or each other */
     const RECTS = {
@@ -1499,10 +1545,13 @@
       downright: (x, y, w, h) => [x + 7, y + 9],
     };
     const buildLabels = () => {
-      labels = LABELS[current].map((spec) => {
+      labels = (current === "visitors" ? visitorLabels() : LABELS[current]).map((spec) => {
         const el = document.createElement("span");
         el.className = "map-label";
-        if (spec.cluster) {
+        if (spec.text) {
+          el.classList.add("is-visitor");
+          el.textContent = spec.text();
+        } else if (spec.cluster) {
           el.classList.add("is-cluster");
           el.textContent = t().mapCluster(t()[spec.cluster[0]], spec.cluster[1]);
         } else {
@@ -1530,15 +1579,16 @@
     const overlaps = (a, b) => a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
     const placeLabels = (tipRect) => {
       const blockers = [];
-      for (const p of places) {
+      const marks = current === "visitors" ? visitors.map((v) => [v, visitorR(v, false)]) : places.map((p) => [p, markerR(p, false)]);
+      for (const [p, r] of marks) {
         if (!inView(p)) continue;
-        const rr = markerR(p, false) + 3;
+        const rr = r + 3;
         blockers.push([proj.sx(p.x) - rr, proj.sy(p.y) - rr, rr * 2, rr * 2]);
       }
       if (tipRect) blockers.push(tipRect);
       for (const l of labels) {
         const p = l.spec.place != null ? places[l.spec.place] : null;
-        if (p && l.spec.place === hover) {
+        if ((p && l.spec.place === hover) || (l.spec.visitor != null && l.spec.visitor === hoverV)) {
           l.el.classList.add("is-off");
           continue;
         }
@@ -1577,13 +1627,17 @@
       // once the base lattice gets sparse, a finer regional layer (Europe) takes over; cross-fades while zooming
       let detailAlpha = Math.min(Math.max((k * lattices[0].step - TARGET * 1.25) / (TARGET * 0.5), 0), 1);
       if (!animating) detailAlpha = detailAlpha >= 0.5 ? 1 : 0;
-      for (const d of details) if (detailAlpha > 0 && !d.L) lattices.push((d.L = decode(d.m)));
+      for (const d of details) if (detailAlpha > 0 && !d.L) lattices.push((d.L = shade(decode(d.m, "detail"), places)));
       const detailBounds = details.filter((d) => d.L).map((d) => d.L.bounds);
       const warmInk = mix(colors.accent, colors.paper, 0.15);
+      const coolInk = mix(colors.sage, colors.paper, 0.1);
+      const baseMix = 1 - globeMix;
       const groups = new Map();
       const spacings = [];
       lattices.forEach((L, li) => {
-        const isDetail = li > 0;
+        const layer = L.kind === "globe" ? globeMix : baseMix;
+        if (layer < 0.02) return;
+        const isDetail = L.kind === "detail";
         if (isDetail && (!detailAlpha || L.bounds.x1 < ux0 || L.bounds.x0 > ux1 || L.bounds.y1 < uy0 || L.bounds.y0 > uy1)) return;
         // pick the sub-lattice whose spacing is closest to TARGET; cross-fade levels while zooming
         const qf = Math.min(Math.max(Math.log2(TARGET / (k * L.step)), 0), 3);
@@ -1595,8 +1649,9 @@
           if (x < ux0 - 1 || x > ux1 + 1 || y < uy0 - 1 || y > uy1 + 1) continue;
           let a = animating ? Math.min(Math.max(rank[n] - qf + 1, 0), 1) : rank[n] >= q ? 1 : 0;
           if (isDetail) a *= detailAlpha;
-          else if (detailAlpha && detailBounds.some((b) => inside(b, x, y))) a *= 1 - detailAlpha;
+          else if (L.kind === "base" && detailAlpha && detailBounds.some((b) => inside(b, x, y))) a *= 1 - detailAlpha;
           if (sweep < 1) a *= Math.min(Math.max((edge - x) / 5, 0), 1);
+          a *= layer;
           const level = Math.round(a * fade[n] * 8);
           if (!level) continue;
           const key = li * 256 + Math.min(5, Math.floor(heat[n] * 6)) * 16 + level;
@@ -1608,8 +1663,9 @@
       for (const [key, pts] of groups) {
         const warm = ((key >> 4) & 15) / 5;
         const r = Math.min(Math.max(spacings[key >> 8] * (0.2 + 0.18 * warm), 0.7), 3.4);
-        // the halo stays softer than the markers so a city always reads as a city
-        ctx.fillStyle = rgba(mix(colors.ink, warmInk, warm ** 0.8), (colors.base + (0.6 - colors.base) * warm) * ((key & 15) / 8));
+        // the halo stays softer than the markers so a city always reads as a city; visitors glow sage
+        const tint = lattices[key >> 8].kind === "globe" ? coolInk : warmInk;
+        ctx.fillStyle = rgba(mix(colors.ink, tint, warm ** 0.8), (colors.base + (0.6 - colors.base) * warm) * ((key & 15) / 8));
         ctx.beginPath();
         for (let i = 0; i < pts.length; i += 2) {
           ctx.moveTo(pts[i] + r, pts[i + 1]);
@@ -1619,7 +1675,7 @@
       }
       // hover: a quiet flight arc from where I live
       const base = places[NOW];
-      const hovered = hover >= 0 ? places[hover] : null;
+      const hovered = hover >= 0 && baseMix >= 0.5 ? places[hover] : null;
       if (hovered && hover !== NOW && inView(hovered) && inView(base)) {
         const x0 = sx(base.x), y0 = sy(base.y), x1 = sx(hovered.x), y1 = sy(hovered.y);
         const lift = Math.min(Math.hypot(x1 - x0, y1 - y0) * 0.22, 90);
@@ -1635,7 +1691,8 @@
         ctx.stroke();
         ctx.setLineDash([]);
       }
-      for (const i of drawOrder) {
+      ctx.globalAlpha = baseMix;
+      for (const i of baseMix < 0.02 ? [] : drawOrder) {
         const p = places[i];
         if (!inView(p) || (sweep < 1 && p.x > edge)) continue;
         const px = sx(p.x), py = sy(p.y);
@@ -1653,13 +1710,41 @@
         ctx.fill();
         ctx.stroke();
       }
-      pulse.hidden = sweep < 1 || !inView(base);
+      ctx.globalAlpha = globeMix;
+      // least busy first, so the busiest city sits on top
+      for (let i = globeMix < 0.02 ? -1 : visitors.length - 1; i >= 0; i--) {
+        const v = visitors[i];
+        if (!inView(v) || (sweep < 1 && v.x > edge)) continue;
+        ctx.beginPath();
+        ctx.arc(sx(v.x), sy(v.y), visitorR(v, i === hoverV), 0, TAU);
+        ctx.fillStyle = rgba(colors.sage, 0.92);
+        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = rgba(colors.paper, 1);
+        ctx.fill();
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      const latest = recentVisitor;
+      pulseV.hidden = animating || sweep < 1 || globeMix < 0.5 || !latest || !inView(latest);
+      if (!pulseV.hidden) {
+        pulseV.style.left = `${sx(latest.x)}px`;
+        pulseV.style.top = `${sy(latest.y)}px`;
+      }
+      pulse.hidden = sweep < 1 || baseMix < 0.5 || !inView(base);
       if (!pulse.hidden) {
         pulse.style.left = `${sx(base.x)}px`;
         pulse.style.top = `${sy(base.y)}px`;
       }
       let tipRect = null;
-      if (hovered && inView(hovered)) {
+      const visitor = current === "visitors" && hoverV >= 0 ? visitors[hoverV] : null;
+      if (visitor && inView(visitor)) {
+        tip.textContent = t().visTip(visitorName(visitor), fmtCount(visitor.visits));
+        tip.hidden = false;
+        const px = sx(visitor.x), py = sy(visitor.y);
+        tip.style.left = `${px}px`;
+        tip.style.top = `${py}px`;
+        tipRect = [px - tip.offsetWidth / 2 - 4, py - 14 - tip.offsetHeight - 4, tip.offsetWidth + 8, tip.offsetHeight + 8];
+      } else if (hovered && inView(hovered)) {
         tip.textContent = lang === "zh" ? (hovered.region === "abroad" ? `${hovered.zh} · ${hovered.en}` : hovered.zh) : `${hovered.en} · ${hovered.zh}`;
         if (hovered.kind !== "visited") {
           const small = document.createElement("small");
@@ -1685,7 +1770,7 @@
       const my = event.clientY - rect.top;
       let best = -1;
       let bestDist = event.pointerType === "touch" ? 22 : 12;
-      places.forEach((p, i) => {
+      (current === "visitors" ? visitors : places).forEach((p, i) => {
         if (!inView(p)) return;
         const dist = Math.hypot(proj.sx(p.x) - mx, proj.sy(p.y) - my);
         if (dist < bestDist) {
@@ -1697,8 +1782,13 @@
     };
     const setHover = (index) => {
       canvas.style.cursor = index >= 0 ? "pointer" : "";
-      if (index === hover) return;
-      hover = index;
+      if (current === "visitors") {
+        if (index === hoverV) return;
+        hoverV = index;
+      } else {
+        if (index === hover) return;
+        hover = index;
+      }
       draw();
     };
     canvas.addEventListener("pointermove", (event) => setHover(nearest(event)));
@@ -1709,24 +1799,32 @@
 
     // zoom between views: centre moves linearly, extent scales geometrically (feels like a camera)
     const ease = (p) => (p < 0.5 ? 4 * p * p * p : 1 - (-2 * p + 2) ** 3 / 2);
+    const announce = () => box.dispatchEvent(new CustomEvent("mapview", { detail: current }));
     const setView = (name, done) => {
       current = name;
       for (const [other, btn] of Object.entries(viewBtns)) btn?.setAttribute("aria-pressed", String(other === name));
+      card.classList.toggle("is-visitors", name === "visitors");
       const to = VIEWS[name];
+      const mix1 = to.layer === "globe" ? 1 : 0;
       cancelAnimationFrame(raf);
-      hover = -1;
+      hover = hoverV = -1;
       if (!colors) {
         view = { ...to };
+        globeMix = mix1;
         return;
       }
+      if (mix1) ensureGlobe();
       buildLabels();
       if (reduceMotion.matches) {
         view = { ...to };
+        globeMix = mix1;
         animating = false;
         draw();
+        announce();
         done?.();
         return;
       }
+      const mix0 = globeMix;
       const from = { ...view };
       const c0 = [(from.x0 + from.x1) / 2, (from.y0 + from.y1) / 2];
       const c1 = [(to.x0 + to.x1) / 2, (to.y0 + to.y1) / 2];
@@ -1742,17 +1840,26 @@
         const w = w0 * (w1 / w0) ** e;
         const h = h0 * (h1 / h0) ** e;
         view = { x0: cx - w / 2, x1: cx + w / 2, y0: cy - h / 2, y1: cy + h / 2 };
+        globeMix = mix0 + (mix1 - mix0) * e;
         if (p >= 1) {
           view = { ...to };
+          globeMix = mix1;
           animating = false;
         }
         draw();
         if (p < 1) raf = requestAnimationFrame(step);
-        else done?.();
+        else {
+          announce();
+          done?.();
+        }
       };
       raf = requestAnimationFrame(step);
     };
-    for (const [name, btn] of Object.entries(viewBtns)) btn?.addEventListener("click", () => setView(name));
+    const choose = (name, done) => {
+      chosen = true;
+      setView(name, done);
+    };
+    for (const [name, btn] of Object.entries(viewBtns)) btn?.addEventListener("click", () => choose(name));
 
     // every place as text, grouped by region; hovering a name lights it up, clicking flies to it
     const renderList = () => {
@@ -1796,13 +1903,14 @@
       wanted = i;
       const p = places[i];
       if (proj && inView(p) && (current !== "world" || p.area === "world")) return setHover(i);
-      setView(p.area, () => setHover(wanted));
+      choose(p.area, () => setHover(wanted));
       box.scrollIntoView({ behavior: reduceMotion.matches ? "auto" : "smooth", block: "nearest" });
     });
 
     const start = () => {
       if (!window.LAND_MASK) return fallback();
       build();
+      if (globeMix) ensureGlobe();
       readColors();
       layout();
       buildLabels();
@@ -1816,6 +1924,7 @@
         sweep = Math.min(1, (now - t0) / 1500);
         draw();
         if (sweep < 1) requestAnimationFrame(step);
+        else announce(); // lets the visitors overlay roll its number once the map has drawn in
       };
       requestAnimationFrame(step);
     };
@@ -1839,7 +1948,20 @@
     });
     renderList();
     return {
-      setView,
+      setView: choose,
+      // visitor cities from the stats API: [{ city, zh, lat, lon, visits }], busiest first
+      setVisitors: (list, latest) => {
+        const top = Math.max(1, ...list.map((v) => v.visits));
+        visitors = list.map((v) => ({ ...v, x: v.lon, y: mercY(v.lat), w: Math.sqrt(v.visits / top) }));
+        recentVisitor = latest ? { x: latest.lon, y: mercY(latest.lat) } : null;
+        shadeGlobe();
+        viewBtns.visitors.hidden = false;
+        // with data in hand the visitors view is the default, unless a view was already picked
+        if (!chosen) return choose("visitors");
+        if (!colors) return;
+        if (current === "visitors") buildLabels();
+        draw();
+      },
       refresh: () => {
         renderList();
         if (!colors) return;
@@ -1848,6 +1970,222 @@
       },
     };
   })();
+
+  /* ——— visitors & likes: anonymous stats from a Netlify Function (see stats-api/README.md) ——— */
+  // An empty STATS_API keeps every stats widget hidden. Opened from disk (file://), the page never calls the API
+  // and shows clearly labelled sample numbers instead, so local previews neither fail nor count as visits.
+  const STATS_API = "https://loujc-stats.netlify.app";
+  const statsDemo = location.protocol === "file:";
+  const CITY_ZH = {
+    ...Object.fromEntries(PLACES.map((p) => [p.en, p.zh])),
+    Xian: "西安", "Xi'an": "西安", Hefei: "合肥", Zhengzhou: "郑州", Kunming: "昆明", Nanchang: "南昌", Changchun: "长春",
+    Shijiazhuang: "石家庄", Dongguan: "东莞", Zhuhai: "珠海", Wenzhou: "温州", Changzhou: "常州", Nantong: "南通",
+    Tokyo: "东京", Osaka: "大阪", "San Francisco": "旧金山", "San Jose": "圣何塞", "Santa Clara": "圣克拉拉",
+    "Mountain View": "山景城", "Palo Alto": "帕洛阿尔托", Sunnyvale: "桑尼维尔", "Los Angeles": "洛杉矶",
+    Seattle: "西雅图", "New York": "纽约", Boston: "波士顿", Austin: "奥斯汀", Chicago: "芝加哥",
+    Toronto: "多伦多", Vancouver: "温哥华", London: "伦敦", Munich: "慕尼黑", Berlin: "柏林", Zurich: "苏黎世",
+    Sydney: "悉尼", Melbourne: "墨尔本", Bengaluru: "班加罗尔", Dubai: "迪拜", "Kuala Lumpur": "吉隆坡",
+  };
+  const DEMO_PLACES = [ // [city, country, lat, lon, visits], busiest first — local preview only
+    ["Beijing", "CN", 39.9, 116.41, 1203], ["Shanghai", "CN", 31.23, 121.47, 842], ["Shenzhen", "CN", 22.54, 114.06, 401],
+    ["Hangzhou", "CN", 30.27, 120.16, 356], ["Guangzhou", "CN", 23.13, 113.26, 288], ["Nanjing", "CN", 32.06, 118.8, 198],
+    ["Wuhan", "CN", 30.59, 114.31, 167], ["Hong Kong", "HK", 22.32, 114.17, 154], ["Chengdu", "CN", 30.57, 104.07, 143],
+    ["Singapore", "SG", 1.35, 103.82, 133], ["San Francisco", "US", 37.77, -122.42, 119], ["Xian", "CN", 34.34, 108.94, 96],
+    ["Tokyo", "JP", 35.68, 139.69, 88], ["Seoul", "KR", 37.57, 126.98, 72], ["San Jose", "US", 37.34, -121.89, 64],
+    ["New York", "US", 40.71, -74.01, 57], ["London", "GB", 51.51, -0.13, 47], ["Seattle", "US", 47.61, -122.33, 41],
+    ["Boston", "US", 42.36, -71.06, 38], ["Munich", "DE", 48.14, 11.58, 33], ["Sydney", "AU", -33.87, 151.21, 26],
+    ["Austin", "US", 30.27, -97.74, 22], ["Paris", "FR", 48.86, 2.35, 21], ["Toronto", "CA", 43.65, -79.38, 19],
+    ["Zurich", "CH", 47.38, 8.54, 17], ["Bengaluru", "IN", 12.97, 77.59, 14],
+  ];
+  const stat = { data: null, pending: 0, timer: 0, rolled: new Set() };
+  const fmtNum = (n) => new Intl.NumberFormat(lang === "zh" ? "zh-CN" : "en-US").format(n);
+  const cityLabel = (city) => (lang === "zh" ? CITY_ZH[city] ?? city : city);
+  const statsDay = () => new Date(Date.now() + 8 * 36e5).toISOString().slice(0, 10);
+  const relTime = (at) => {
+    const rtf = new Intl.RelativeTimeFormat(lang === "zh" ? "zh-CN" : "en", { numeric: "auto" });
+    const minutes = Math.round((at - Date.now()) / 60e3);
+    if (minutes > -60) return rtf.format(Math.min(minutes, 0), "minute");
+    if (minutes > -1440) return rtf.format(Math.round(minutes / 60), "hour");
+    return rtf.format(Math.round(minutes / 1440), "day");
+  };
+  const statsApi = async (path, body) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(`${STATS_API}${path}`, {
+        method: body ? "POST" : "GET",
+        // text/plain keeps the request "simple", so there is no CORS preflight round trip
+        headers: body ? { "Content-Type": "text/plain;charset=UTF-8" } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+      return response.ok ? await response.json() : null;
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const demoStats = () => {
+    const saved = JSON.parse(localStorage.getItem("demo-likes") ?? "null");
+    const myLikes = saved?.day === statsDay() ? saved.n : 0;
+    const places = DEMO_PLACES.map(([city, country, lat, lon, visits]) => ({ city, country, lat, lon, visits }));
+    return {
+      demo: true,
+      visits: places.reduce((sum, p) => sum + p.visits, 0),
+      likes: 1284 + myLikes,
+      countries: new Set(places.map((p) => p.country)).size,
+      cities: places.length,
+      places,
+      recent: { ...places.find((p) => p.city === "Singapore"), at: Date.now() - 3 * 60e3 },
+      myLikes,
+      likeCap: 10,
+    };
+  };
+
+  // rolling digits: every digit is a 0–9 strip sliding to its value; the first showing rolls up from zero
+  const odometer = (el, value, fromZero = false) => {
+    const text = fmtNum(value);
+    const rebuild = fromZero || el.dataset.text?.length !== text.length;
+    if (rebuild) {
+      const spoken = document.createElement("span");
+      spoken.className = "odo-sr"; // the strips are aria-hidden; screen readers get this plain copy
+      el.replaceChildren(...[...text].map((ch, i) => {
+        const cell = document.createElement("span");
+        cell.setAttribute("aria-hidden", "true");
+        if (!/\d/.test(ch)) {
+          cell.className = "odo-sep";
+          cell.textContent = ch;
+          return cell;
+        }
+        cell.className = "odo-digit";
+        const strip = document.createElement("span");
+        strip.className = "odo-strip";
+        strip.style.transitionDelay = `${i * 45}ms`;
+        for (let d = 0; d <= 9; d++) {
+          const glyph = document.createElement("i");
+          glyph.textContent = String(d);
+          strip.append(glyph);
+        }
+        cell.append(strip);
+        return cell;
+      }), spoken);
+      void el.offsetWidth; // commit the zero position so the roll animates
+    }
+    [...text].forEach((ch, i) => el.children[i].firstElementChild?.style.setProperty("--v", ch));
+    el.lastElementChild.textContent = text;
+    el.dataset.text = text;
+  };
+  const rollWhenSeen = (el, value) => {
+    if (stat.rolled.has(el) || !("IntersectionObserver" in window)) return odometer(el, value);
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return;
+      io.disconnect();
+      stat.rolled.add(el);
+      odometer(el, Number(el.dataset.target), true);
+    }, { threshold: 0.6 });
+    el.dataset.target = String(value);
+    io.observe(el);
+  };
+
+  const likeWrap = $("#like");
+  const likeBtn = $("#like-btn");
+  const likeCount = $("#like-count");
+  const likeNote = $("#like-note");
+  const renderLike = () => {
+    const data = stat.data;
+    if (!data) return;
+    const T = t();
+    likeWrap.hidden = false;
+    likeBtn.setAttribute("aria-pressed", String(data.myLikes > 0));
+    likeBtn.classList.toggle("is-liked", data.myLikes > 0);
+    likeBtn.classList.toggle("is-capped", data.myLikes >= data.likeCap);
+    likeNote.textContent = data.myLikes >= data.likeCap ? T.likeCapped(data.likeCap)
+      : data.myLikes ? T.likeThanks(data.myLikes, data.likeCap) : T["like.note"];
+    if (stat.rolled.has(likeCount)) odometer(likeCount, data.likes);
+    else rollWhenSeen(likeCount, data.likes);
+  };
+  const burst = () => {
+    likeBtn.classList.remove("is-pop");
+    void likeBtn.offsetWidth;
+    likeBtn.classList.add("is-pop");
+    if (reduceMotion.matches) return;
+    const icon = likeBtn.querySelector(".like-icon");
+    for (let i = 0; i < 12; i++) {
+      const spark = document.createElement("i");
+      const angle = (i / 12) * Math.PI * 2 + Math.random() * 0.4;
+      const dist = 24 + Math.random() * 18;
+      spark.className = `spark s${i % 3}`;
+      spark.style.setProperty("--dx", `${(Math.cos(angle) * dist).toFixed(1)}px`);
+      spark.style.setProperty("--dy", `${(Math.sin(angle) * dist).toFixed(1)}px`);
+      icon.append(spark);
+      setTimeout(() => spark.remove(), 900);
+    }
+  };
+  const flushLikes = async () => {
+    const n = stat.pending;
+    stat.pending = 0;
+    if (!n || !stat.data) return;
+    if (stat.data.demo) {
+      localStorage.setItem("demo-likes", JSON.stringify({ day: statsDay(), n: stat.data.myLikes }));
+      return;
+    }
+    const result = await statsApi("/like", { n });
+    if (!result || !stat.data) return;
+    stat.data.likes = result.likes;
+    stat.data.myLikes = result.myLikes;
+    renderLike();
+  };
+  likeBtn.addEventListener("click", () => {
+    const data = stat.data;
+    if (!data) return;
+    if (data.myLikes >= data.likeCap) {
+      likeBtn.classList.remove("is-nope");
+      void likeBtn.offsetWidth;
+      likeBtn.classList.add("is-nope");
+      return;
+    }
+    data.myLikes += 1;
+    data.likes += 1;
+    stat.pending += 1;
+    burst();
+    renderLike();
+    clearTimeout(stat.timer);
+    stat.timer = setTimeout(flushLikes, 600); // rapid taps travel as one request
+  });
+
+  const renderVisitors = () => {
+    const data = stat.data;
+    if (!data) return;
+    const T = t();
+    dotMap?.setVisitors(data.places.map((p) => ({ ...p, en: p.city, zh: CITY_ZH[p.city] ?? p.city })), data.recent);
+    $("#mv-scope").textContent = T.visScope(fmtNum(data.countries), fmtNum(data.cities));
+    const recent = $("#mv-recent");
+    recent.parentElement.hidden = !data.recent;
+    if (data.recent) recent.textContent = T.visRecent(cityLabel(data.recent.city), relTime(data.recent.at));
+    $("#mv-demo").hidden = !data.demo;
+    odometer($("#mv-visits"), data.visits);
+    const foot = $("#foot-stats");
+    foot.hidden = false;
+    foot.textContent = T.footStats(fmtNum(data.visits), fmtNum(data.countries));
+  };
+  function renderStats() {
+    renderLike();
+    renderVisitors();
+  }
+  // the overlay number rolls up each time the visitors view opens
+  $("#dotmap")?.addEventListener("mapview", (event) => {
+    if (event.detail === "visitors" && stat.data) odometer($("#mv-visits"), stat.data.visits, true);
+  });
+  $("#foot-stats").addEventListener("click", () => dotMap?.setView("visitors"));
+  const loadStats = async () => {
+    stat.data = statsDemo ? demoStats() : await statsApi("/hit", {});
+    if (stat.data) renderStats();
+  };
+  if (STATS_API || statsDemo) {
+    if ("requestIdleCallback" in window) requestIdleCallback(loadStats, { timeout: 2500 });
+    else setTimeout(loadStats, 1200);
+  }
 
   /* ——— reveal / motion ——— */
   const revealables = $$("[data-reveal]");
@@ -1917,7 +2255,10 @@
 /* ——— generated data (see HANDOFF.md §地图) ——— */
 // Land mask for the footprint map: Natural Earth 1:50m land (public domain) sampled on a
 // Mercator-space lattice. Generated offline; no borders are drawn, only land dots.
-window.LAND_MASK = { x0: -15, yTop: 88, step: 0.5, cols: 341, rows: 202, bits: "/////////wAA+AAA8H8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4P///////w8AgD8AAP8HAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPz///////8BAPgHAOD/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAID///////////////////////////////////////////////////////9/AAAAAAAA//8f8P//ePj/////////////////////////////////////BwAAAAAAwP//A///P77//////////////////////////////////////wAAAAAAAP7//+D//4f//////////////////////////////////////wcAAAAAAMD//w/+///j//////////////////////////////////////8AAAAAAAD8///g/////P////////////////////////////////////8fAAAAAACA//8f/v//////////////////////////////////////////AwAAAAAA3v//4P//////////////////////////////////////////fwAAAAAA4P//D/z//////////////////////////////////////////w8AAAAAAPj//+D///////////////////////////////////////////8BAAAAAOD//w/8//////////////////////////////////////////8/AAAAAAD+///B////////////////////////////////////////////BwAAAADg//8f8P///////////////////////////////////////////wAAAwAA/v//A/7//////////////////////////////////////////x8AAAAA4P//f8D///////////////////////////////////////////8DAAAAAPz//wf4//////////////////////////////////////////9/AAAAAID///8A////////////////////////////////////////////DwAAAADw//8f4P///////////////////////////////////////////wEAAAAA/v//A/z//////////////////////////////////////////z8AAAAAwP//f4D///////////////////////////////////////////8HAABAAPD//z/w////////////////////////////////////////////AAAAGAD///9P/AP/////////////////////////////////////////DwAAAADA////AQ7A/////////////////////////////////////////wEAAAAA/P//PwAA/v///////////////////////////////////////x8AAAAAAP///wfA7/////////////////////////////////////////wHAAAAAPD///8A/P//////////////////////////////////////QAr8AQAAAgD4z/8P0P//////////////////////////////////////DwDAAwAAAACAf/h/AP7//////////////////////////////////////wAAAAAAgA8A4Af/B+D+/////////////////////////////////////w8AAAAAAPIAAHjg/wCM//////////////////////////////////////8AAAAAAGAPAAAA+B8C8P////////////////////////////////////8fAAAAAADgDwAAAP8jIP7/////////////////////////////////////AQAAAAAA/wMAAOZ/Bs//////////////////////////////////////HwAAAAAAwH8AAPD4j+D5/////////////////////////////////////wEAAAAAAPAHAAAN/wH8/////////////////////////////////////x8AAAAAAAD/AADgwz/A//////////////////////////////////////8BAAAAAADgDwAAfvgD+P////////////////////////////////////8/AAAAAAAA+AEAgMcPAP//////////////////////////////////////AwAAAAAAgP8AAPD8AOD/////////////////////////////////////PwAAAAAAAKAfAAC+HQD4/////////////////////////////////////wEAAAAAAOD5BwDANwgA/////////////////////////////////////z8AAAAAAAB+/wAAeAcA/P////////////////////////////////////9hAAAAAADADz8AAE4Env//////////////////////////////////////AQAAAAAA+uEPAMDn4P//////////////////////////////////////PwACAAAA4B/4AQD4v////////////////////////////////////////5fDAAAAAPgDfwCg///////////////////////////////////////////7EAAAAID/4A+A////////////////////////////////////////////vwMAAADgn/8B+P///////////////////////////////////////////3cAAAAA/PP/gf////////////////////////////////////////////8OAAAAgD/8P/j////////////////////////////////////////////fAQAAAPiH/wf/////////////////////////////////////////////PwAAAAAf/H/w/////////////////////////////////////////////wcAAADAgP4H/v///////////////////////////////////////////+8AAAAAAID/8f////////////////////////////////////////////84AAAAAAD8v/////////////////////////////////////////////8fBwAAAACAP/j/////////////////////////////////////////////8wAAAAAAeAD/////////////////////////////////////////////fx4AAAAAAAHg/////////////////////////////////////////////88HAAAAAAAQ///////////////////////////////////////////////5AAAAAAAA/v////////////////////////////////////////////8/HwAAAAAAwP//////////////////////////////////////////////4wQAAAAAwPn/////////////////////////////////////////////fxwAAAAAAPz//////////////////////////////////////////////48BAAAAAID///////////////////////////////////////////////8gAAAAAADg//////////////////////////////////////////////8PBgAAAAAA4P//////////////////////////////////////////////wQAAAAAAAPj/////////////////////////////////////////////HzgAAAAAAAD///////////8/////wf///////////////////////////wMPAAAAAADA/////////3/+4f//D/j//////////////////////////z8gAQAAAAAA8P////////+PHvz//wD///////////////////////////8HBAAEAAAAAP7///////9/4IP//w/g//////////////////////////9/AAAAAAAAAMD////5////D/z///+A////////////////////////////BxAAAgAAAAD4//9//v///wG///8P8P//////////////////////////fwAGMAAAAAAA////B////x/gwP//gP///////////////////////////wfAAQEAAAAA4P///cD///8BAPD/P/D//////////////////////////38AeAgAAAAAAP7/H374//8/AAD4/wf8//////////////////////////8PgH8AAAAA/sD//8Af/v//BwAA/v8B////////////////////////////APAPAAAA8P//Hw74g///fwAAgP8/4P//////////////////////////D4D/AwAAAP7//wMA/sD//wcAAMD/B/j/////////////////////////cwDwDwAAAID//38AjB/g//8AAAD4/wH+////////////////////////PwAA/wAAAADw//8PgOEH+P8/AAEA/j/A/////////////////////////wMAYAgAAAAA/v//ARD4B/7/B/gDwP8PyP///////////////////////z8AAAwAAAAAwP//DwAA/sD//8H/Afz/A/D///////////////////////8HAAACAAAAAPj/fwDAAH/4////////fwD8////////////////////////AADgAAAAAAD//wcAHIA//8H4/////z/4/////////////////////8f/DwAAHgAAAADw/38AgAPw7G/4//////8H///////////////////////8/wAAwAMAAAAA/v8PAnAAGPgB//////9/wP////////////////////+H/wcAAPgAAAAAwP//QAAOAAd/4P//////B/j///////////////////9/OPgAAAAfAAAAAPz/HwHAAMCAD/r//////wD+////////////////////BQMfAADgAQAAAAD//wcAAAAM8Af//////x/A////////////////////PwDgBwAAPAAAAADA/38AAADgAf3w//////8D+P///////////////////w8A/gEAwAMAAAAA+P8HAADgB4AX/P////9/AP////////////////////8HgD8AAH4AAAAAAP//AAAA+ADwAP//////P+D/////////////////////PsAPAIgPAAAAAOD/BwAIBxwAHuD//////w/8/////////////////////w/wAwD9AQAAAACAfwD//wMCAAP4/f///////////////////////////z8AfwDgHwAAAAAAMAD+/z8AAAAAOR7///////////////////////////8D4A8A/gMAAAAAAATw//8HAAAAAADg//////////////////////////8/APgB4H8AAAAAAMAB////AQAADABA/P//////////////////////////A4A/8P8PAAAAAAD4////PwAAAA8Ah///////////////////////////PwDwA/+/AAAAAACA/////wMAAAAAYPD//////////////////////////w8ADvC/BQAAAAAA8P///z8AAAAAAAD+//////////////////////////8DAIDvBwAAAAAAAP////8HAAAAAADg////////////////////////////AAAYbwAAAAAAAPj/////AwAAAAAA/P//////////////////////////HwCB9wAAAAAAAID//////wEAEAAAwP///////////////////////////wMA8AcAAAAAAAD4//////8HwA8AAPj///////////////////////////8AABwAAAAAAAAA////////AfwDAAD///////////////////////////8/AIADAAAAAAAA8P//////f4D/AwDw////////////////////////////BwBwAAAAAAAAAP7//////z/w/w8e/v///////////////////////////wAABgAAAAAAAOD///////8//v///////////////////////////////x8AAAAAAAAAAAD4////////7/////////////////////////////////8BAAAAAAAAAAAA//////////////////+f////////////////////////AAAAAAAAAAAA8P//////////////////4f//////////////////////HwAAAAAAAAAABP//////////////////P/j//////////////////////wEAAAAAAAAAQPD/////////////7////wf//////////////////////z8AAAAAAAAAAAj////////////////////B//////////////////////8HAAAAAAAAAAD8///////////////5//8/8P////////////////////8/AAAAAAAAAACA//////////////8f/v//D/j/////////////////////BwAAAAAAAAAA+P//////////////x////wN+////////////////////fwAAAAAAAAAAgP////////////////D///8A4P///////////////////wcACAAAAAAAAPj//////////////x/+///fAPv///////////////////8AAAAAAAAAAAD///////////////+H////GyD+//////////////////8fAAAAAAAAAADg////////////////4P///wMO8An/////////////////IQAAAAAAAAAA/v//////////////P/z//3/gAQDg////////////////HwYAAAAAAAAAwP///////////////w////9PPwAA+P///////////////+EAAAAAAAAAAPj////////////////B/////z8AAP7//////////////x8cAAAAAAAAAAD///////////////8/8P////8fAID////////////////AAwAAAAAAAADg////////////////B/7/////AwDA//////////////8PMAAAAAAAAAAA/P///////////////8P//////wAA+P////9///////8fAAYAAAAAAAAAgP///////////////3/4/////x8AAP//////4///////AAAAAAAAAAAAAPD///////////////8f//////8BAMD3////Afz////3AwAAAAAAAAAAAAD+////////////////w/////8fAABw/v//PwD///8/GAAAAAAAAAAAAADA////////////////f/D/////AwAAwP///wPg////AwEAAAAAAAAAAAAA+P///////////////w/8////HwAAAPj//38A+P//P2AAAAAAAAAAAAAAAP////////////////8B/////wMAAAD///8BAPz//wMPAAAAAAAAAAAAAOD///////////////8/4P///38AAADg//8fAID//3/wAQAAAAAAAAAAAAD8////////////////D/j///8DAAAA/P//AwDg//8PHAAABAAAAAAAAACA/////////////////wf///9/AAAAgP//PwAA/P//AwEAwAMAAAAAAAAA8P/////////////////A////AwAAAPD//wEAgP///wAAAHgAAAAAAAAAAP7///////////////8/8P//PwAAAAD8/x8AAPD//z8AAAAfAAAAAAAAAMD/////////////////B/z//wAAAACA//8BAAC+//8PAADgAQAAAAAAAAD4/////////////////4D//wMAAAAA8P8fAADA8///AwAAPgAAAAAAAAAA/////////////////1/w/38AAAAAAPz/AQAAAPz//wAAwAMAAAAAAAAA4P////////////////8P/v8HAAAAAID/DwAAAID//x8AAHgAAAAAAAAAAPz/////////////////w/8fAAAAAADg/wEAAADw//8HAAAOAAAAAAAAAID///////////////////n/AAAAAAAA/D8AAAAA/v//AACABQAAAAAAAADw/////////////////3/+AwAAAAAAgP8HAAAAgP//HwAA8AcAAAAAAAAA/v/////////////////fHwAAAAAAAOD/AAAAAPD//wMAAFsAAAAAAAAAwP//////////////////fwAAAAAAAAD8HwAAQADe/38AAMAYAAAAAAAAAPj//////////////////wAAMAAAAACA/wMAAAjAw/8PAAA4DQAAAAAAAAD//////////////////x8AGAAAAAAA4D8AAIAAOPD/AQBAAAMAAAAAAADg//////////////////8D4AMAAAAAAPgHAAAAAAb+PwAAgHMAAAAAAAAA/P//////////////////0H8AAAAAAAD/AQAAAMCA/wEAgPAHAAAAAAAAAP////////////////////8PAAAAAADgHwAAAAAM4B8AABC4AAAAAAAAAMD/////////////////////AQAAAAAA+AEAAAAAAfAAAACBDwAAAAAAAADw////////////////////HwAAAAAAAD8BAAAAMAAOAAAQMAwAAAAAAAAA/P///////////////////wMAAAAAAOBxAAAAAB7AAACAAcABAAAAAAAAgP///////////////////z8AAAAAAAA4DgAAAMADAAAAEAA9AAAAAAAAAOD///////////////////8HAAAAAAAAwAMAAAB4AAAAAAD4DwAAAAAAAAD4//////////////////9/AAAAAAAAAHgAAAAAHAAAAACA+gEAAAAAAAAA/v//////////////////BwAAAAAAAAAfAAAQAAcAAAAAED8AAAAAAAAAgP///////////////////wAAAAAAAADgAQAAAOABAADAAeIBAAAAAAAAAMD//x/w/////////////x8AAAAAAAAACAAAAAD4AAAAfAA4AAAAAAAAAADw/38A/P////////////8BAAAAAAAAAAAAAMAAPwAAwD8AAAAAAAAAAAAA/IEDgP////////////8fAAAAAAAAAAAAAAD44AcAAPwHAAAAAAAAAAAAAAYAAOD7////////////AwAAAAAAAAAAAAAAPvwBAOB/AAAAAAAAAAAAAAAAAAAA/v//////////PwAAAAAAAAAAAAAAgA8/AAD8AwAAAAAAAAAAAAAAAAAAkP///////////wMAAAAAAAAAAAAAAODjBwDAfwAAAAAAAAAAAAAAAAAAAPD//////////z8AAAAAAAAAAAAAAAD4+QAA/w8AAAAAAAAAAAAAAAAAAAD+//////////8DAAAAAAAAAAAAAAAgPh4A8P8DAEAAAAAAAAAAAAAAAADA//////////8fAAAAAAAAAAAAAAAAgL8HIP5/AAAEAAAAAAAAAAAAAAAA/P//////////AQAAAAAAAAAAAAAAAOTPAPz/HwDCAQAAAAAAAAAAAAAAgP//////////HwAAAAAAAAAAAAAAAID8B8D//8N/OAAAAAAAAAAAAAAAAPD//////////wEAAAAAAAAAAAAAAAAA/wH4/x/+BwYAAAAAAAAAAAAAAAD+/////////x8AAAAAAAAAAAAAAAAAwD8A/v9DAEAYAAAAAAAAAAAAAADA//////////8BAAAAAAAAAAAAAAAAAPgHwP9/CAIMOgAAAAAAAAAAAAAA/P////////8fAAAAAAAAAAAAAAAAAED+Afj/h3sAwB8BAAAAAAAAAAAAAP//////////AQAAAAAAAAAAAAAAAACIfwD+f/AbMPAjAgAAAAAAAAAAAOD/////////HwAAAAAAAAAAAAAAAAAA8G/A/w8+WEB8+AEAAQAAAAAAAAD4/////////wEAAAAAAAAAAAAAAAAAgP6f8P/hDwAADv8DAAAAAAAAAAAA/v///////x8AAAAAAAAAAAAAAAAAAID/G/4f3AHy4/P/AQAAAAAAAAAAgP////////8DAAAAAAAAAAAAAAAAAADgPwDmgz/AYvj//wEAAAAAAAAAAOD///////8/AAAAAAAAAAAAAAAAAAAA+AMAEOAeAAD5//8AgAEAAAAAAAD4////////BwAAAAAAAAAAAAAAAAAAAP4AAADcAwAA/P9/ADgAAAAAAAAA////////fwAAAAAAAAAAAAAAAAAAAAAfAACAcQAAAPz/D4ABAAAAAAAAwP///////w8AAAAAAAAAAAAAAAAAAADAAQAAMAwAAAT+/+M/AAAAAAAAAPj///////8CAAAAAAAAAAAAAAAAAAAAwAMAAAAAAICA///zAQEAAAAAAAD///////8/AAAAAAAAAAAAAAAAAAAAAPghAAAAAAAY8P9/AAAAAAAAAADA////////DwAAAAAAAAAAAAAAAAAAAID//wAAAAAAAPz/BwAAAAAAAAAA+P///////wAAAAAAAAAAAAAAAAAAAACA/wcAAAAAAcD//wAAAAAAAAAAAP7//////z8AAAAAAAAAAAAAAAAAAAAAAPwPAAAEEAD8P34AAAAAAAAAAMD///////8DAAAAAAAAAAAAAAAAAAAAAADY9/vHAwCA8AMPAAAAAAAAAAD4////////AAAAAAAAAAAAAAAAAAAAAAAAABwOPAAAAHzABwAAAAAAAAAA////////HwAAAAAAAAAAAAAAAAAAAAAAAAAw4AAAAAAA+AUAAAAAAAAA4P///////wMAAAAAAAAAAAAAAAAAAAAAAAAADAwAAAAAAH4BAAAAAAAAAPj///////8BAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAcAAAAAAAAAAD///////8/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAADg////////BwAAAAAAAAAAAAAAAAAAAAAAAAAAAMAPAGAAABAAAAAAAAAA/P///////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYDwAcAAAAAAAAAAAAwP///////x8AYAAAAAAAAAAAAAAAAAAAAAAAAAAA/h+AAwAAAA==" };
+window.LAND_MASK = { x0: -15, yTop: 88, step: 0.5, cols: 341, rows: 202, bits: "AwAAAAAAgP//B///D4D//////////////////////////////////////wAAAAAAAPD//8D//wH4/////////////////////////////////////x8AAAAAAAD+/w/4/z8A//////////////////////////////////////8DAAAAAADg//8B//+nwf////////////////////////////////////9/AAAAAAAA//8f8P//ePj/////////////////////////////////////BwAAAAAAwP//A///P77//////////////////////////////////////wAAAAAAAP7//+D//4f//////////////////////////////////////wcAAAAAAMD//w/+///j//////////////////////////////////////8AAAAAAAD8///g/////P////////////////////////////////////8fAAAAAACA//8f/v//////////////////////////////////////////AwAAAAAA3v//4P//////////////////////////////////////////fwAAAAAA4P//D/z//////////////////////////////////////////w8AAAAAAPj//+D///////////////////////////////////////////8BAAAAAOD//w/8//////////////////////////////////////////8/AAAAAAD+///B////////////////////////////////////////////BwAAAADg//8f8P///////////////////////////////////////////wAAAwAA/v//A/7//////////////////////////////////////////x8AAAAA4P//f8D///////////////////////////////////////////8DAAAAAPz//wf4//////////////////////////////////////////9/AAAAAID///8A////////////////////////////////////////////DwAAAADw//8f4P///////////////////////////////////////////wEAAAAA/v//A/z//////////////////////////////////////////z8AAAAAwP//f4D///////////////////////////////////////////8HAABAAPD//z/w////////////////////////////////////////////AAAAGAD///9P/AP/////////////////////////////////////////DwAAAADA////AQ7A/////////////////////////////////////////wEAAAAA/P//PwAA/v///////////////////////////////////////x8AAAAAAP///wfA7/////////////////////////////////////////wHAAAAAPD///8A/P//////////////////////////////////////QAr8AQAAAgD4z/8P0P//////////////////////////////////////DwDAAwAAAACAf/h/AP7//////////////////////////////////////wAAAAAAgA8A4Af/B+D+/////////////////////////////////////w8AAAAAAPIAAHjg/wCM//////////////////////////////////////8AAAAAAGAPAAAA+B8C8P////////////////////////////////////8fAAAAAADgDwAAAP8jIP7/////////////////////////////////////AQAAAAAA/wMAAOZ/Bs//////////////////////////////////////HwAAAAAAwH8AAPD4j+D5/////////////////////////////////////wEAAAAAAPAHAAAN/wH8/////////////////////////////////////x8AAAAAAAD/AADgwz/A//////////////////////////////////////8BAAAAAADgDwAAfvgD+P////////////////////////////////////8/AAAAAAAA+AEAgMcPAP//////////////////////////////////////AwAAAAAAgP8AAPD8AOD/////////////////////////////////////PwAAAAAAAKAfAAC+HQD4/////////////////////////////////////wEAAAAAAOD5BwDANwgA/////////////////////////////////////z8AAAAAAAB+/wAAeAcA/P////////////////////////////////////9hAAAAAADADz8AAE4Env//////////////////////////////////////AQAAAAAA+uEPAMDn4P//////////////////////////////////////PwACAAAA4B/4AQD4v////////////////////////////////////////5fDAAAAAPgDfwCg///////////////////////////////////////////7EAAAAID/4A+A////////////////////////////////////////////vwMAAADgn/8B+P///////////////////////////////////////////3cAAAAA/PP/gf////////////////////////////////////////////8OAAAAgD/8P/j////////////////////////////////////////////fAQAAAPiH/wf/////////////////////////////////////////////PwAAAAAf/H/w/////////////////////////////////////////////wcAAADAgP4H/v///////////////////////////////////////////+8AAAAAAID/8f////////////////////////////////////////////84AAAAAAD8v/////////////////////////////////////////////8fBwAAAACAP/j/////////////////////////////////////////////8wAAAAAAeAD/////////////////////////////////////////////fx4AAAAAAAHg/////////////////////////////////////////////88HAAAAAAAQ///////////////////////////////////////////////5AAAAAAAA/v////////////////////////////////////////////8/HwAAAAAAwP//////////////////////////////////////////////4wQAAAAAwPn/////////////////////////////////////////////fxwAAAAAAPz//////////////////////////////////////////////48BAAAAAID///////////////////////////////////////////////8gAAAAAADg//////////////////////////////////////////////8PBgAAAAAA4P//////////////////////////////////////////////wQAAAAAAAPj/////////////////////////////////////////////HzgAAAAAAAD///////////8/////wf///////////////////////////wMPAAAAAADA/////////3/+4f//D/j//////////////////////////z8gAQAAAAAA8P////////+PHvz//wD///////////////////////////8HBAAEAAAAAP7///////9/4IP//w/g//////////////////////////9/AAAAAAAAAMD////5////D/z///+A////////////////////////////BxAAAgAAAAD4//9//v///wG///8P8P//////////////////////////fwAGMAAAAAAA////B////x/gwP//gP///////////////////////////wfAAQEAAAAA4P///cD///8BAPD/P/D//////////////////////////38AeAgAAAAAAP7/H374//8/AAD4/wf8//////////////////////////8PgH8AAAAA/sD//8Af/v//BwAA/v8B////////////////////////////APAPAAAA8P//Hw74g///fwAAgP8/4P//////////////////////////D4D/AwAAAP7//wMA/sD//wcAAMD/B/j/////////////////////////cwDwDwAAAID//38AjB/g//8AAAD4/wH+////////////////////////PwAA/wAAAADw//8PgOEH+P8/AAEA/j/A/////////////////////////wMAYAgAAAAA/v//ARD4B/7/B/gDwP8PyP///////////////////////z8AAAwAAAAAwP//DwAA/sD//8H/Afz/A/D///////////////////////8HAAACAAAAAPj/fwDAAH/4////////fwD8////////////////////////AADgAAAAAAD//wcAHIA//8H4/////z/4/////////////////////8f/DwAAHgAAAADw/38AgAPw7G/4//////8H///////////////////////8/wAAwAMAAAAA/v8PAnAAGPgB//////9/wP////////////////////+H/wcAAPgAAAAAwP//QAAOAAd/4P//////B/j///////////////////9/OPgAAAAfAAAAAPz/HwHAAMCAD/r//////wD+////////////////////BQMfAADgAQAAAAD//wcAAAAM8Af//////x/A////////////////////PwDgBwAAPAAAAADA/38AAADgAf3w//////8D+P///////////////////w8A/gEAwAMAAAAA+P8HAADgB4AX/P////9/AP////////////////////8HgD8AAH4AAAAAAP//AAAA+ADwAP//////P+D/////////////////////PsAPAIgPAAAAAOD/BwAIBxwAHuD//////w/8/////////////////////w/wAwD9AQAAAACAfwD//wMCAAP4/f///////////////////////////z8AfwDgHwAAAAAAMAD+/z8AAAAAOR7///////////////////////////8D4A8A/gMAAAAAAATw//8HAAAAAADg//////////////////////////8/APgB4H8AAAAAAMAB////AQAADABA/P//////////////////////////A4A/8P8PAAAAAAD4////PwAAAA8Ah///////////////////////////PwDwA/+/AAAAAACA/////wMAAAAAYPD//////////////////////////w8ADvC/BQAAAAAA8P///z8AAAAAAAD+//////////////////////////8DAIDvBwAAAAAAAP////8HAAAAAADg////////////////////////////AAAYbwAAAAAAAPj/////AwAAAAAA/P//////////////////////////HwCB9wAAAAAAAID//////wEAEAAAwP///////////////////////////wMA8AcAAAAAAAD4//////8HwA8AAPj///////////////////////////8AABwAAAAAAAAA////////AfwDAAD///////////////////////////8/AIADAAAAAAAA8P//////f4D/AwDw////////////////////////////BwBwAAAAAAAAAP7//////z/w/w8e/v///////////////////////////wAABgAAAAAAAOD///////8//v///////////////////////////////x8AAAAAAAAAAAD4////////7/////////////////////////////////8BAAAAAAAAAAAA//////////////////+f////////////////////////AAAAAAAAAAAA8P//////////////////4f//////////////////////HwAAAAAAAAAABP//////////////////P/j//////////////////////wEAAAAAAAAAQPD/////////////7////wf//////////////////////z8AAAAAAAAAAAj////////////////////B//////////////////////8HAAAAAAAAAAD8///////////////5//8/8P////////////////////8/AAAAAAAAAACA//////////////8f/v//D/j/////////////////////BwAAAAAAAAAA+P//////////////x////wN+////////////////////fwAAAAAAAAAAgP////////////////D///8A4P///////////////////wcACAAAAAAAAPj//////////////x/+///fAPv///////////////////8AAAAAAAAAAAD///////////////+H////GyD+//////////////////8fAAAAAAAAAADg////////////////4P///wMO8An/////////////////IQAAAAAAAAAA/v//////////////P/z//3/gAQDg////////////////HwYAAAAAAAAAwP///////////////w////9PPwAA+P///////////////+EAAAAAAAAAAPj////////////////B/////z8AAP7//////////////x8cAAAAAAAAAAD///////////////8/8P////8fAID////////////////AAwAAAAAAAADg////////////////B/7/////AwDA//////////////8PMAAAAAAAAAAA/P///////////////8P//////wAA+P////9///////8fAAYAAAAAAAAAgP///////////////3/4/////x8AAP//////4///////AAAAAAAAAAAAAPD///////////////8f//////8BAMD3////Afz////3AwAAAAAAAAAAAAD+////////////////w/////8fAABw/v//PwD///8/GAAAAAAAAAAAAADA////////////////f/D/////AwAAwP///wPg////AwEAAAAAAAAAAAAA+P///////////////w/8////HwAAAPj//38A+P//P2AAAAAAAAAAAAAAAP////////////////8B/////wMAAAD///8BAPz//wMPAAAAAAAAAAAAAOD///////////////8/4P///38AAADg//8fAID//3/wAQAAAAAAAAAAAAD8////////////////D/j///8DAAAA/P//AwDg//8PHAAABAAAAAAAAACA/////////////////wf///9/AAAAgP//PwAA/P//AwEAwAMAAAAAAAAA8P/////////////////A////AwAAAPD//wEAgP///wAAAHgAAAAAAAAAAP7///////////////8/8P//PwAAAAD8/x8AAPD//z8AAAAfAAAAAAAAAMD/////////////////B/z//wAAAACA//8BAAC+//8PAADgAQAAAAAAAAD4/////////////////4D//wMAAAAA8P8fAADA8///AwAAPgAAAAAAAAAA/////////////////1/w/38AAAAAAPz/AQAAAPz//wAAwAMAAAAAAAAA4P////////////////8P/v8HAAAAAID/DwAAAID//x8AAHgAAAAAAAAAAPz/////////////////w/8fAAAAAADg/wEAAADw//8HAAAOAAAAAAAAAID///////////////////n/AAAAAAAA/D8AAAAA/v//AACABQAAAAAAAADw/////////////////3/+AwAAAAAAgP8HAAAAgP//HwAA8AcAAAAAAAAA/v/////////////////fHwAAAAAAAOD/AAAAAPD//wMAAFsAAAAAAAAAwP//////////////////fwAAAAAAAAD8HwAAQADe/38AAMAYAAAAAAAAAPj//////////////////wAAMAAAAACA/wMAAAjAw/8PAAA4DQAAAAAAAAD//////////////////x8AGAAAAAAA4D8AAIAAOPD/AQBAAAMAAAAAAADg//////////////////8D4AMAAAAAAPgHAAAAAAb+PwAAgHMAAAAAAAAA/P//////////////////0H8AAAAAAAD/AQAAAMCA/wEAgPAHAAAAAAAAAP////////////////////8PAAAAAADgHwAAAAAM4B8AABC4AAAAAAAAAMD/////////////////////AQAAAAAA+AEAAAAAAfAAAACBDwAAAAAAAADw////////////////////HwAAAAAAAD8BAAAAMAAOAAAQMAwAAAAAAAAA/P///////////////////wMAAAAAAOBxAAAAAB7AAACAAcABAAAAAAAAgP///////////////////z8AAAAAAAA4DgAAAMADAAAAEAA9AAAAAAAAAOD///////////////////8HAAAAAAAAwAMAAAB4AAAAAAD4DwAAAAAAAAD4//////////////////9/AAAAAAAAAHgAAAAAHAAAAACA+gEAAAAAAAAA/v//////////////////BwAAAAAAAAAfAAAQAAcAAAAAED8AAAAAAAAAgP///////////////////wAAAAAAAADgAQAAAOABAADAAeIBAAAAAAAAAMD//x/w/////////////x8AAAAAAAAACAAAAAD4AAAAfAA4AAAAAAAAAADw/38A/P////////////8BAAAAAAAAAAAAAMAAPwAAwD8AAAAAAAAAAAAA/IEDgP////////////8fAAAAAAAAAAAAAAD44AcAAPwHAAAAAAAAAAAAAAYAAOD7////////////AwAAAAAAAAAAAAAAPvwBAOB/AAAAAAAAAAAAAAAAAAAA/v//////////PwAAAAAAAAAAAAAAgA8/AAD8AwAAAAAAAAAAAAAAAAAAkP///////////wMAAAAAAAAAAAAAAODjBwDAfwAAAAAAAAAAAAAAAAAAAPD//////////z8AAAAAAAAAAAAAAAD4+QAA/w8AAAAAAAAAAAAAAAAAAAD+//////////8DAAAAAAAAAAAAAAAgPh4A8P8DAEAAAAAAAAAAAAAAAADA//////////8fAAAAAAAAAAAAAAAAgL8HIP5/AAAEAAAAAAAAAAAAAAAA/P//////////AQAAAAAAAAAAAAAAAOTPAPz/HwDCAQAAAAAAAAAAAAAAgP//////////HwAAAAAAAAAAAAAAAID8B8D//8N/OAAAAAAAAAAAAAAAAPD//////////wEAAAAAAAAAAAAAAAAA/wH4/x/+BwYAAAAAAAAAAAAAAAD+/////////x8AAAAAAAAAAAAAAAAAwD8A/v9DAEAYAAAAAAAAAAAAAADA//////////8BAAAAAAAAAAAAAAAAAPgHwP9/CAIMOgAAAAAAAAAAAAAA/P////////8fAAAAAAAAAAAAAAAAAED+Afj/h3sAwB8BAAAAAAAAAAAAAP//////////AQAAAAAAAAAAAAAAAACIfwD+f/AbMPAjAgAAAAAAAAAAAOD/////////HwAAAAAAAAAAAAAAAAAA8G/A/w8+WEB8+AEAAQAAAAAAAAD4/////////wEAAAAAAAAAAAAAAAAAgP6f8P/hDwAADv8DAAAAAAAAAAAA/v///////x8AAAAAAAAAAAAAAAAAAID/G/4f3AHy4/P/AQAAAAAAAAAAgP////////8DAAAAAAAAAAAAAAAAAADgPwDmgz/AYvj//wEAAAAAAAAAAOD///////8/AAAAAAAAAAAAAAAAAAAA+AMAEOAeAAD5//8AgAEAAAAAAAD4////////BwAAAAAAAAAAAAAAAAAAAP4AAADcAwAA/P9/ADgAAAAAAAAA////////fwAAAAAAAAAAAAAAAAAAAAAfAACAcQAAAPz/D4ABAAAAAAAAwP///////w8AAAAAAAAAAAAAAAAAAADAAQAAMAwAAAT+/+M/AAAAAAAAAPj///////8CAAAAAAAAAAAAAAAAAAAAwAMAAAAAAICA///zAQEAAAAAAAD///////8/AAAAAAAAAAAAAAAAAAAAAPghAAAAAAAY8P9/AAAAAAAAAADA////////DwAAAAAAAAAAAAAAAAAAAID//wAAAAAAAPz/BwAAAAAAAAAA+P///////wAAAAAAAAAAAAAAAAAAAACA/wcAAAAAAcD//wAAAAAAAAAAAP7//////z8AAAAAAAAAAAAAAAAAAAAAAPwPAAAEEAD8P34AAAAAAAAAAMD///////8DAAAAAAAAAAAAAAAAAAAAAADY9/vHAwCA8AMPAAAAAAAAAAD4////////AAAAAAAAAAAAAAAAAAAAAAAAABwOPAAAAHzABwAAAAAAAAAA////////HwAAAAAAAAAAAAAAAAAAAAAAAAAw4AAAAAAA+AUAAAAAAAAA4P///////wMAAAAAAAAAAAAAAAAAAAAAAAAADAwAAAAAAH4BAAAAAAAAAPj///////8BAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAcAAAAAAAAAAD///////8/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAAAAAAAAAADg////////BwAAAAAAAAAAAAAAAAAAAAAAAAAAAMAPAGAAABAAAAAAAAAA/P///////wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYDwAcAAAAAAAAAAAAwP///////x8AYAAAAAAAAAAAAAAAAAAAAAAAAAAA/h+AAwAAAA==" };
 // Europe detail layer for the footprint map (0.125° lattice): Natural Earth 1:50m land (public domain) on a
 // Mercator-space lattice. Generated offline; no borders are drawn, only land dots.
 window.LAND_DETAIL = [{ x0: -14, yTop: 77.25, step: 0.125, cols: 353, rows: 292, bits: "AAAAAAAAAAAAAAAAAAAAAAAAAP///////////////wcAAAD4//////////8BAAAAAAAAAAAAAAAABAAAAAAA/v//////////////DwAAAPD//////////wMAAAAAAAAAAAAAAAAIAAAAAAD8//////////////8fAAAA4P//////////BwAAAAAAAAAAAAAAABgAAAAAAPD//////////////z8AAADA//////////8PAAAAAAAAAAAAAAAACAAAAAAA4P///////////////wEAAAD//////////h8AAAAAAAAAAAAAAAA0AAAAAACA////////////////FwAAgP///////3/8PwAAAAAAAAAAAAAAAAwAAAAAAAD///////////////9/AAAA4///////Hvh/AAAAAAAAAAAAAAAAMAAAAAAAAP/f//////////////8AAABA/////38A8P8AAAAAAAAAAAAAAADgAAAAAAAA/9f//////////////wOAAID4////AQDg/wEAAAAAAAAAAAAAAMABAAAAAAD69///////////////HwAHANz///8BAAD/AwAAAAAAAAAAAAAA4AMAAAAAAPz3//////////////9/AB8AmP//fwEAAPwHAAAAAAAAAAAAAACABwAAAAAAyP////////////////8AHwAg//8fAAAA+A8AAAAAAAAAAAAAAAAMAAAAAAAA7////////////////wEeAAf3/w8AAAAAGAAAAAAAAAAAAAAAAAgAAAAAAIDf////////////////DxgCAO7/AwAAAAAgAAAAAAAAAAAAAAAAEAAAAAAAAN////////////////8fAAQADP8DAAAAAEAAAAAAAAAAAAAAAAAgAAAAAAAA3v///////////////38AAAAANgAAAAAAHwAAAAAAAAAAAAAAAAAAAAAAAADc/////////////////wAAAAAGAAAAAAD/AQAAAAAAAAAAAAAAAAAAAAAAALz/////////////////AwAAAAYAAAAAIP4DAAAAAAAAAAAAAAAAAAAAAAAAOPj///////////////8DAAAAAAAAAADI/wcAAAAAAAAAAAAAAAAAAAAAAACw/P///////////////wcAAAAAAAAAAPj/DwAAAAAAAAAAAAAAAAAAAAAAAKD/////////////////AwAAAAAAAAYA4P8fAAAAAAAAAAAAAAAAAAAAAAAAgP////////////////8HAAAAAAAA/gDA/z8AAAAAAAAAAAAAAAAAAAAAAAAA///////7/////////w8AAAAAAOD/H4D/fwAAAAAAAAAAAAAAAAAAAAAAAAD+//////f/////////AwAAAAAA/P//j///AAAAAAAAAAAAAAAAAAAAAAAAAPz+////7/////////8ZAAAAAAD+//////8BAAAAAAAAAAAAAAIAAAAAAAAA/P7///+f/////////z8AAAAAAPz//////wMAAAAAAAAAAAAAaAAAAAAAAAB4/P///z//////////PwAAAAAA////////BwAAAAAAAAAAAAAwAAAAAAAAAHD4////f/z///////9/AAAAAID///////8PAAAAAAAAAAAAAAwAAAAAAAAAAPD///9/4P///////38AAAAAAP///////x8AAAAAAAAAAAAAGAAAAAAAAAAA8P////+A////////fwEAAAAE/v//////PwAAAAAAAAAAAAB4AAAAAAAAAADI////74D///////9/AAAAABz8//////9/AAAAAAAAAAAAAMADAAAAAAAAAHD+//8fAP7//////z8AAAAAf/j///////8AAAAAAAAAAAAAYAAAAAAAAAAA8P///w8A/P//////HwAAAAD88f///////wEAAAAAAAAAAACAAgAAAAAAAADg////HwD4//////8fAAAAAODh////////AwAAAAAAAAAAAAAAAAAAAAAAAMD///8fAPD//////x8AAAAAwID///////8HAAAAAAAAAAAAAAAAAAAAAAAAAP///x8A4P//////DwAAAAAAgP///////w8AAAAAAAAAAACADwAAAAAAAAAA/v//HwDA//////8DAAAAAADv/v//////HwAAAAAAAAAA4PofAAAAAAAAAAD4//8fAID//////w8AAAAAAP/8//////8/AAAAAAAAABDA/z8AAAAAAAAAAOD//x8AAP//////PwAAAADg//H//////38AAAAAAAAAMID/fwAAAAAAAAAAgP//HwAA/v////8fAAAAAID/4f///////wAAAAAAAAB4AP9/AAAAAAAAAAAA/v8/AAD4/////z8AAAAAAP+B9///////AQAAAAAAAPgA/v8AAAAAAAAAAADw/z8AAOD//////wAAAAAA/wHM//////8DAAAAAAAA9AD/fwAAAAAAAAAAAAD/HwAAwP//////AQAAAAD8AMD//////wcAAAAAAAD8AP9/AAAAAAAAAAAAAP8fAACA//////8BAAAAADAAgP//////DwAAAAAAAPAB/n8AAAAAAAAAAAAA/g8AAAD//////wMAAAAAYAAA//////8fAAAAAAAA4AP8fwAAAAAAAAAAAADgAwAAAPz/////BwAAAABAAAD+/////z8AAAAAAADAB/B/AAAAAAAAAAAAAAAAAAAA8P////8PAIABAMAAAP7/////fwAAAAAAAAAD+P8AAAAAAAAAAAAAAAAAAADg/////x8AwAEAAAAA/P//////AAAAAAAAAAP4/wMAAAAAAAAAAAAAAAAAAMD/////HwDwAQAAAAD4//////8BAAAAAAAAAvD/AwAAAAAAAAAAAAAAAAAAgP////8/AOABAAAAAPD//////wMAAAAAAAAA8P/D+wcAAAAAAAAAAAAAAEAA/v////8A4AEAAGAA4P//////BwAAAAAAgAfj/+f/HwAAAAAAAAAAAAAAYAD8/////wHgAwAA8AHA//////8PAAAAAAAABo////8/AAAAAAAAAAAAAADwAPj/////A8AHAAD8B4D//////x8AAAAAAAAAn////38AAAAAAAAAAAAAAPAD4P////8HwA8AAPwfAP//////PwAAAAAAAAA//////wAAAAAAAAAAAAAA8AfA/////w+APwAA+H8A/v////9/AAAAAAAAEHz+////AAAAAAAAAAAAAADgDwD/////DwA/AAD4/wD8//////8AAAAAAABg4Pn///8BAAAAAAAAAAAAAOAfA/7///8fAX4AAPD/A/j//////wEAAAAAAMCA7////wEAAAAAAAAAAAAA4D8C+P///z8CeAAA4P8H8P//////AwAAAAAAgAHc////AwAAAAAAAAAAAAD8PwDw////fwZwAADg/x/w//////8HAAAAAAAAANj///8HAAAAAAAAAAAAAP9/AOD/////BGAAAMD/P/D//////w8AAAAAAAAAgv///w8AAAAAAAAAAAAA/38AgP////8JwAAAgP//8f//////HwAAAAAAAAKE////DwAAAAAAAAAAAACf/wAA/////xuAAAAA//////////8/AAAAAAAAAAD///8fAAAAAAAAAAAAAD7/AQD8////OwAAAAD//////////38AAAAAAAAAAP7//x8AAAAAAAAAAAAAPv4DAPD///83AAAAAP///////////wAAAAAAAAAA////HwAAAAAAAAAAAAB4/wcA4P///28AAAAA/v//////////AQAAAAAAAAD+//8/AAAAAAAAAAAAACD/DwCA////bwAAAAD8//////////8DAAAAAAAAIHv//z8AAAAAAAAAAAAAEP8fAAD+///fAAAAAPz//////////wcAAAAAAAAAfv//fwAAAAAAAAAAAADw/v8DAPj//98BAAAA+P//////////DwAAAAAAAAB4/v8/AAAAAAAAAAAAAOD//w8A+P//vwMAAADw//////////8fAAAAAAAAAPD8/z8AAAAAAAAAAAAAwP//HwD4//9/AwAAAOD//////////z8AAAAAAAAA8Pz//wEAAAAAAAAAAACA//8/APD//38GAAAAwP//////////fwAAAAAAAAAA+P//AwAAAAAAAAAAAAD//z8A2P///wgAAACA////////////AAAAAAAAAADw//8DAAAAAAAAAAAAAP7/JwDg////AAAAAAD///////////8BAAAAAAAAAOD//wEAAAAAAAAAAAAA/P8PANj//wAAAAAAAPz//////////wMAAAAAAAAA+P//AQAAAAAAAAAAAADw/x8A+P//AQAAAAAA+P//////////BwAAAAAAAADQ5v/zAAAAAAAAAAAAAOD/PwD8/n8AAAAAAADw//////////8PAAAAAAAAALjD//8HAAAAAAAAAAAAwP8/A/P5fwAAAAAAAOD//////////x8AAAAAAAAAPMf//x8AAAAAAAAAAACA/x8G5vP/AAAAAAAAwP//////////PwAAAAAAAAA8jP//fwAAAAAAAAAAAID/fwDux/8AAAAAAACA//////////9/AAAAAAAAAGA8////AQAAAAAAAAAAAP9/gP+P/wEAAAAAAAD///////////8AAAAAAAAAwPj8//8HAAAAAAAAAAAA/n8A/j//BwAAAAAAAPz//////////wEAAAAAAAAA8PH//w8AAAAAAAAAAAD4f3z8T/4PAAAAAAAA+P//////////AwAAAAAAAABw4///PwAAAAAAAAAAAOD//vAf/B8AAAAAAAD4//////////8HAAAAAAAAAGDA//9/AAAAAAAAAAAAAP/94z/4HwAAAAAAAOj//////////w8AAAAAAAAEwMD///8AAAAAAAAAAAAA/vvH/8AAAAAAAAAA0P//////////HwAAAAAAAB4AwP///wMAAAAAAAAAAAD894//AQAIAAAAAACQ//////////8/AAAAAACAfz6A////BwAAAAAAAAAAAPDPH/4BAHAAAAAAACD//////////38AAAAAAOC/fwD///8PAAAAAAAAAAAA8A8/4AAA4AEAAAAAIP7//////////wAAAAAAwP//Af///x8AAAAAAAAAAADgH7jAAQDAAwAAAAAg/P//////////AQAAAADA//8D////PwAAAAAAAAAAAMD/g4E7AAAAAAAAAGD4//////////8DAAAAAID//w/+P/7/AAAAAAAAAAAAIP8WGR8AAAAAAAAA/P///////////wcAAAAAAP//P/wf//8BAAAAAAAAAADA/kPzDQAAAAAAMAD4////////////DwAAAAAA//9/sBn+/wMAAAAAAAAAAAD8D+QPAAAAAAD/AfD///////////8fAAAAAID//38AAP7/DwAAAAAAAAAAAPo/gA8AAQAAgP8H4P///////////z8AAAAAAP7//wMA/P8/AAAAAAAAAAAA4H8ABAAHAADA/xfg////////////fwAAAAAAwP//DwD4//8BAAAAAAAAAACA/wAAAB4AAPD/D+D/////////////AAAAAADA//8fAPD//w8AAAAAAAAAAAD/AQYAPAAA8P8/4P////////////8BAAAAAOD//x8A4P//HwAAAAAAAAAAgP8fDOB/AADw/3/g/////////////wMAAAAA4P//P8CA//9/AAAAAAAAAACA//8H4P8BAPD/////////////////BwAAAPi7//9/wAH///8BAAAAAAAAAAD8/w/gXwAA+P////////////////8PAAAA+P///z+AAfz//wcAAAAAAAAAAPj/H+B/AAD+/////////////////x8AAADA////P4AD0P//HwAAAAAAAAAA8P8f+P8PgP//////////////////PwAAAID///8/AACA//8fAAAAAAAAAADg/x/4/3/g//////////////////9/AAAA4P///x8AAAD//z8AAAAAAAAAAID///v///H///////////////////8AAAAA////PwAAAP///wAAAAAAAAAAAP7//////////////////////////wEAAADg////AAAA/v//AQAAAAAAAADA///////h////////////////////AwAAAPD///8BAAD8//8HAAAAAAAAAMD//////4////////////////////8HAAAA8P///wMAAPD//w8AAAAAAADAj///////f////////////////////w8AAADg////BwAA8P//DwAAAAAAAMQf////////////////////////////HwAAAPD///8fAADg//8/AAAAAAAAwH////////////////////////////8/AAAAwP///z8AAMD///8AAAAAADCQ/////////////////////////////38AAACA////fwA4wP///wEAAAAAxn///////////////////////////////wAAAAD8////APD8////BwAAAADA////////////////////////////////AQAAAOD///8B4P////8PAAAAAOD///////////////////////////////8DAAAAAPz//wOA/////z8AAAAAwv///////////////////////////////wcAAAAA/v//BwD+////PwAAAADG////////////////////////////////DwAAAAD+//8fAP7///8/AAAAAMT///////////////////////////////8fAAAAAPz//z8A/v///z/+AAAA+P///////////////////////////////z8AAAAA+P//PwDm//////wDAADw////////////////////////////////fwAAAAD4//9/AID//////x8AAOD/////////////////////////////////AAAAAPj+/38AAP//////PwAA4P////////////////////////////////8BAAAA+P///wAA/v//////AADA/////////////////////////////////wMAAADg////AQD8//////8BAID/////////////////////////////////BwAAAOD///8DAPj//////wMAAP////////////////////////////////8PAAAA4P///wMA8P//////AwAA/v///////////////////////////////x8AAADA////AwDw//////8HAAD+////////////////////////////////PwAAAPD///8PAPD//////w8AAPz///////////////////////////////9/AAAA8P///wkA+P//////HwAA/P////////////////////////////////8AAAAA/v8fAAD4//////8fAAD8/////////////////////////////////wEAAAD//x8AAP7//////z8AAPz/////////////////////////////////AwAAAP//DwAA/v//////HwAA+P////////////////////////////////8HAAAA//8PAAD8//////8/AAD4/////////////////////////////////w8AAAD8/wMAAPj//////z8AAPD/////////////////////////////////HwAAAMD/BwAA8P3/////DwAA+P////////////////////////////////8/AAAAwP4DAACA4P////8/AABA/////////////////////////////////38AAAAA/gEAAABA/v3//38AAHj//////////////////////////////////wAAAAAEAAAAAAD4/P//HwAA8P//////////////////////////////////AQAAAAAAAAAAAOD8//9/AABg//////////////////////////////////8DAAAAAAAAAAAAAPj///8/APj//////////////////////////////////wcAAAAAAAAAAABw+P///38A+P//////////////////////////////////DwAAAAAAAAAAAPj//////wD8//////////////////////////////////8fAAAAAAAAAAAA+P////9/AP7//////////////////////////////////z8AAAAAAAAAAAD4/////3/A////////////////////////////////////fwAAAAAAAAAAAPj/////f+D/////////////////////////////////////AAAAAAAAAAAA8P////8f4P////////////////////////////////////8BAAAAAAAAAADg//+/HA7A/////////////////////////////////////wMAAAAAAAAAAOD//88DAID/////////////////////////////////////BwAAAAAAAAAA4P+ADwMAAP////////////////////////////////////8PAAAAAAAAAADg/wEAAAAA/v///////////////////////////////////x8AAAAAAAAAAOD/AwAAAAD8////////////////////////////////////PwAAAAAAAAAA4P8DAAAAAPj///////////////////////////////////9/AAAAAAAAAADgBwcAAAAA8P////////////////////////////////////8AAAAAAAAAAPADBAAAAADg/////////////////////////////////////wEAAAAAAAAA8AEAAAAAAOD/////////////////////////////////////AwAAAAAAAAAgAwAAAAAA4P////////////////////////////////////8HAAAAAAAAAAAAAAAAAADw/////////////////////////////////////w8AAAAAAAAAAAAAAAAAAPz/////////////////////////////////////HwAAAAAAAAAAAAAAAAAA/v////////////////////////////////////8/AAAAAAAAAAAAAAAAAAD//////////////////////////////////////38AAAAAAAAAAAAAAAA+AP7//////////////////////////////////////wAAAAAAAAAAAAAAAH4A/v//////////////////////////////////////AQAAAAAAAAAAAAAA+AD4//////////////////////////////////////8DAAAAAAAAAAAAAADwB/D//////////////////////////////////////wcAAAAAAAAAAAAAAMD/+f//////////////////////////////////////DwAAAAAAAAAAAAAAiP////////////////////////////////////////8fAAAAAAAAAAAAAAAQ/v///////////////////////////////////////z8AAAAAAAAAAAAAAAD8////////////////////////////////////////fwAAAAAAAAAAAAAAAPj/////////////////////////////////////////AAAAAAAAAAAAAAAA8P////////////////////////////////////////8BAAAAAAAAAAAAwADg/////////////////////////////////////////wMAAAAAAAAAAADAB8D/////////////////////////////////////////BwAAAAAAAAAAAP4fEP////////////////////////////////////////8PAAAAAAAAAACA/3///////////////////////////////////////////x8AAAAAAAAAAID/////////////////////////////////////////////PwAAAAAAAAAAAP////////////////////////////////////////////9/AAAAAAAAAAAA/P////////////////////////////////////////////8AAAAAAAAAAADw/////////////////////////////////////////////wEAAAAAAAAAAMD/////////////////////////////////////////////AwAAAAAAAAAAwP////////////////////////////////////////////8HAAAAAAAAAADA/////////////////////////////////////////////w8AAAAAAAAAAAD+////////////////////////////////////////////HwAAAAAAAAAAAPj///////////////////////////////////////////8/AAAAAAAAAAAAAP7//////////////////////////////////////////38AAAAAAAAAAAAA4P///////////////////////////////////////////wAAAAAAAAAAAAAA////////////////////////////////////////////AQAAAAAAAAAAAAD4//////////////////////////////////////////8DAAAAAAAAAAAAAMD//////////////////////////////////////////wcAAAAAAAAAAAAAgP//////////////////////////////////////////DwAAAAAAAAAAAAAA+P////////////////////////////////////////8fAAAAAAAAAAAAAADw/////////////////////////////////////////z8AAAAAAAAAAAAAAMD/////////////////////////////////////////fwAAAAAAAAAAAAAAgP//////////////////////////////////////////AAAAAAAAAAAAAAAA//////////////////////////////////////////8BAAAAAAAAAAAAAAD+/////////////////////////////////////////wMAAAAAAAAAAAAAAPz/////////////////////////////////////////BwAAAAAAAAAAAAAA8P////////////////////////////////////////8PAAAAAAAAAAAAAADA/////////////////////////////////////////x8AAAAAAAAAAAAAAID/////////////////////////////////////////PwAAAAAAAAAAAAAAAPz///////////////////////////////////////9/AAAAAAAAAAAAAAAA4P////////////////////////////////////////8AAAAAAAAAAAAAAACA/////////////////////////////////////////wEAAAAAAAAAAAAAAAD/////////////////////////////////////////AwAAAAAAAAAAAAAAAP7///////////////////////////////////////8HAAAAAAAAAAAAAAAA/////////////////////////////////////////w8AAAAAAAAAAAAAAAD0////////////////////////////////////////HwAAAAAAAAAAAAAAAOD///////////////////////////////////////8/AAAAAAAAAAAAAAAA4P//////////////////8P///////////////////w8AAAAAAAAAAAAAAACA///////////////////g////////////////////HwAAAAAAAAAAAAAAAAD+////////////////f+D///////////////////8/AAAAAAAAAAAAAAAAAP////////////////8P4P///////////////////38AAAAAAAAAAAAAAAAA/v///////////////x+A/////////////////////wEAAAAAAAAAAAAAAAD8////////////////PwA/////////////////////AQAAAAAAAAAAAAAAAPj///////////////9/AH7+//////////////////8DAAAAAAAAAAAAAAAA8P////////////////8BePf//////////////////wcAAAAAAAAAAAAAAADg/////////////////wdw+v//////////////////DwAAAAAAAAAAAAAAAOD/////////////////D8DE/////////////////38fAAAAAAAAAAAAAAAAwP////////////////8PAMj//////////////////x4AAAAAAAAAAAAAAAAA/////////////////w8AMP//////////////////AQAAAAAAAAAAAAAAAAD+////////////////HwAA/P////////////////8BAAAAAAAAAAAAAAAAAP7///////////////8/AAD8/////////////////wcAAAAAAAAAAAAAAAAA/P///////////////38AAPD/////////////////BwAAAAAAAAAAAAAAAAD4////////////5////wAAwP////////////////8HAAAAAAAAAAAAAAAAAPD///////////8H/v//AwAA/////////////////w8AAAAAAAAAAAAAAAAA4P///////////wf4//8HAAD+////////////////HwAAAAAAAAAAAAAAAADA////////////B8D//x8AAP7///////////////8/AAAAAAAAAAAAAAAAAMD///////////8HAP7/fwAA8P///////////////38AAAAAAAAAAAAAAAAAgP///////////wcA8P//AwDo/////////////////wAAAAAAAAAAAAAAAAAA////////////BwDg//8PAAD/////////////////AQAAAAAAAMABAAAAAAD+//////////8BAMD//z8AAPz///////////////8DAAAAAAAA4AdAAAAAAPz/////////fwAAAP///wEA4P///////////////wMAAAAAAADw//8PAAAA/P////////9/AAAA/v//BwDA////////////////BwAAAAAAAOD///+BDwD4/////z/+/38AAAD8//8fAADw//////////////8PAAAAAAAA4P//////H/7/////P2D+fwAAAPD//z8AALD//////////////wMAAAAAAAD8//////////////8/APB/AAAA4P///wAA4P7/////////////AwAAAAAAAP7//////////////x8AwH8AAADA////AQDA+P////////////8DAAAAAAAA/P//////////////HwAAPgAAAID///8DAADP/////////////wcAAAAAAAD8//////////////8/AAAAAAAAAP///w8AAGD/////////////DwAAAAAAAPD//////////////z8AAAAAAAAD/P//HwAAeP////////////8fAAAAAAAA4P//////////////fwAAAAAAAAbj//8/AAAA+P///////////z8AAAAAAAAA////////////////AAAAAAAADIf///8AAACI////////////fwAAAAAAAAD///////////////8BAAAAAAAPAP///wEAAAD+//////////8/AAAAAAAAAPj//////////////wcAAAAAgD8A/P//BwAAAPj//////////38AAAAAAAAA8P//////////////DwAAAAAAfwDw//8fAAAAwP//////////fwAAAAAAAADg//////////////8/AAAAAAD/AID//38AAAAA////////////AQAAAAAAAMD//////////////38AAAAAAP4BAP7//wEAAAD4//////////8HAAAAAAAAgP//////////////fwAAAAAA/AMA+P//BwAAAOD//////////w8AAAAAAACA////////////////AAAAAADwBwDg//8fAAAAgP//////////PwAAAAAAAAD///////////////8DAAAAAOAHAID///8AAAAA/v//////////AAAAAAAAAPz//////////////wMAAAAAwA8AAP7///8DAAD8//////////8BAAAAAAAA/P//////////////BwAAAACAHwAA+P///wcAAOD//////////wMAAAAAAAD4//////////////8DAAAAAAA+AADg////DwAAgP//////////BwAAAAAAAOD//////////////wEAAAAAADwAAID///8HAAAA//////////8fAAAAAAAAwP//////////////AQAAAAAAeAAAAP7//w8AAAD//////////38AAAAAAACA//////////////8AAAAAAADAAAAA+P//PwAAAP7//////////wEAAAAAAAD//////////////wAAAAAAAAAAAADA////AQAA/P//////////DwAAAAAAAP7/////////////AAAAAAAAAAAAAAD///8PAAD4////////////AAAAAAAA+P///////////x8AAAAAAAAADgAAAID//38AAPD/////////////AQAAAADw////////////BwAAAAAAAAg+AAAAAP7//wMA4P////////////8DAAAAAOD///////////8DAAAAAAAAAH4AAAAA/P//HwDA//////////8C+wcAAAAAwP///////////wMAAAAAAAAg/wEAAADw//9/AID/////f4f/fwDgDwAAAACA////////////BwAAAAAAAMD/AwAAAMD///8DgP////9/AvD/AIAfAAAAAAD///////////8fAAAAAAAAgP8PAAAAAP7//x8A/////w8MwP8AgD8AAAAAAP///////////w8AAAAAAAAA/x8AAAAA4v//fwD+////HxgAfwDgfwAAAAAA/v//////////DwAAAAAAAAD8PwAAAACA////Afj//99/ABgwYMD/AAAAAAD8//////////8PAAAAAAAAAPh/AAAAAAD///wH8P//P/8BILiH3v8BAAAAAPz//////////x8AAAAAAAAA4H8AAAAAAP7/4B/w//9//A4A8P///wMAAAAA+P//////////HwAAAAAAAADA/wAAAAAA/P8BPMD///+gEQDy////BwAAAADw//////////8fAAAAAAAAAID/AQAAAADg/wH4AP7//0AGAOb///8PAAAAAOD//////////x8AAAB4AAAAAP8DAAAAAAD/A/AA+P//gxkggP///x8AAAAAwP//////////PwAAYOAAAAAA/gcAAAAAAPgDwAHg//8HBMCB////PwAAAADA//////////8/AADwAAEAAAD4DwAAAAAA8AcAAcD//x8AgIH///9/AAAAAID//////////z8AAPAHAAAAAPgfAAAAAADADwAA8P//fwAAAP////8AAAAAAP//////////fwAA8A8AAAAA8D8AAAAAAIA/AADA/v//AAAA/v///wEAAAAA//////////9/AADwDwAAAADgfwAAAAAAAP4BAAD5//8DAAD8////AwAAAAD///////////8AAAAfAAAAAOD/AAAAAAAA/AcAAPb//w8AABD+//8HAAAAAP7//////////wEAABwAAAAAwP8BAAAAAAD4HwAAwP//PwAAYP7//w8AAAAA/v//////////BwAAAAAAAAAA/wEAAAAAAOA/AAAA//9vAAD4/P//HwAAAAD8//////////8PAAAAAAAAAAA+AwAAAAAAwH8AAAD8/98UAPDz//8/AAAAAPj//////////x8ADgAAAAAAAH4AAAAAAACA/wAAAPD/fwAAgOf//38AAAAA8P//////////fwAOAAAAAAAAcAAAAAAAAAD+AQAAAP//BwgAxP///wAAAADg////////////AQgAAAAAAAAAAAAAAAAAAHwAAADA/38PMAAA////AQAAAOD///////////8HAAAAAAAAAAAAAAAAAAAAeAAAAMD//3EAAAD///8DAAAAAP7//////////w9AAAAAAAAAAAAAAAAAAAB8AAAAgP3/zwcAAP///wcAAAAA/P//////////BwAAAAAAAAAAAAAAAAAAAPwAAAAA+f8/HwDM/P//DwAAAADY//////////8HAAAAAAAAAAAAAAAAAAAA+AEAAADg//8/ADjz//8fAAAAAMD//////////wMAAAAAAAAAAAAAAAAAAADwAwAAAMT+/3cAYP///z8AAAAAAP//////////BwAAAAAAAAAAAAAAAAAAAPQDAAAADnDwvwHA/v//fwAAAAAA/v////////8HAAAAAAAAAAAAAAAAAAPA7wMAAAA8+IP/AoD4////AAAAAAD8/////////wcAAAAAAAAAAAAAAABgHuD/AwAAAGD4P/8dAID///8BAAAAAPz/////////DwAAAAAAAAAAAAAAAOD//58DAAAAAPj//6MAAPz//wMAAAAA8P////////8fAAAAAAAAAAAAAAAAwP//HwAAAACA+f9HBwMA8P//BwAAAADg/////////x8AAAAAAAAAAAAAAACA//8/AAAAAADm/x8MDADm//8P" }];
+// Whole-world layer for the visitors view (1° lattice): Natural Earth 1:50m land (public domain) on a
+// Mercator-space lattice. Generated offline; no borders are drawn, only land dots.
+window.LAND_GLOBE = { x0: -180, yTop: 140, step: 1, cols: 361, rows: 217, bits: "AAAAAAAAAAAAAPPf/z/8//////8FAAAAwP8AAMCAAAAAAH8AAAAAAAAAAAAAAAAAAAAAAAAAAOb//3/w//////8PAAAAYP8BAAABAAAAAP4BAAAAAAAAAAAAAAAAAAAAAAAAAMD//3/g//////8fAAAA/v8BAAAAAAAAAPwHAAAAAAAAAAAAAAAAAAAAAAAAAAD//z/A//////8PAAAA/PsDAAAAAAAQAPAPAAAAAAAAAAAAAAAAAAAAAAAAgAH2/x+A//////8fAAAA+M8DAAAAAAAAAIDPAAAAAAAAAAAAAAAAAAAAAAAAAAfw73/A//////9/AAAA4B8AAAAAAAAAAADfAQAAAAAAAAAAAAAAAAAAAAAAAB7wz//g//////9/AAAAwH8AAAAAAAAAAAD8BwAAAAAAAAAAAAAAAAAAAAAAAHjC///h//////9/AAAAwP8BAAAAAAAAAABgHwAAAAAAAAAAAAAAAAAAAAAAcPCN///z////////AAAAgP8DAAAAAAAAAAAAPwAAAAAAAAAAAAAAAAAAAAAA8OB73v/j////////AQAAAM4NAAAAAAAAAAAAfgAAAAAAAAAAAAAAAAAAAAAAAIDmiP/H////////CQAAAOA7AAAAAAAAAAAAPAIAAAAAAAAAAAAAAAAAAAAAoAPYAfyH////////AwAAAOBjAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAwAMUB/sH/v//////XwAAAMDHAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIcBzv4PuP//////HwAAAIDPAwAAAAAAAAAAAAcAAAAAAAAAAAAAAAAAAAAAcAQCgPkPxP//////fwAAAAAPAgAAAAAAAAAAAB8AAAAAAAAAAAAAAAAAAAAA8AAAAPgP8P///////wMAAAAcAAAAAAAAAAAACB4AAAAAAAAAAAAAAAAAAAAA8AUAcPh/wP///////wMAAAAwAAAAAACAAQAAAP4AAAAAAAAAAAAAAAAAAAAA8AsB5///AP//////fwAAAABAAAAAAACABwAAAPwfAAAAAAQAAAAAAAAAAAAA8AtD3//vAP7//////wkAAAAAAAAAAACABwAAAP5/AAAAAAAAAAAAAAAAAAAA4HmEPzwAAHz+/////x8AAAAAAAAAAADwBwAAgPz/AQAAAAAAAAAAAAAAAAAAQPV5fnAAAgDw/////x8AAAAAAAAAAADwBwAA4P//AwAAbAAAAAAAAAAAAAAAAPzz/ODhAQCA/////z8AAAAAAAAAAADwAwAA4P//BwAA+gMAAAAAAAAAAAAAAOD/wd//BwAA/////38AAAAAAAAAAADwAQAQ+P//DwAA/G8AAAAAAAAAAAAAAMD/j7v/DwAA/v////8DAAAAAAAAAADwAQAA+P//HwAA8M8DAAAAAAAAAAAAAAD4A3D/HwAA+P////8FAAAAAAAAAADwAQAA+P//HwAAwA8HAAAAAAAAAAAAAAB4AMD8PwAA4P////8DAAAAAAAAAADgAwAA+P//HwAAAAEAAAAAAAAAAAAAADxgAABAAAAAwP////8PAAAAAAAAAADAAQAA4P//3wAAAAAAAAAAAAAAAAAAAPgHACAGAAAAgP////8HAAAAAAAAAADAAwAAwP//nwEAABgAAAAAAAAAAAAAAPAPAHA+BAAAAP////8PAAAAAAAAAADABwAAwP//3wAAAGAAAAAAAAAAAAAAAOA/gPF83g8AAP7///8fAAAAAAAAAACABwAA/P//n/9gAMABAAAAAAAAAAAAAMD/wON5/j8AAPj///8fAAAAAAAAAAAADwAD+P//n//BBwADAAAAAAAAAAAAAID/g6f33H8AAPD///8fAAAAAAAAAAAADgAA9P/////fHwAAAAAAAAAAAAAAAID/38fvuY8AAPD///9/AAAAAAAAAAAAHgCe6P//////PwAeAAAAAAAAAAAAAAC//5/feJ8DAMD/////AAAAAAAAAAAAHAB83f//////fwB+AAAAAAAAAAAAAAB+/zu88f4PAID///9/AAAAAAAAAAAAPAB4cv7//////wD8DwAAAAAAAAAAAAB8/3944f8fAAD/////AQAAAAAAAAAAeADw/v3//////wH4HwAAAHAAAAAAAADg/P9gh///AQD+////AwAAAAAAAAAA8AHw7////////7P/fwAAAPAAADAAAABA8P8BHv7/AwDw////DgAAAAAAAAAAwAPw+////////+f//wMAADAAAPgDAAAA8P8HPP7/HwDQ////HQAAAAAA+AAAAA/g//////////////8DACAAAPg/AAAIwPkfePz/fwDg////MwAAAAAA/AMAAADA7/////////////8PAAAAAPz/BwA0AP9/8MH//wHA////PwAAAAAA/AcAAICA3/////////////8fAAAAAPj//wBuCf//4QE7/weA////fwAAAAAA/y8AAAAOv/////////////8/YD8AAPj//w//O/z/MA8O/gcA////fwAAAAAA//8AgAB4fP//////////////f/4BAPD//z///+H/8148/A8A8P//PwAAAACA//8PgAPw8f7///////////////03APz//////79vwv150B8A4P//fwAAAACA/f8/AGLs79v/////////////////APj////////igfn74H8A8P//PwAAAAAA////4HD///f/////////////////A+D////////AB/v/4f8B4P//DwAAAAAA/P//x/H//+//////////////////D4D///////////fvw/sPwP//BwAAAAAA/P//n/H//9//////////////////PwD+////////////h/EfwP//BwAAAAAA+P//P/P//9///////////////////wP4////////////D/D/AP//DwAAAAAA+P//f/z//5///////////////////w/m////////////D+D/Af7/DwBAAAAA+P//fvr//5///////////////////z/+////////////C+DvAfz/DwDzAQAA8P//Y/7/////////////////////3z//////////////D4CfA/j/DwD3AwAA4P//B///////////////////////Pz78////////////O/B/A+D/AwD4DwAAwH/8D/7/////////////////////Pzjw////////////9/D/AcD/AwD4HwAAwP/4v/3/////////////////////P2BA/f//////////7+P9A4D/BwDgHwAAwP/5f///////////////////////HwAA+P//////////zw/wDwD+DwDAHwAAwP/z//3/////////////////////fwAO+P//////////hxnAHwD8HwAADgAAwP/z/////////////////////////wAQ/P//////////DwCANwD4HwAAAAAAwP/x/////////////////////////wMA/P//////////BzAAHgDgPwAAAAAAwP/z/////////////////////////wcA+P//////////DwD9cADAfwAAAAAAwP/D/////////////////////////wEA+P//////////DwD6AwAAfwAAAAAAwP+H///////////////////////+/wAA4P//////////HwDwBwAA/AAAAAAAgP8P/////////////////////3/MfwAAwP///v//////HwDgPwAA4AEAAAAAAP8f/v///////////////////3/AfwAAYP/v+f//////PwCAfwgAgAMAAAAAAP5/OP7////////////////////ATwAAgPjfAP//////fwAA/zAAAAAAAAAAAPz/APz////////////////////AAQAAAPCfAPj//////wAA/2EAAAAAAAAAAPD/wf///////////////////8fDAwAAAEA/AOD//////wMA/ucBAAAAAAAAAOD9wf//////////////////HwCAAwAAAAC4AAD//////w8A+P8DAAAAAAAAGIDxQ/7/////////////////HwCABwAAAACwAQD+/////x8A8P8PAAAAAAAAeADgE/z/////////////////PwDAHwAAAAAwAwD4//////8AwP8fAAAAAAAA8AGQF///////////////////PwCAPwAAAAAwAADw//////8HgP8/AAAAAAAA4AEwD///////////////////PwCAfwAAAAA4AACA//////8fMP//AAAAAAAAgANwD/7/////////////////PwAA/wAAAAAYAAAA////////AP//AQAAAAAAAA/AD/z/////////////////PwAA/gAAAAAMAAAA/P//////j///DwAAAAAAwB+ABf3/////////////////PwEA/AEAAAAAAAAA4P//////H///PwAAAAAAwHMAs////////////////////wEA+AAAAAACAAAA2P//////f/7//wAAAAAAwOMB/////////////////////58A8AEAAAACAAAAIP////////3//wMAAAAAAO+D//////////////////////8B4AEAAAAAAAAAAP7///////H//wcAAAAAAM6P//////////////////////8DgAEAAAQAAAAAAPj//////+f//w8AAAAAAM6f//////////////////////8HAAMAAAAAAAAAAPD//////////x8AAAAAAAC///////////////////////8PAAIAAAAAAAAAAOD//////////zMAAAAAAAC///////////////////////8bAAIAAAAAAAAAAID/////////XyMAAAAAAACA//////////////////////93AAAAAAAAAAAAAAD+////////D+MDAAAAAADA///////////////////////vAAAAAAAAAAAAAADY/////////8AHAAAAAADw///////////////////////fAAAAAAAAAAAAAADg/////////8EPAAAAAADg//////////////////////+fAAAAAAAAAAAAAADA/////////wM6AAAAAAAA//////////////////////8/AwAAAAAAAAAAAACA/////////09AAAAAAAAA/v/////9P/////////////8/BgAAAAAAAAAAAAAA/v///////78BAAAAAAAA+P///+f8P/7///////////9/AAAAAAAAAAAAAAAA/v////////8AAAAAAAAA8P/7/8f/H/7///////////9/CAAAAAAAAAAAAAAA/P////////cAAAAAAAAA4P/n/w/xP/7///////////9/MAAAAAAAAAAAAAAA+P///////2MAAAAAAAAAwP+e/w/Af/z///////////9/4AEAAAAAAAAAAAAA8P///////wMAAAAAAACA/284/h8A/vD///////////9/4AMAAAAAAAAAAAAA4P///////wcAAAAAAAAA/x/08B8A+MP///////////8f4AEAAAAAAAAAAAAAwP///////x8AAAAAAAAA/j+Ix3888If///////////8fAAAAAAAAAAAAAAAAgP///////wcAAAAAAAAA+B8Qnv///x/8//////////8fAAEAAAAAAAAAAAAAAP///////wcAAAAAAAAA+B8geI///z/+/////////98fAAMAAAAAAAAAAAAAAP7//////wcAAAAAAAAA8D9BYJ7//3/4/////////58cAA4AAAAAAAAAAAAAAPj//////w8AAAAAAAAA4H8AQHj+///w/////////w94AAwAAAAAAAAAAAAAAOD//////w8AAAAAAAAAwH8AcPD8///h/////////3/wARwAAAAAAAAAAAAAAMD//////x8AAAAAAAAAAH+Qx8Dw///H//////////+HAzwAAAAAAAAAAAAAAAD//////z8AAAAAAAAAABj8DwCA7v////////////8DBzwAAAAAAAAAAAAAAAD+/////38AAAAAAAAAADD+PwAMwP////////////8Djn8AAAAAAAAAAAAAAAD4/////38AAAAAAAAAAOD/PwAAkP////////////8HhD8AAAAAAAAAAAAAAADA/////z8AAAAAAAAAAOD/fwAAAP////////////8fgB8AAAAAAAAAAAAAAAAA/////z8AAAAAAAAAAPD//wcIAP////////////9/gAUAAAAAAAAAAAAAAAAA/v///z8AAAAAAAAAAOD//z98AP7/////////////AAIAAAAAAAAAAAAAAAAA2P///z8AAAAAAAAAAOD////57///////////////AQQAAAAAAAAAAAAAAAAAsP///38AAAAAAAAAAID/////////////////////AwAAAAAAAAAAAAAAAAAAwP7//9ABAAAAAAAAAID/////////8///////////DwAAAAAAAAAAAAAAAAAAAP//BwADAAAAAAAAAID/////////5///////////DwAAAAAAAAAAAAAAAAAAAOf/AwAGAAAAAAAAAMD//////9//n///////////HwAAAAAAAAAAAAAAAAAAANz/BwAcAAAAAAAAAID//////3//f/z/////////HwAAAAAAAAAAAAAAAAAAACD/DwAwAAAAAAAAAID////////8/4H/////////HwAAAAAAAAAAAAAAAAAAAMD8HwAgAAAAAAAAAID////////7/2P8/v//////PwAAAAAAAAAAAAAAAAAAAADxPwAAAgAAAAAAAAD////////n//8B+P//////PwEAAAAAAAAAAAAAAAAAAADEfwDAAAAAAAAAAAD///////+P//8P4P//////PwMAAAAAAAAAAAAAAAAAAAAA/wDgBwAAAAAAAAD+//////8///8fgP//////DwQAAAAAAAAAAAAAAAAAAAAA/gGOOAAAAAAAAAD+/////////v8/AP//w///AwAAAAAAAAAAAAAAAAAAAAAA/AcewAEAAAAAAAD4////////+f8/APT/A/8/AgAAAAAAAAAAAAAAAwAAAAAA+A8cAHgAAAAAAADw////////4/9/AOD/A/x/BgAAAAAAAAAAAAAAAAAAAAAA4H8/APgJAAAAAADg////////j/9/AMD/A/D/DEAAAAAAAAAAAAAAAAAAAAAAAP9/AAIAAAAAAADA////////H/9/AID/A+D/AYABAAAAAAAAAAAAAAAAAAAAAPh/AAAAAAAAAACA////////f/w/AAD+A8D/BwADAAAAAAAAAAAAAAAAAAAAAID5DwAAAAAAAAAA//////////gfAAD8AYD8HwADAAAAAAAAAAAAAAAAAAAAAADgPwAAAAAAAAAA//////////cPAAD4AwD4fwAEAAAAAAAAAAAAAAAAAAAAAACAfwAAAAAAAAAA/P////////8HAADgBwDg/wA4AAAAAAAAAAAAAAAAAAAAAAAA8AAAAAAAAAAA+P////////8BAgDADwDA/wGQAAAAAAAAAAAAAAAAAAAAAAAAwAEQAAAAAAAA8P////////+AAAAAHwCA+QMAAgAAAAAAAAAAAAAAAAAAAAAAgAP8YQAAAAAAwP/////////7AQAAPgAA4QOABQAAAAAAAAAAAAAAAAAAAAAAAA74/wMAAAAAAP//////////AwAAPAAAggEgBgAAAAAAAAAAAAAAAAAAAAAAAPD7/wcAAAAAAPz/////////AwAAsAEADAEgMAAAAAAAAAAAAAAAAAAAAAAAAMD8/z8AAAAAAPj/////////BwAAAAMAGAAAeAAAAAAAAAAAAAAAAAAAAAAAAADw/38AAAAAAMD/////////BwAAAA4AYAAA4AAAAAAAAAAAAAAAAAAAAAAAAADg//8PAAAAAAD/j///////DwAAAAgAgAHAgQAAAAAAAAAAAAAAAAAAAAAAAADA//9/AAAAAAD8B/7/////DwAAAAAAGAfABwAAAAAAAAAAAAAAAAAAAAAAAACA////AQAAAAAAAOD/////DwAAAAAAcA7ABwAAAAAAAAAAAAAAAAAAAAAAAAAA////BwAAAAAAAID/////DwAAAAAAgBvgBwAAAAAAAAAAAAAAAAAAAAAAAAAA////HwAAAAAAAAD/////DwAAAAAAAG7wH0AAAAAAAAAAAAAAAAAAAAAAAAAA////PwAAAAAAAAD+////DwAAAAAAAHzwP58AAAAAAAAAAAAAAAAAAAAAAAAA/////wAAAAAAAAD8////DwAAAAAAAPDgPwEAAAAAAAAAAAAAAAAAAAAAAAAA/v///w8AAAAAAAD8////DwAAAAAAAMCDfxrwAAAAAAAAAAAAAAAAAAAAAAAA/v///z8AAAAAAADw////DwAAAAAAAIAffw7AOQAAAAAAAAAAAAAAAAAAAAAA+P////8PAAAAAADg////DwAAAAAAAAC+/Dww/wMAAAAAAAAAAAAAAAAAAAAA+P////9/AAAAAACA////DwAAAAAAAAB4gFAA+h8QAAAAAAAAAAAAAAAAAAAA8P//////AwAAAAAA/v//HwAAAAAAAADgAKABwP8gAAAAAAAAAAAAAAAAAAAA4P//////DwAAAAAA+P//PwAAAAAAAAAABwAAIP47AgAAAAAAAAAAAAAAAAAAgP//////HwAAAAAA8P//fwAAAAAAAAAA/gEAAPwHAAAAAAAAAAAAAAAAAAAAAP7/////PwAAAAAAwP///wAAAAAAAAAA4A8AAPwdAAAAAAAAAAAAAAAAAAAAAPj/////PwAAAAAAgP///wEAAAAAAAAAAEDMAMAxAAAAAAAAAAAAAAAAAAAAAPD/////fwAAAAAAAP///wcAAAAAAAAAAABEAADAAwAAAAAAAAAAAAAAAAAAAMD/////fwAAAAAAAP7//w8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAID/////fwAAAAAAAPz//x8AAAAAAAAAAAAAgB4MAAAAAAAAAAAAAAAAAAAAAAD+////fwAAAAAAAPz//z9AAAAAAAAAAAAAAD8YAAAAAAAEAAAAAAAAAAAAAAD8/////wAAAAAAAPj//3/AAQAAAAAAAAAAIH8wAAAAAAAAAAAAAAAAAAAAAADw/////wEAAAAAAPj///+AAwAAAAAAAAAA8H/gAQBAAAAAAAAAAAAAAAAAAADA/////wMAAAAAAPD////BBwAAAAAAAAAA4P/DAwAAAAAAAAAAAAAAAAAAAAAA/v///wcAAAAAAOD////BBwAAAAAAAAAA8P/PBwAAABAAAAAAAAAAAAAAAAAA+P///wcAAAAAAMD////ADwAAAAAAAAAA4P//HwAAABAAAAAAAAAAAAAAAAAA4P///w8AAAAAAID///+AHwAAAAAAAAAA4P//PwAAAAAAAAAAAAAAAAAAAAAAwP///x8AAAAAAAD+//8APgAAAAAAAAAA4P///wAAAAAAAAAAAAAAAAAAAAAAgP///x8AAAAAAAD4//8BPgAAAAAAAAAA/P///wcABAAAAAAAAAAAAAAAAAAAAP///z8AAAAAAADw//8DfAAAAAAAAAAA/P///w8AGAAAAAAAAAAAAAAAAAAAAP7//z8AAAAAAADA//8H+AAAAAAAAAAA/v///z8AAAAAAAAAAAAAAAAAAAAAAPz//w8AAAAAAACA//8P8AAAAAAAAAAA/P////8AAAAAAAAAAAAAAAAAAAAAAPj//wcAAAAAAAAA//8f4AEAAAAAAAAA+P////8DAAAAAAAAAAAAAAAAAAAAAPD//wcAAAAAAAAA/v8fwAMAAAAAAAAA8P////8HAAAAAAAAAAAAAAAAAAAAAOD//wcAAAAAAAAA/P8PAAAAAAAAAAAA4P////8fAAAAAAAAAAAAAAAAAAAAAOD//w8AAAAAAAAA+P8/AAAAAAAAAAAAwP////8/AAAAAAAAAAAAAAAAAAAAAMD//x8AAAAAAAAA4P8/AAAAAAAAAAAAgP////9/AAAAAAAAAAAAAAAAAAAAAID//z8AAAAAAAAAgP9/AAAAAAAAAAAAAP7/////AAAAAAAAAAAAAAAAAAAAAAD//z8AAAAAAAAAAP9/AAAAAAAAAAAAAPz/////AQAAAAAAAAAAAAAAAAAAAAD+/z8AAAAAAAAAAPx/AAAAAAAAAAAAAPj/////AwAAAAAAAAAAAAAAAAAAAAD8/z8AAAAAAAAAAPj/AAAAAAAAAAAAAOD/////BwAAAAAAAAAAAAAAAAAAAAD4/38AAAAAAAAAAPD/AAAAAAAAAAAAAMD/h///BwAAAAAAAAAAAAAAAAAAAADw/38AAAAAAAAAAOD/AAAAAAAAAAAAAID/APz/DwAAAAAAAAAAAAAAAAAAAADg/38AAAAAAAAAAIB/AAAAAAAAAAAAAID/APj/DwAAAAAAAAAAAAAAAAAAAADg//8AAAAAAAAAAAACAAAAAAAAAAAAAAAeAKD/HwAAAAAAAAAAAAAAAAAAAADA/x8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAID/HwAAEAAAAAAAAAAAAAAAAADA/38AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD4PwAAIAAAAAAAAAAAAAAAAACA//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwfwAAgAEAAAAAAAAAAAAAAAAA//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAfwAAAA8AAAAAAAAAAAAAAAAA/v8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANgAAAB4AAAAAAAAAAAAAAAAA/D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4AAAAAAAAAAAAAAAAA/D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABgAAAAAAAAAAAAAAAAA+H8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAMAADYAAAAAAAAAAAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAcAABwAAAAAAAAAAAAAAAAAoP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4AABwAAAAAAAAAAAAAAAAAwP8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAADwAAAAAAAAAAAAAAAAAAP8BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAAAAAAAAAAAAAAAAAAP8BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAAAAAAAAAAAAAAAAAAP4BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHwAAAAAAAAAAAAAAAAAAP4BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHgAAAAAAAAAAAAAAAAAAPwHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAPAfAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOA/AAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMA/AAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIB/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8AAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD8AQYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADwAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAHwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfgAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8AEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==" };

@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Manrope:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
   <script>
     (() => {
       document.documentElement.classList.add("js");
@@ -587,6 +587,7 @@
             <button type="button" id="map-view-world" aria-pressed="true" data-i18n="map.viewWorld">World</button>
             <button type="button" id="map-view-china" aria-pressed="false" data-i18n="map.viewChina">China</button>
             <button type="button" id="map-view-europe" aria-pressed="false" data-i18n="map.viewEurope">Europe</button>
+            <button type="button" id="map-view-visitors" aria-pressed="false" data-i18n="map.viewVisitors" hidden>Visitors</button>
           </div>
           <p class="sec-note" data-i18n-html="map.note">10 countries &amp; regions, 50+ cities across China.<br>Hometown Shanghai · Based in Beijing.</p>
         </div>
@@ -595,13 +596,22 @@
         <div class="dotmap" id="dotmap">
           <canvas id="dotmap-canvas" role="img" aria-label="Map of places visited" data-i18n-aria="map.aria"></canvas>
           <i class="map-pulse" id="map-pulse" aria-hidden="true" hidden></i>
+          <i class="map-pulse is-visitor" id="map-pulse-visitor" aria-hidden="true" hidden></i>
           <div class="map-labels is-hidden" id="map-labels" aria-hidden="true"></div>
           <p class="map-tip" id="map-tip" role="status" hidden></p>
         </div>
+        <div class="map-visitors" id="map-visitors" aria-live="polite">
+          <p class="mv-title" data-i18n="vis.title">Visitors</p>
+          <p class="mv-big"><span class="odo" id="mv-visits">0</span><span class="mv-unit" data-i18n="vis.unit">visits</span></p>
+          <p class="mv-scope" id="mv-scope"></p>
+          <p class="mv-recent" hidden><i class="pulse" aria-hidden="true"></i><span id="mv-recent"></span></p>
+          <p class="mv-note"><span data-i18n="vis.note">Anonymous: city-level totals only — no IPs, no cookies.</span> <em id="mv-demo" data-i18n="vis.demo" hidden>Sample data · local preview</em></p>
+        </div>
         <div class="map-legend">
-          <span><i class="lg-home" aria-hidden="true"></i><span data-i18n="map.legendHome">Hometown · Shanghai</span></span>
-          <span><i class="lg-now" aria-hidden="true"></i><span data-i18n="map.legendNow">Based in Beijing</span></span>
-          <span><i class="lg-visited" aria-hidden="true"></i><span data-i18n="map.legendVisited">Visited</span></span>
+          <span class="lg-mine"><i class="lg-home" aria-hidden="true"></i><span data-i18n="map.legendHome">Hometown · Shanghai</span></span>
+          <span class="lg-mine"><i class="lg-now" aria-hidden="true"></i><span data-i18n="map.legendNow">Based in Beijing</span></span>
+          <span class="lg-mine"><i class="lg-visited" aria-hidden="true"></i><span data-i18n="map.legendVisited">Visited</span></span>
+          <span class="lg-theirs"><i class="lg-visitor" aria-hidden="true"></i><span data-i18n="map.legendVisitors">Visitor cities · larger = more visits</span></span>
           <button class="map-list-toggle" id="map-list-toggle" type="button" aria-expanded="false" aria-controls="map-list"><span data-i18n="map.all">All places</span><b>69</b><i aria-hidden="true"></i></button>
         </div>
         <div class="map-list" id="map-list" hidden></div>
@@ -611,6 +621,13 @@
     <section class="slogan-band wrap" data-reveal aria-label="Personal motto">
       <p class="slogan" lang="zh-Hans">心若<em>诚</em>，自成<em>传奇</em>。</p>
       <p class="slogan-gloss">A sincere heart writes its own legend.</p>
+      <div class="like" id="like" hidden>
+        <button class="like-btn" id="like-btn" type="button" aria-pressed="false" data-i18n-aria="like.aria" aria-label="Like this page" aria-describedby="like-count">
+          <span class="like-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20.5s-6.9-4.4-9.3-8.6C1 8.9 2.6 5.3 6 4.8c2.1-.3 4 .8 6 3 2-2.2 3.9-3.3 6-3 3.4.5 5 4.1 3.3 7.1-2.4 4.2-9.3 8.6-9.3 8.6z"/></svg></span>
+          <span class="odo like-count" id="like-count">0</span>
+        </button>
+        <p class="like-note" id="like-note" data-i18n="like.note" aria-live="polite">Like this page? Tap the heart.</p>
+      </div>
     </section>
 
     <section id="contact" class="wrap section contact">
@@ -642,10 +659,11 @@
       <a href="mailto:jinchenglou@stu.pku.edu.cn" data-i18n="foot.email">Email ↗</a>
       <a href="#top" data-i18n="foot.top">Back to top ↑</a>
     </nav>
+    <a class="foot-stats" id="foot-stats" href="#places" hidden></a>
     <small>© <span id="year">2026</span> Jincheng Lou</small>
   </footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="script.js?v=5" defer></script>
+  <script src="script.js?v=6" defer></script>
 </body>
 </html>

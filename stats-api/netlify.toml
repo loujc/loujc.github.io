@@ -1,0 +1,3 @@
+# Netlify site for the homepage stats API (see README.md). Functions live in netlify/functions/.
+[build]
+  publish = "public"

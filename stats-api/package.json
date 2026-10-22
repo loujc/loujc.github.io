@@ -1,0 +1,11 @@
+{
+  "name": "homepage-stats",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test.mjs"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.5"
+  }
+}
