@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Manrope:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
   <script>
     (() => {
       document.documentElement.classList.add("js");
@@ -330,10 +330,25 @@
         <p class="sec-note" data-i18n-html="news.note">Papers, open source, and ChipBagel —<br>newest first.</p>
       </div>
       <ol class="news-list" data-reveal>
+        <li class="news-item" data-kind="venture">
+          <time datetime="2026-11-16">2026.11.16</time>
+          <span class="news-kind" data-i18n="news.k.venture">Venture</span>
+          <p data-i18n-html="news.n15">Advanced to the final of the 3rd Shangdi UPSIDE competition.</p>
+        </li>
+        <li class="news-item" data-kind="venture">
+          <time datetime="2026-11-05">2026.11.05</time>
+          <span class="news-kind" data-i18n="news.k.venture">Venture</span>
+          <p data-i18n-html="news.n14">Selected as a finalist in the Tsinghua University Doctoral and Postdoctoral Innovation and Entrepreneurship Competition.</p>
+        </li>
         <li class="news-item" data-kind="service">
           <time datetime="2026-10-20">2026.10.20</time>
           <span class="news-kind" data-i18n="news.k.service">Service</span>
           <p data-i18n-html="news.n1">Invited to serve as a reviewer for <abbr title="IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems">IEEE TCAD</abbr>.</p>
+        </li>
+        <li class="news-item" data-kind="award">
+          <time datetime="2026-10-16">2026.10.16</time>
+          <span class="news-kind" data-i18n="news.k.award">Award</span>
+          <p data-i18n-html="news.n13">Won first prize in the semifinal round of the 3rd Peking University “Wuhan Cup” Innovation and Entrepreneurship Competition and advanced to the final.</p>
         </li>
         <li class="news-item" data-kind="venture">
           <time datetime="2026-10-16">2026.10.16</time>
@@ -350,17 +365,17 @@
           <span class="news-kind" data-i18n="news.k.open">Open source</span>
           <p data-i18n-html="news.n4">Released <a href="https://github.com/loujc/eda-paper-writing" target="_blank" rel="noopener">EDA Paper Writing</a> v1.0, an evidence-grounded writing skill for EDA papers.</p>
         </li>
-        <li class="news-item" data-kind="venture">
+        <li class="news-item" data-kind="venture" data-older hidden>
           <time datetime="2026-09-08">2026.09.08</time>
           <span class="news-kind" data-i18n="news.k.venture">Venture</span>
           <p data-i18n-html="news.n5">ChipBagel was incorporated in Beijing as 芯果万相（北京）科技有限公司.</p>
         </li>
-        <li class="news-item" data-kind="paper">
+        <li class="news-item" data-kind="paper" data-older hidden>
           <time datetime="2026-07-28">2026.07.28</time>
           <span class="news-kind" data-i18n="news.k.paper">Paper</span>
           <p data-i18n-html="news.n6"><a href="#pub-gogotb">GoGoTB</a> preprint on arXiv — agentic RTL verification with specification-grounded coverage closure.</p>
         </li>
-        <li class="news-item" data-kind="paper">
+        <li class="news-item" data-kind="paper" data-older hidden>
           <time datetime="2026-07-11">2026.07.11</time>
           <span class="news-kind" data-i18n="news.k.paper">Paper</span>
           <p data-i18n-html="news.n7"><a href="#pub-lego2">LEGO 2.0</a> and <a href="#pub-vineplace">VinePlace</a> accepted to ICCAD 2026 (San Jose, November).</p>
@@ -587,10 +602,14 @@
             <button type="button" id="map-view-world" aria-pressed="true" data-i18n="map.viewWorld">World</button>
             <button type="button" id="map-view-china" aria-pressed="false" data-i18n="map.viewChina">China</button>
             <button type="button" id="map-view-europe" aria-pressed="false" data-i18n="map.viewEurope">Europe</button>
-            <button type="button" id="map-view-visitors" aria-pressed="false" data-i18n="map.viewVisitors" hidden>Visitors</button>
+            <button type="button" id="map-view-visitors" aria-pressed="false" data-i18n="map.viewVisitors" disabled>Visitors</button>
           </div>
           <p class="sec-note" data-i18n-html="map.note">10 countries &amp; regions, 50+ cities across China.<br>Hometown Shanghai · Based in Beijing.</p>
         </div>
+      </div>
+      <div class="stats-connection" role="status" aria-live="polite">
+        <span id="stats-status" data-i18n="stats.loading">Loading visitor stats…</span>
+        <button class="stats-retry" type="button" data-stats-retry data-i18n="stats.retry">Retry connection</button>
       </div>
       <div class="map-card" data-reveal>
         <div class="dotmap" id="dotmap">
@@ -621,12 +640,13 @@
     <section class="slogan-band wrap" data-reveal aria-label="Personal motto">
       <p class="slogan" lang="zh-Hans">心若<em>诚</em>，自成<em>传奇</em>。</p>
       <p class="slogan-gloss">A sincere heart writes its own legend.</p>
-      <div class="like" id="like" hidden>
-        <button class="like-btn" id="like-btn" type="button" aria-pressed="false" data-i18n-aria="like.aria" aria-label="Like this page" aria-describedby="like-count">
+      <div class="like" id="like">
+        <button class="like-btn" id="like-btn" type="button" aria-pressed="false" data-i18n-aria="like.aria" aria-label="Like this page" aria-describedby="like-note" disabled>
           <span class="like-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20.5s-6.9-4.4-9.3-8.6C1 8.9 2.6 5.3 6 4.8c2.1-.3 4 .8 6 3 2-2.2 3.9-3.3 6-3 3.4.5 5 4.1 3.3 7.1-2.4 4.2-9.3 8.6-9.3 8.6z"/></svg></span>
-          <span class="odo like-count" id="like-count">0</span>
+          <span class="odo like-count" id="like-count">—</span>
         </button>
-        <p class="like-note" id="like-note" data-i18n="like.note" aria-live="polite">Like this page? Tap the heart.</p>
+        <p class="like-note" id="like-note" aria-live="polite">Loading likes…</p>
+        <button class="stats-retry" type="button" data-stats-retry data-i18n="stats.retry">Retry connection</button>
       </div>
     </section>
 
@@ -664,6 +684,6 @@
   </footer>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
-  <script src="script.js?v=6" defer></script>
+  <script src="script.js?v=9" defer></script>
 </body>
 </html>

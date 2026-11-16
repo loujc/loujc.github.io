@@ -113,6 +113,9 @@
       "news.n10": `<a href="#pub-lego">LEGO</a> and <a href="#pub-powercube">PowerCube</a> accepted to ISEDA 2026 (Singapore, May).`,
       "news.n11": `<a href="#pub-gta">GTA</a> received a Best Paper Nomination at ICCAD 2025 (Munich).`,
       "news.n12": `<a href="#pub-gta">GTA</a> accepted to ICCAD 2025.`,
+      "news.n13": `Won first prize in the semifinal round of the 3rd Peking University “Wuhan Cup” Innovation and Entrepreneurship Competition and advanced to the final.`,
+      "news.n14": `Selected as a finalist in the Tsinghua University Doctoral and Postdoctoral Innovation and Entrepreneurship Competition.`,
+      "news.n15": `Advanced to the final of the 3rd Shangdi UPSIDE competition.`,
       "res.eyebrow": "Research", "res.title": "Publications",
       "res.note": `Agentic EDA, multimodal circuit intelligence, physical design,<br>and hardware-efficient AI — 8 papers, Best Paper Nominations at ICCAD &amp; ISEDA.`,
       "res.f.all": "All", "res.f.agentic": "Agentic EDA", "res.f.physical": "Physical Design", "res.f.multimodal": "Multimodal", "res.f.hardware": "AI Hardware",
@@ -160,6 +163,13 @@
       visTip: (city, n) => `${city} · ${n} visits`,
       footStats: (visits, countries) => `${visits} visits · ${countries} countries & regions`,
       "like.aria": "Like this page", "like.note": "Like this page? Tap the heart.",
+      "stats.loading": "Connecting to visitor stats…",
+      "stats.offline": "Live stats are unavailable on this connection. You can retry here.",
+      "stats.live": "Visitor stats are live.",
+      "stats.retry": "Retry connection",
+      "stats.likeOffline": "Showing saved likes. Reconnect to add yours.",
+      "stats.likeFailed": "Your like could not be confirmed. Reconnect to check the total before trying again.",
+      statsSnapshot: (date) => `Saved totals · ${date}.`,
       likeThanks: (n, cap) => `Thank you — ${n} of ${cap} today`,
       likeCapped: (cap) => `That's ${cap} for today — see you tomorrow ♥`,
       mapCluster: (name, n) => `${name} · ${n} cities`,
@@ -269,6 +279,9 @@
       "news.n10": `<a href="#pub-lego">LEGO</a> 与 <a href="#pub-powercube">PowerCube</a> 被 ISEDA 2026 接收（5 月 · 新加坡）。`,
       "news.n11": `<a href="#pub-gta">GTA</a> 获 ICCAD 2025 最佳论文提名（慕尼黑）。`,
       "news.n12": `<a href="#pub-gta">GTA</a> 被 ICCAD 2025 接收。`,
+      "news.n13": `获得“武汉杯”第三届北京大学创新创业大赛复赛一等奖，晋级决赛！`,
+      "news.n14": `入围清华大学博士博士后科技创新创业大赛决赛！`,
+      "news.n15": `进入第三届上地 UPSIDE 决赛！`,
       "res.eyebrow": "科研", "res.title": "论文",
       "res.note": `Agentic EDA、多模态电路理解、物理设计与硬件高效 AI ——<br>8 篇论文，获 ICCAD 与 ISEDA 最佳论文提名。`,
       "res.f.all": "全部", "res.f.agentic": "Agentic EDA", "res.f.physical": "物理设计", "res.f.multimodal": "多模态", "res.f.hardware": "AI 芯片",
@@ -316,6 +329,13 @@
       visTip: (city, n) => `${city} · ${n} 次来访`,
       footStats: (visits, countries) => `${visits} 次来访 · ${countries} 个国家和地区`,
       "like.aria": "为这个主页点赞", "like.note": "喜欢这个主页？点一下 ♥",
+      "stats.loading": "正在连接访客统计…",
+      "stats.offline": "当前网络暂时连不上实时统计，可以在这里重试。",
+      "stats.live": "访客统计已实时连接。",
+      "stats.retry": "重新连接",
+      "stats.likeOffline": "当前显示已保存的点赞总数，实时连接后即可点赞。",
+      "stats.likeFailed": "暂时无法确认这次点赞，请重新连接核对总数后再试。",
+      statsSnapshot: (date) => `已保存的统计 · ${date}。`,
       likeThanks: (n, cap) => `谢谢！今天已点 ${n} / ${cap}`,
       likeCapped: (cap) => `今天的 ${cap} 下点满啦，明天再来 ♥`,
       mapCluster: (name, n) => `${name} · ${n} 城`,
@@ -1972,8 +1992,8 @@
   })();
 
   /* ——— visitors & likes: anonymous stats from a Netlify Function (see stats-api/README.md) ——— */
-  // An empty STATS_API keeps every stats widget hidden. Opened from disk (file://), the page never calls the API
-  // and shows clearly labelled sample numbers instead, so local previews neither fail nor count as visits.
+  // Same-origin snapshots keep totals visible during API outages. File previews
+  // use labelled sample data and never contact the live service.
   const STATS_API = "https://loujc-stats.netlify.app";
   const statsDemo = location.protocol === "file:";
   const CITY_ZH = {
@@ -1997,7 +2017,7 @@
     ["Austin", "US", 30.27, -97.74, 22], ["Paris", "FR", 48.86, 2.35, 21], ["Toronto", "CA", 43.65, -79.38, 19],
     ["Zurich", "CH", 47.38, 8.54, 17], ["Bengaluru", "IN", 12.97, 77.59, 14],
   ];
-  const stat = { data: null, pending: 0, timer: 0, rolled: new Set() };
+  const stat = { data: null, live: false, loading: false, sending: false, failedLike: false, retries: 0, retryTimer: 0, pending: 0, timer: 0, rolled: new Set() };
   const fmtNum = (n) => new Intl.NumberFormat(lang === "zh" ? "zh-CN" : "en-US").format(n);
   const cityLabel = (city) => (lang === "zh" ? CITY_ZH[city] ?? city : city);
   const statsDay = () => new Date(Date.now() + 8 * 36e5).toISOString().slice(0, 10);
@@ -2010,7 +2030,7 @@
   };
   const statsApi = async (path, body) => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 5000);
+    const timer = setTimeout(() => controller.abort(), 10000);
     try {
       const response = await fetch(`${STATS_API}${path}`, {
         method: body ? "POST" : "GET",
@@ -2094,14 +2114,19 @@
   const likeNote = $("#like-note");
   const renderLike = () => {
     const data = stat.data;
-    if (!data) return;
     const T = t();
     likeWrap.hidden = false;
+    likeBtn.disabled = !stat.live || stat.sending;
+    if (!data) {
+      likeNote.textContent = T[stat.loading ? 'stats.loading' : 'stats.offline'];
+      return;
+    }
     likeBtn.setAttribute("aria-pressed", String(data.myLikes > 0));
     likeBtn.classList.toggle("is-liked", data.myLikes > 0);
     likeBtn.classList.toggle("is-capped", data.myLikes >= data.likeCap);
     likeNote.textContent = data.myLikes >= data.likeCap ? T.likeCapped(data.likeCap)
       : data.myLikes ? T.likeThanks(data.myLikes, data.likeCap) : T["like.note"];
+    if (!stat.live) likeNote.textContent = T[stat.failedLike ? 'stats.likeFailed' : 'stats.likeOffline'];
     if (stat.rolled.has(likeCount)) odometer(likeCount, data.likes);
     else rollWhenSeen(likeCount, data.likes);
   };
@@ -2130,15 +2155,25 @@
       localStorage.setItem("demo-likes", JSON.stringify({ day: statsDay(), n: stat.data.myLikes }));
       return;
     }
+    stat.sending = true;
+    renderLike();
     const result = await statsApi("/like", { n });
-    if (!result || !stat.data) return;
+    stat.sending = false;
+    if (!result || !stat.data) {
+      stat.data.likes -= n;
+      stat.data.myLikes -= n;
+      stat.live = false;
+      stat.failedLike = true;
+      renderStats();
+      return;
+    }
     stat.data.likes = result.likes;
     stat.data.myLikes = result.myLikes;
     renderLike();
   };
   likeBtn.addEventListener("click", () => {
     const data = stat.data;
-    if (!data) return;
+    if (!data || !stat.live || stat.sending) return;
     if (data.myLikes >= data.likeCap) {
       likeBtn.classList.remove("is-nope");
       void likeBtn.offsetWidth;
@@ -2172,6 +2207,16 @@
   function renderStats() {
     renderLike();
     renderVisitors();
+    const T = t();
+    const savedAt = stat.data?.generated_at;
+    $('#stats-status').textContent = savedAt && !stat.live
+      ? `${T.statsSnapshot(new Date(savedAt).toLocaleString(lang === 'zh' ? 'zh-CN' : 'en-US'))} ${T[stat.loading ? 'stats.loading' : 'stats.offline']}`
+      : T[stat.data?.demo ? 'vis.demo' : stat.live ? 'stats.live' : stat.loading ? 'stats.loading' : 'stats.offline'];
+    $$('#map-view-visitors').forEach((button) => { button.disabled = !stat.data; });
+    $$('[data-stats-retry]').forEach((button) => {
+      button.hidden = stat.live;
+      button.disabled = stat.loading;
+    });
   }
   // the overlay number rolls up each time the visitors view opens
   $("#dotmap")?.addEventListener("mapview", (event) => {
@@ -2179,10 +2224,40 @@
   });
   $("#foot-stats").addEventListener("click", () => dotMap?.setView("visitors"));
   const loadStats = async () => {
-    stat.data = statsDemo ? demoStats() : await statsApi("/hit", {});
-    if (stat.data) renderStats();
+    if (stat.loading || stat.sending || stat.pending) return;
+    clearTimeout(stat.retryTimer);
+    stat.loading = true;
+    renderStats();
+    const data = statsDemo ? demoStats() : await statsApi("/hit", {});
+    stat.loading = false;
+    if (data && Number.isSafeInteger(data.visits) && Array.isArray(data.places)) {
+      stat.data = data;
+      stat.live = true;
+      stat.failedLike = false;
+      stat.retries = 0;
+    } else if (stat.retries < 2) {
+      stat.retries += 1;
+      stat.retryTimer = setTimeout(loadStats, stat.retries * 15000);
+    }
+    renderStats();
   };
   if (STATS_API || statsDemo) {
+    if (!statsDemo) {
+      fetch('./stats-snapshot.json', {cache: 'no-cache'})
+        .then((response) => response.ok ? response.json() : null)
+        .then((data) => {
+          if (stat.live || !data || !Number.isSafeInteger(data.visits)
+              || !Number.isSafeInteger(data.likes) || !Array.isArray(data.places)
+              || !Number.isFinite(Date.parse(data.generated_at))) return;
+          stat.data = {...data, myLikes: 0, likeCap: 10, recent: null};
+          renderStats();
+        }).catch(() => {});
+    }
+    $$('[data-stats-retry]').forEach((button) => button.addEventListener('click', () => {
+      stat.retries = 0;
+      loadStats();
+    }));
+    window.addEventListener('online', () => { if (!stat.live) loadStats(); });
     if ("requestIdleCallback" in window) requestIdleCallback(loadStats, { timeout: 2500 });
     else setTimeout(loadStats, 1200);
   }

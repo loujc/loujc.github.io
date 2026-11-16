@@ -1886,6 +1886,11 @@ h2 {
 @keyframes spark { to { translate: var(--dx) var(--dy); scale: .3; opacity: 0; } }
 .like-count { min-width: 2ch; }
 .like-note { font-size: 12px; color: var(--muted); }
+.stats-connection { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; margin: -12px 0 20px; font-size: 12px; color: var(--muted); }
+.stats-retry { color: var(--accent-strong); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.stats-retry:disabled { opacity: .55; cursor: wait; }
+.like-btn:disabled { cursor: not-allowed; opacity: .65; translate: none; }
+.map-views button:disabled { opacity: .5; cursor: wait; }
 
 /* ——— footer ——— */
 .site-foot {
