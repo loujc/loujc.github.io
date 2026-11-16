@@ -100,7 +100,10 @@ jobs:
     - name: Assemble public directory
       run: |
         mkdir -p public/availability
-        cp -a index.html style.css script.js portrait.jpg README.md uploads availability-snapshot.json .nojekyll public/
+        cp -a index.html style.css script.js portrait.jpg README.md uploads availability-snapshot.json stats-snapshot.json .nojekyll public/
+
+    - name: Refresh public visitor summary
+      run: node tools/refresh-stats-snapshot.mjs public/stats-snapshot.json
 
     - name: Download anonymous availability
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
