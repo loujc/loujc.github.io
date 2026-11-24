@@ -22,8 +22,15 @@ if ! command -v node >/dev/null 2>&1 || ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
-AVAILABILITY_CONFIG_PATH="${CONFIG_PATH}" "${HELPER_PATH}" \
-  | /usr/bin/env node "${VALIDATOR_PATH}" --validate-stdin --config "${CONFIG_PATH}" \
+# Finish capture and validation before starting a Secret write. A single
+# pipeline would start gh even if capture fails, potentially replacing the
+# previous usable Secret with empty input. Keep the anonymous bitmap in memory.
+SNAPSHOT="$(
+  AVAILABILITY_CONFIG_PATH="${CONFIG_PATH}" "${HELPER_PATH}" \
+    | /usr/bin/env node "${VALIDATOR_PATH}" --validate-stdin --config "${CONFIG_PATH}"
+)"
+/usr/bin/printf '%s' "${SNAPSHOT}" \
   | /usr/bin/env gh secret set "${SECRET_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null
+unset SNAPSHOT
 
 /usr/bin/printf '%s\n' 'IDEA snapshot secret updated.' >&2

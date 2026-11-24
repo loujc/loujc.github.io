@@ -230,6 +230,20 @@ The selected calendar name is stored only in a mode-`0600` file under the
 user's local Application Support directory. It is not accepted as a command-line
 argument and is never added to the repository.
 
+### Recovering an expired IDEA snapshot
+
+The 90-day limit applies to the actual production Secret, not just test
+fixtures. On 2026-11-23, the snapshot last refreshed on 2026-08-25 expired;
+subsequent builds stopped before querying iCloud, and the public calendar
+became unavailable after the six-hour stale limit. Refresh the snapshot with
+the command above, then trigger a deployment and verify the published
+`availability/busy.json` generation time. Do not extend the age limit or
+reinterpret the missing IDEA source as free time.
+
+The refresh wrapper completes capture and validation before starting a Secret
+write. A failed capture or validation therefore leaves the existing Secret
+untouched; the anonymous bitmap is held only in process memory.
+
 Apple references:
 
 - EventKit event-store access: <https://developer.apple.com/documentation/eventkit/accessing-the-event-store>
